@@ -466,15 +466,21 @@ test("3D electrical plates choose the intended face of a custom counter wall", (
         { id: "counter-side", roomId: "ldk", from: { x: 100, y: 200 }, to: { x: 100, y: 100 }, lengthCm: 100 },
         { id: "counter-back", roomId: "ldk", from: { x: 60, y: 100 }, to: { x: 60, y: 200 }, lengthCm: 100 },
       ],
-      features: [{ id: "counter", roomId: "ldk", elevationWallId: "counter-side", x: 70, y: 130, width: 30, height: 60 }],
+      features: [{ id: "counter", roomId: "ldk", elevationWallId: "counter-side", elevationOffsetCm: 0, elevationWidthCm: 60, x: 70, y: 130, width: 30, height: 60 }],
     },
   };
   const counterOutlet = { roomId: "ldk", elevationWallId: "counter-side", elevationCenterCm: 40, verticalPosition: { centerHeightCm: 100 } };
+  const counterSwitch = { roomId: "ldk", elevationWallId: "counter-side", elevationCenterCm: 90, verticalPosition: { centerHeightCm: 120 } };
   const kitchenOutlet = { roomId: "ldk", elevationWallId: "counter-back", elevationCenterCm: 40, verticalPosition: { centerHeightCm: 104 } };
-  const counterNormal = electricalThreePlacement(documentData, counterOutlet).normal;
+  const counterPlacement = electricalThreePlacement(documentData, counterOutlet);
+  const counterNormal = counterPlacement.normal;
+  const switchPlacement = electricalThreePlacement(documentData, counterSwitch, "switch");
   const kitchenNormal = electricalThreePlacement(documentData, kitchenOutlet).normal;
-  assert.equal(counterNormal.x, -1);
+  assert.equal(counterPlacement.anchor.x, 70);
+  assert.equal(counterNormal.x, 1);
   assert.equal(Math.abs(counterNormal.y), 0);
+  assert.equal(switchPlacement.anchor.x, 100);
+  assert.equal(switchPlacement.normal.x, 1);
   assert.equal(kitchenNormal.x, -1);
   assert.equal(Math.abs(kitchenNormal.y), 0);
 });

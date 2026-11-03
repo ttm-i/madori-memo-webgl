@@ -1,4 +1,4 @@
-import { buildKitchenComponentRects, buildRoomWalls, featureSupportRange, getElectricalPlanPosition, pointInPolygon, resolveFurnitureVerticalRange } from "./model.js?v=71";
+import { buildKitchenComponentRects, buildRoomWalls, featureSupportRange, getElectricalPlanPosition, pointInPolygon, resolveFurnitureVerticalRange } from "./model.js?v=72";
 
 const NS = "http://www.w3.org/2000/svg";
 
@@ -175,8 +175,14 @@ export function electricalThreePlacement(documentData, electrical, electricalTyp
   const normal = { x: -tangent.y, y: tangent.x };
   const customWall = room && wall.index >= room.points.length;
   const relatedFeature = customWall
-    ? documentData.plan.features?.find((item) => item.elevationWallId === wall.id
-      && [item.x, item.y, item.width, item.height].every(Number.isFinite))
+    ? documentData.plan.features?.find((item) => {
+      const offset = item.elevationOffsetCm ?? 0;
+      const width = item.elevationWidthCm ?? item.internalWidthCm ?? item.overallWidthCm ?? item.width;
+      return item.elevationWallId === wall.id
+        && [item.x, item.y, item.width, item.height, width, electrical.elevationCenterCm].every(Number.isFinite)
+        && electrical.elevationCenterCm >= offset
+        && electrical.elevationCenterCm <= offset + width;
+    })
     : null;
   const faceTarget = relatedFeature
     ? { x: relatedFeature.x + relatedFeature.width / 2, y: relatedFeature.y + relatedFeature.height / 2 }
@@ -185,8 +191,27 @@ export function electricalThreePlacement(documentData, electrical, electricalTyp
     normal.x *= -1;
     normal.y *= -1;
   }
+  let anchor = position.anchor;
+  if (relatedFeature) {
+    const corners = [
+      { x: relatedFeature.x, y: relatedFeature.y },
+      { x: relatedFeature.x + relatedFeature.width, y: relatedFeature.y },
+      { x: relatedFeature.x + relatedFeature.width, y: relatedFeature.y + relatedFeature.height },
+      { x: relatedFeature.x, y: relatedFeature.y + relatedFeature.height },
+    ];
+    const recessDepth = Math.max(0, ...corners.map((corner) =>
+      (corner.x - position.anchor.x) * normal.x + (corner.y - position.anchor.y) * normal.y));
+    if (recessDepth > 0) {
+      anchor = {
+        x: position.anchor.x + normal.x * recessDepth,
+        y: position.anchor.y + normal.y * recessDepth,
+      };
+      normal.x *= -1;
+      normal.y *= -1;
+    }
+  }
   return {
-    anchor: position.anchor,
+    anchor,
     tangent,
     normal,
     wall,
