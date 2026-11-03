@@ -553,6 +553,19 @@ export function furnitureDescendantIds(plan, furnitureId) {
   return descendants;
 }
 
+export function translateFurnitureDescendants(plan, furnitureId, deltaX, deltaY) {
+  if (!Number.isFinite(deltaX) || !Number.isFinite(deltaY) || (!deltaX && !deltaY)) return [];
+  const descendantIds = furnitureDescendantIds(plan, furnitureId);
+  const moved = [];
+  for (const item of plan?.furniture ?? []) {
+    if (!descendantIds.has(item.id)) continue;
+    item.x += deltaX;
+    item.y += deltaY;
+    moved.push(item);
+  }
+  return moved;
+}
+
 export function duplicateFurnitureStack(plan, furniture, createId) {
   if (!furniture) return [];
   const furnitureItems = plan?.furniture ?? [];

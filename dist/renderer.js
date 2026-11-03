@@ -1,4 +1,4 @@
-import { analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildKitchenComponentRects, findSupportItem, getDimensionGroup, getElectricalPlanPosition, moveDimensionGuide, QUALITY_LABELS, snapToGrid } from "./model.js?v=86";
+import { analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildKitchenComponentRects, findSupportItem, furnitureDescendantIds, getDimensionGroup, getElectricalPlanPosition, moveDimensionGuide, QUALITY_LABELS, snapToGrid, translateFurnitureDescendants } from "./model.js?v=87";
 
 const NS = "http://www.w3.org/2000/svg";
 
@@ -307,8 +307,12 @@ export class PlanRenderer {
         if (this.locked || (furniture.supportId && !supportedMovable) || !this.isSelectable("furniture")) return;
         event.stopPropagation();
         event.currentTarget.setPointerCapture?.(event.pointerId);
+        const descendantGroups = [...furnitureDescendantIds(documentData.plan, furniture.id)]
+          .map((id) => this.svg.querySelector(`.furniture-group[data-furniture-id="${id}"]`))
+          .filter(Boolean);
         this.draggingFurniture = {
           furniture, rect, label, sizeLabel, supportLabel, support,
+          descendantGroups,
           clientX: event.clientX, clientY: event.clientY,
           startX: furniture.x, startY: furniture.y,
           moved: false,
@@ -609,6 +613,8 @@ export class PlanRenderer {
         const viewport = this.svg.viewBox.baseVal;
         const dx = (event.clientX - drag.clientX) * viewport.width / rect.width / this.transform.scale;
         const dy = (event.clientY - drag.clientY) * viewport.height / rect.height / this.transform.scale;
+        const previousX = drag.furniture.x;
+        const previousY = drag.furniture.y;
         if (drag.support) {
           const supportWidth = drag.support.widthCm ?? drag.support.width;
           const supportDepth = drag.support.depthCm ?? drag.support.height;
@@ -620,6 +626,10 @@ export class PlanRenderer {
           drag.furniture.x = this.snapEnabled ? snapToGrid(drag.startX + dx) : drag.startX + dx;
           drag.furniture.y = this.snapEnabled ? snapToGrid(drag.startY + dy) : drag.startY + dy;
         }
+        translateFurnitureDescendants(this.document.plan, drag.furniture.id, drag.furniture.x - previousX, drag.furniture.y - previousY);
+        const stackDeltaX = drag.furniture.x - drag.startX;
+        const stackDeltaY = drag.furniture.y - drag.startY;
+        for (const descendantGroup of drag.descendantGroups) descendantGroup.setAttribute("transform", `translate(${stackDeltaX} ${stackDeltaY})`);
         drag.rect.setAttribute("x", drag.furniture.x);
         drag.rect.setAttribute("y", drag.furniture.y);
         drag.label.setAttribute("x", drag.furniture.x + drag.furniture.widthCm / 2);

@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildElevationItems, buildKitchenCabinetLayout, buildKitchenComponentRects, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, duplicateFurniture, duplicateFurnitureStack, findDeliveryDoorPath, fitsRectangle, FORMAT, furnitureDescendantIds, FURNITURE_PRESETS, furnitureDisplayHeight, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, kitchenComponentVerticalRange, moveDimensionGuide, pointInPolygon, rectangleIntersectsPolygon, rectanglesOverlap, removeFurnitureStack, resolveFurnitureElevationPlacement, resolveFurnitureVerticalRange, rotateFurniture, rotateFurnitureStack, snapToGrid, updateFurniture, validatePlan, wallDisplayWidth } from "../dist/model.js";
+import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildElevationItems, buildKitchenCabinetLayout, buildKitchenComponentRects, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, duplicateFurniture, duplicateFurnitureStack, findDeliveryDoorPath, fitsRectangle, FORMAT, furnitureDescendantIds, FURNITURE_PRESETS, furnitureDisplayHeight, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, kitchenComponentVerticalRange, moveDimensionGuide, pointInPolygon, rectangleIntersectsPolygon, rectanglesOverlap, removeFurnitureStack, resolveFurnitureElevationPlacement, resolveFurnitureVerticalRange, rotateFurniture, rotateFurnitureStack, snapToGrid, translateFurnitureDescendants, updateFurniture, validatePlan, wallDisplayWidth } from "../dist/model.js";
 import { detailMarkup, gestureExceedsTapThreshold, measurementMetrics, PlanRenderer, snapMeasurementPoint, zoomTransformAround } from "../dist/renderer.js";
 import { cabinetDoorPanelCount, cabinetThreePlacement, clampWebGLPan, closetDoorPanelCount, closetThreePlacement, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, projectThreeDepth, projectThreePoint, roomEdgeWallHeight, splitWallFace, subdivideVerticalRange, subdivideWallRectangle, subdivideWallRectangleTiles, subdivideWallSegment, threeItemBelongsToRoom, threeItemFootprint, threeLayerEnabled, threeRoomBounds, threeSelectableType, threeSelectionKey, threeViewportBox, threeWallBelongsToRoom, visibleBoxSideIndexes, wallFeatureThreePlacement, yawToQuarterTurn } from "../dist/three.js";
 
@@ -278,6 +278,18 @@ test("furniture stack duplication preserves nested support relationships", () =>
   assert.deepEqual([...furnitureDescendantIds(plan, "stand")], ["tv", "speaker"]);
   assert.equal(removeFurnitureStack(plan, "stand"), 3);
   assert.deepEqual(plan.furniture, []);
+});
+
+test("moving a support translates every stacked descendant by the same delta", () => {
+  const stand = { id: "stand", name: "テレビ台", x: 100, y: 100, widthCm: 150, depthCm: 40 };
+  const tv = { id: "tv", name: "テレビ", supportId: "stand", x: 120, y: 107.5, widthCm: 110, depthCm: 25, supportOffsetX: 20, supportOffsetY: 7.5 };
+  const speaker = { id: "speaker", name: "スピーカー", supportId: "tv", x: 130, y: 110, widthCm: 20, depthCm: 10, supportOffsetX: 10, supportOffsetY: 2.5 };
+  const unrelated = { id: "chair", name: "椅子", x: 300, y: 300, widthCm: 45, depthCm: 50 };
+  const plan = { furniture: [stand, tv, speaker, unrelated] };
+  assert.deepEqual(translateFurnitureDescendants(plan, "stand", 25, -10).map((item) => item.id), ["tv", "speaker"]);
+  assert.deepEqual({ x: tv.x, y: tv.y, offsetX: tv.supportOffsetX, offsetY: tv.supportOffsetY }, { x: 145, y: 97.5, offsetX: 20, offsetY: 7.5 });
+  assert.deepEqual({ x: speaker.x, y: speaker.y, offsetX: speaker.supportOffsetX, offsetY: speaker.supportOffsetY }, { x: 155, y: 100, offsetX: 10, offsetY: 2.5 });
+  assert.deepEqual({ x: unrelated.x, y: unrelated.y }, { x: 300, y: 300 });
 });
 
 test("furniture positions snap to a 5cm grid", () => {

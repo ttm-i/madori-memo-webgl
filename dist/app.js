@@ -1,7 +1,7 @@
-import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=86";
-import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildElevationItems, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurnitureStack, findSupportItem, furnitureDescendantIds as modelFurnitureDescendantIds, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, removeFurnitureStack, resolveFurnitureVerticalRange, rotateFurnitureStack, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=86";
-import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=86";
-import { createWebGLThreeView } from "./webgl-three.js?v=86";
+import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=87";
+import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildElevationItems, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurnitureStack, findSupportItem, furnitureDescendantIds as modelFurnitureDescendantIds, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, removeFurnitureStack, resolveFurnitureVerticalRange, rotateFurnitureStack, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=87";
+import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=87";
+import { createWebGLThreeView } from "./webgl-three.js?v=87";
 
 const elements = Object.fromEntries([
   "menuButton", "dataMenu", "detailDialog", "detailType", "detailTitle", "detailBody", "fileInput",
