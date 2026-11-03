@@ -56,6 +56,26 @@ export function findSupportItem(plan, supportId) {
     ?? null;
 }
 
+export function analyzeFurnitureSupportFit(furniture, plan) {
+  const support = findSupportItem(plan, furniture?.supportId);
+  if (!support) return null;
+  const supportWidthCm = support.widthCm ?? support.width;
+  const supportDepthCm = support.depthCm ?? support.height;
+  if (![supportWidthCm, supportDepthCm, furniture?.widthCm, furniture?.depthCm].every(Number.isFinite)) return null;
+  const overflowWidthCm = Math.max(0, furniture.widthCm - supportWidthCm);
+  const overflowDepthCm = Math.max(0, furniture.depthCm - supportDepthCm);
+  return {
+    support,
+    supportWidthCm,
+    supportDepthCm,
+    fits: overflowWidthCm <= .001 && overflowDepthCm <= .001,
+    overflowWidthCm,
+    overflowDepthCm,
+    movementWidthCm: Math.max(0, supportWidthCm - furniture.widthCm),
+    movementDepthCm: Math.max(0, supportDepthCm - furniture.depthCm),
+  };
+}
+
 export function featureSupportRange(feature) {
   if (feature?.kind === "washer-pan") return { bottomCm: 0, topCm: 4, schematic: true };
   if (Number.isFinite(feature?.bottomHeightCm) && Number.isFinite(feature?.topHeightCm)) {

@@ -373,6 +373,7 @@ dialog::backdrop { background: rgba(32,36,31,.42); backdrop-filter: blur(2px); }
 .furniture-group.selected .furniture-shape { stroke: var(--accent); stroke-width: 4; }
 .furniture-group.out-of-room .furniture-shape { fill: #efd0cc; stroke: var(--danger); stroke-width: 4; stroke-dasharray: 7 4; }
 .furniture-group.has-conflict:not(.out-of-room) .furniture-shape { fill: #f2dfbd; stroke: var(--warning); stroke-width: 4; stroke-dasharray: 7 4; }
+.furniture-group.support-overflow:not(.out-of-room) .furniture-shape { fill: #f2dfbd; stroke: var(--warning); stroke-width: 4; stroke-dasharray: 7 4; }
 .placement-guide { stroke: var(--accent); stroke-width: 1.5; stroke-dasharray: 4 3; vector-effect: non-scaling-stroke; pointer-events: none; }
 .placement-distance { fill: var(--accent); font-size: 11px; font-weight: 750; text-anchor: middle; paint-order: stroke; stroke: var(--surface); stroke-width: 4px; pointer-events: none; }
 .placement-warning { fill: var(--danger); font-size: 12px; font-weight: 800; text-anchor: middle; paint-order: stroke; stroke: var(--surface); stroke-width: 4px; pointer-events: none; }
@@ -412,6 +413,7 @@ dialog::backdrop { background: rgba(32,36,31,.42); backdrop-filter: blur(2px); }
 .field-label input, .field-label select { width: 100%; min-height: 46px; padding: 0 12px; border: 1px solid var(--line); border-radius: 11px; background: white; color: var(--ink); font-size: 16px; }
 .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .form-help { color: var(--muted); font-size: .73rem; line-height: 1.6; }
+.form-help.warning { color: #824c1c; font-weight: 750; }
 .full-width { width: 100%; }
 
 @media (max-width: 520px) {

@@ -1,4 +1,4 @@
-import { analyzeFurnitureConflicts, analyzeFurniturePlacement, buildKitchenComponentRects, findSupportItem, getDimensionGroup, getElectricalPlanPosition, moveDimensionGuide, QUALITY_LABELS, snapToGrid } from "./model.js?v=85";
+import { analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildKitchenComponentRects, findSupportItem, getDimensionGroup, getElectricalPlanPosition, moveDimensionGuide, QUALITY_LABELS, snapToGrid } from "./model.js?v=86";
 
 const NS = "http://www.w3.org/2000/svg";
 
@@ -256,10 +256,12 @@ export class PlanRenderer {
       const conflicts = analyzeFurnitureConflicts(furniture, documentData.plan);
       const selected = furniture.id === this.selectedFurnitureId;
       const support = findSupportItem(documentData.plan, furniture.supportId);
+      const supportFit = analyzeFurnitureSupportFit(furniture, documentData.plan);
       const supportWidth = support?.widthCm ?? support?.width;
       const supportDepth = support?.depthCm ?? support?.height;
       const supportedMovable = support && supportWidth >= furniture.widthCm && supportDepth >= furniture.depthCm;
-      const group = svg("g", { class: `furniture-group ${furniture.supportId ? "is-supported" : ""} ${furniture.supportId && !supportedMovable ? "is-supported-fixed" : ""} ${this.isSelectable("furniture") ? "" : "not-selectable"} ${selected ? "selected" : ""} ${placement.inside ? "" : "out-of-room"} ${conflicts.length ? "has-conflict" : ""}`, "data-furniture-id": furniture.id, tabindex: 0, role: "button", "aria-label": `${furniture.name}${furniture.supportId ? " 上置き" : ""}${placement.inside ? "" : " 部屋外"}${conflicts.length ? " 重なりあり" : ""}` });
+      const supportOverflow = supportFit?.fits === false;
+      const group = svg("g", { class: `furniture-group ${furniture.supportId ? "is-supported" : ""} ${furniture.supportId && !supportedMovable ? "is-supported-fixed" : ""} ${supportOverflow ? "support-overflow" : ""} ${this.isSelectable("furniture") ? "" : "not-selectable"} ${selected ? "selected" : ""} ${placement.inside ? "" : "out-of-room"} ${conflicts.length ? "has-conflict" : ""}`, "data-furniture-id": furniture.id, tabindex: 0, role: "button", "aria-label": `${furniture.name}${furniture.supportId ? " 上置き" : ""}${supportOverflow ? " 設置面からはみ出し" : ""}${placement.inside ? "" : " 部屋外"}${conflicts.length ? " 重なりあり" : ""}` });
       const rect = svg("rect", { class: "furniture-shape", x: furniture.x, y: furniture.y, width: furniture.widthCm, height: furniture.depthCm, rx: 5 });
       const label = svg("text", { class: "furniture-label", x: furniture.x + furniture.widthCm / 2, y: furniture.y + furniture.depthCm / 2 - 7 }, furniture.name);
       const sizeLabel = svg("text", { class: "furniture-size-label", x: furniture.x + furniture.widthCm / 2, y: furniture.y + furniture.depthCm / 2 + 10 }, `${furniture.widthCm}×${furniture.depthCm}`);
@@ -285,8 +287,12 @@ export class PlanRenderer {
           }, `${Math.round(distance * 10) / 10} cm`));
         }
       }
-      if (!placement.inside || conflicts.length) {
-        const warning = !placement.inside && conflicts.length ? "⚠ 部屋外・重なり" : !placement.inside ? "⚠ 部屋外" : "⚠ 重なり";
+      if (!placement.inside || conflicts.length || supportOverflow) {
+        const reasons = [];
+        if (!placement.inside) reasons.push("部屋外");
+        if (supportOverflow) reasons.push("設置面超過");
+        if (conflicts.length) reasons.push("重なり");
+        const warning = `⚠ ${reasons.join("・")}`;
         group.append(svg("text", { class: "placement-warning", x: furniture.x + furniture.widthCm / 2, y: furniture.y - 10 }, warning));
       }
       group.addEventListener("click", (event) => {
@@ -782,6 +788,10 @@ export function detailMarkup(type, item) {
     if (item.kind && item.kind !== "kitchen") values.push(["種類", item.kind]);
     if (type === "furniture" && item.roomName) values.push(["配置先", item.roomName]);
     if (type === "furniture" && item.supportName) values.push(["設置面", `${item.supportName}の上`]);
+    if (type === "furniture" && item.supportFit) {
+      values.push(["設置面寸法", `${item.supportFit.supportWidthCm} × ${item.supportFit.supportDepthCm} cm`]);
+      if (item.supportFit.fits) values.push(["面内の移動範囲", `横 ${item.supportFit.movementWidthCm} cm・奥行 ${item.supportFit.movementDepthCm} cm`]);
+    }
     if (type === "furniture" && item.vertical?.bottomCm > 0) values.push(["床から底面", `${item.vertical.bottomCm} cm`]);
     if (type === "furniture" && item.deliveryDimensions) {
       const dimensions = item.deliveryDimensions;
@@ -801,6 +811,12 @@ export function detailMarkup(type, item) {
   const list = values.length ? `<dl class="detail-list">${values.map(([key, value]) => `<dt>${escapeHTML(key)}</dt><dd>${escapeHTML(value)}</dd>`).join("")}</dl>` : "<p>詳細値はまだ登録されていません。</p>";
   const warnings = [];
   if (type === "furniture" && item.placement && !item.placement.inside) warnings.push("指定した部屋から家具がはみ出しています。");
+  if (type === "furniture" && item.supportFit?.fits === false) {
+    const overflow = [];
+    if (item.supportFit.overflowWidthCm > .001) overflow.push(`幅 ${item.supportFit.overflowWidthCm} cm`);
+    if (item.supportFit.overflowDepthCm > .001) overflow.push(`奥行 ${item.supportFit.overflowDepthCm} cm`);
+    warnings.push(`設置面より${overflow.join("・")}大きいため、中央に固定しています。`);
+  }
   if (type === "furniture" && item.conflicts?.length) warnings.push(`重なり: ${item.conflicts.map((conflict) => escapeHTML(conflict.name)).join("、")}`);
   const warning = warnings.length ? `<p class="placement-alert">${warnings.join("<br>")}</p>` : "";
   const qualityTags = type === "feature"

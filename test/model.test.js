@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, buildElevationItems, buildKitchenCabinetLayout, buildKitchenComponentRects, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, duplicateFurniture, duplicateFurnitureStack, findDeliveryDoorPath, fitsRectangle, FORMAT, furnitureDescendantIds, FURNITURE_PRESETS, furnitureDisplayHeight, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, kitchenComponentVerticalRange, moveDimensionGuide, pointInPolygon, rectangleIntersectsPolygon, rectanglesOverlap, removeFurnitureStack, resolveFurnitureElevationPlacement, resolveFurnitureVerticalRange, rotateFurniture, rotateFurnitureStack, snapToGrid, updateFurniture, validatePlan, wallDisplayWidth } from "../dist/model.js";
+import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildElevationItems, buildKitchenCabinetLayout, buildKitchenComponentRects, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, duplicateFurniture, duplicateFurnitureStack, findDeliveryDoorPath, fitsRectangle, FORMAT, furnitureDescendantIds, FURNITURE_PRESETS, furnitureDisplayHeight, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, kitchenComponentVerticalRange, moveDimensionGuide, pointInPolygon, rectangleIntersectsPolygon, rectanglesOverlap, removeFurnitureStack, resolveFurnitureElevationPlacement, resolveFurnitureVerticalRange, rotateFurniture, rotateFurnitureStack, snapToGrid, updateFurniture, validatePlan, wallDisplayWidth } from "../dist/model.js";
 import { detailMarkup, gestureExceedsTapThreshold, measurementMetrics, PlanRenderer, snapMeasurementPoint, zoomTransformAround } from "../dist/renderer.js";
 import { cabinetDoorPanelCount, cabinetThreePlacement, clampWebGLPan, closetDoorPanelCount, closetThreePlacement, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, projectThreeDepth, projectThreePoint, roomEdgeWallHeight, splitWallFace, subdivideVerticalRange, subdivideWallRectangle, subdivideWallRectangleTiles, subdivideWallSegment, threeItemBelongsToRoom, threeItemFootprint, threeLayerEnabled, threeRoomBounds, threeSelectableType, threeSelectionKey, threeViewportBox, threeWallBelongsToRoom, visibleBoxSideIndexes, wallFeatureThreePlacement, yawToQuarterTurn } from "../dist/three.js";
 
@@ -432,6 +432,29 @@ test("supported furniture aligns to its base and stacks measured heights", () =>
   assert.deepEqual(resolveFurnitureVerticalRange(plan, plan.furniture[0]), { bottomCm: 4, topCm: 109, schematic: true, support: plan.features[0] });
   assert.equal(resolveFurnitureVerticalRange(plan, plan.furniture[1]).bottomCm, 109);
   assert.deepEqual(analyzeFurnitureConflicts(plan.furniture[0], plan), []);
+});
+
+test("support fit reports movement range and oversized furniture overflow", () => {
+  const stand = { id: "stand", name: "台", x: 100, y: 100, widthCm: 100, depthCm: 50, heightCm: 40 };
+  const fitting = { id: "fitting", name: "家電", supportId: "stand", widthCm: 80, depthCm: 30, supportOffsetX: 999, supportOffsetY: 999 };
+  const oversized = { id: "oversized", name: "大型家電", supportId: "stand", widthCm: 110, depthCm: 60 };
+  const plan = { furniture: [stand, fitting, oversized] };
+  assert.deepEqual(analyzeFurnitureSupportFit(fitting, plan), {
+    support: stand,
+    supportWidthCm: 100,
+    supportDepthCm: 50,
+    fits: true,
+    overflowWidthCm: 0,
+    overflowDepthCm: 0,
+    movementWidthCm: 20,
+    movementDepthCm: 20,
+  });
+  alignFurnitureToSupport(plan, fitting);
+  assert.deepEqual({ x: fitting.x, y: fitting.y, offsetX: fitting.supportOffsetX, offsetY: fitting.supportOffsetY }, { x: 120, y: 120, offsetX: 20, offsetY: 20 });
+  const overflow = analyzeFurnitureSupportFit(oversized, plan);
+  assert.deepEqual({ fits: overflow.fits, width: overflow.overflowWidthCm, depth: overflow.overflowDepthCm }, { fits: false, width: 10, depth: 10 });
+  alignFurnitureToSupport(plan, oversized);
+  assert.deepEqual({ x: oversized.x, y: oversized.y }, { x: 95, y: 95 });
 });
 
 test("supported furniture inherits a fixed feature's elevation wall", () => {
