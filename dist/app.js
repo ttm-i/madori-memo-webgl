@@ -1,7 +1,7 @@
-import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=80";
-import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, buildElevationItems, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurniture, findSupportItem, getDimensionGroup, getElectricalPlanPosition, resolveFurnitureVerticalRange, rotateFurniture, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=80";
-import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=80";
-import { createWebGLThreeView } from "./webgl-three.js?v=80";
+import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=81";
+import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, buildElevationItems, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurniture, findSupportItem, getDimensionGroup, getElectricalPlanPosition, resolveFurnitureVerticalRange, rotateFurniture, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=81";
+import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=81";
+import { createWebGLThreeView } from "./webgl-three.js?v=81";
 
 const elements = Object.fromEntries([
   "menuButton", "dataMenu", "detailDialog", "detailType", "detailTitle", "detailBody", "fileInput",
@@ -84,7 +84,7 @@ function updateThreeView() {
   const notes = [`${scope} ドア・窓 ${result.openingCount}点のうち ${result.cutOpeningCount}点を壁の開口として反映。間仕切り壁 ${result.partitionWallCount}点。壁上端は天井位置ではありません。`];
   notes.push(`コンセント・スイッチ ${result.electricalCount}点を壁面位置と実測中心高さから表示しています。`);
   notes.push(result.furnitureWithoutHeight
-    ? `高さ未登録の家具 ${result.furnitureWithoutHeight}点は、位置確認用の低い箱として表示しています。`
+    ? `高さ未登録の家具 ${result.furnitureWithoutHeight}点は、種類別の模式高さで表示しています。`
     : "家具の高さデータを反映しています。");
   if (result.schematicFeatureCount) notes.push(`高さ未測定の設備 ${result.schematicFeatureCount}点は、用途を識別するための模式形状です。`);
   elements.threeHeightNote.textContent = notes.join(" ");
@@ -1047,6 +1047,7 @@ elements.furnitureForm.addEventListener("submit", async (event) => {
     depthCm,
     quality: "measured",
   };
+  if (elements.furniturePreset.value !== "custom") furniture.furnitureKind = elements.furniturePreset.value;
   if (heightCm !== null) furniture.heightCm = heightCm;
   if (supportId) furniture.supportId = supportId;
   alignFurnitureToSupport(activePlan.plan, furniture);

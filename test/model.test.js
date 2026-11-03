@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { alignFurnitureToSupport, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, buildElevationItems, buildKitchenCabinetLayout, buildKitchenComponentRects, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, duplicateFurniture, findDeliveryDoorPath, fitsRectangle, FORMAT, getDimensionGroup, getElectricalPlanPosition, kitchenComponentVerticalRange, moveDimensionGuide, pointInPolygon, rectangleIntersectsPolygon, rectanglesOverlap, resolveFurnitureElevationPlacement, resolveFurnitureVerticalRange, rotateFurniture, snapToGrid, updateFurniture, validatePlan, wallDisplayWidth } from "../dist/model.js";
+import { alignFurnitureToSupport, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, buildElevationItems, buildKitchenCabinetLayout, buildKitchenComponentRects, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, duplicateFurniture, findDeliveryDoorPath, fitsRectangle, FORMAT, furnitureDisplayHeight, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, kitchenComponentVerticalRange, moveDimensionGuide, pointInPolygon, rectangleIntersectsPolygon, rectanglesOverlap, resolveFurnitureElevationPlacement, resolveFurnitureVerticalRange, rotateFurniture, snapToGrid, updateFurniture, validatePlan, wallDisplayWidth } from "../dist/model.js";
 import { detailMarkup, gestureExceedsTapThreshold, measurementMetrics, PlanRenderer, snapMeasurementPoint, zoomTransformAround } from "../dist/renderer.js";
 import { cabinetDoorPanelCount, cabinetThreePlacement, clampWebGLPan, closetDoorPanelCount, closetThreePlacement, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, projectThreeDepth, projectThreePoint, roomEdgeWallHeight, splitWallFace, subdivideVerticalRange, subdivideWallRectangle, subdivideWallRectangleTiles, subdivideWallSegment, threeItemBelongsToRoom, threeItemFootprint, threeLayerEnabled, threeRoomBounds, threeSelectableType, threeSelectionKey, threeViewportBox, threeWallBelongsToRoom, visibleBoxSideIndexes, wallFeatureThreePlacement, yawToQuarterTurn } from "../dist/three.js";
 
@@ -82,7 +82,7 @@ test("wall elevation items preserve measured heights without inventing a ceiling
   assert.deepEqual(items.map(({ name, bottomCm, topCm }) => ({ name, bottomCm, topCm })), [
     { name: "掃き出し窓", bottomCm: 0, topCm: 180 },
     { name: "洋室引き戸", bottomCm: 0, topCm: 200 },
-    { name: "サンプルソファ", bottomCm: 0, topCm: 35 },
+    { name: "サンプルソファ", bottomCm: 0, topCm: 80 },
   ]);
   assert.equal(items.some((item) => item.name.includes("天井")), false);
 });
@@ -355,6 +355,16 @@ test("furniture editing preserves its center while changing size", () => {
   assert.deepEqual(furniture, { id: "f1", name: "テーブル", roomId: "bedroom", x: 80, y: 185, widthCm: 140, depthCm: 80, heightCm: 72 });
   updateFurniture(furniture, { name: "テーブル", roomId: "bedroom", widthCm: 140, depthCm: 80, heightCm: null });
   assert.equal("heightCm" in furniture, false);
+});
+
+test("furniture kinds are preserved or inferred and receive useful schematic heights", () => {
+  assert.equal(inferFurnitureKind({ furnitureKind: "fridge", name: "家電" }), "fridge");
+  assert.equal(inferFurnitureKind({ name: "シングルベッド" }), "single-bed");
+  assert.equal(inferFurnitureKind({ name: "電子レンジ" }), "microwave");
+  assert.equal(inferFurnitureKind({ name: "棚" }), "custom");
+  assert.equal(furnitureDisplayHeight({ name: "冷蔵庫" }), 180);
+  assert.equal(furnitureDisplayHeight({ name: "洗濯機", heightCm: 106 }), 106);
+  assert.deepEqual(resolveFurnitureVerticalRange({ furniture: [] }, { name: "ソファ" }), { bottomCm: 0, topCm: 80, schematic: true, support: null });
 });
 
 test("supported furniture aligns to its base and stacks measured heights", () => {

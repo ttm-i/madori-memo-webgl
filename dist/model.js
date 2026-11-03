@@ -123,8 +123,36 @@ export function kitchenComponentVerticalRange(feature) {
   return { bottomCm: worktopSurfaceCm + .2, topCm: worktopSurfaceCm + 2.2 };
 }
 
+export function inferFurnitureKind(furniture) {
+  const explicit = furniture?.furnitureKind;
+  if (["dining", "sofa", "single-bed", "tv-board", "fridge", "washer", "microwave"].includes(explicit)) return explicit;
+  const name = String(furniture?.name ?? "").toLowerCase();
+  if (/ベッド|bed/.test(name)) return "single-bed";
+  if (/ソファ|sofa/.test(name)) return "sofa";
+  if (/ダイニング|テーブル|table/.test(name)) return "dining";
+  if (/テレビ台|tv.?board/.test(name)) return "tv-board";
+  if (/冷蔵庫|fridge|refrigerator/.test(name)) return "fridge";
+  if (/洗濯機|washer/.test(name)) return "washer";
+  if (/電子レンジ|microwave/.test(name)) return "microwave";
+  return "custom";
+}
+
+export function furnitureDisplayHeight(furniture) {
+  if (Number.isFinite(furniture?.heightCm)) return furniture.heightCm;
+  return {
+    dining: 72,
+    sofa: 80,
+    "single-bed": 45,
+    "tv-board": 45,
+    fridge: 180,
+    washer: 100,
+    microwave: 35,
+    custom: 35,
+  }[inferFurnitureKind(furniture)];
+}
+
 export function resolveFurnitureVerticalRange(plan, furniture, visited = new Set()) {
-  const ownHeight = Number.isFinite(furniture?.heightCm) ? furniture.heightCm : 35;
+  const ownHeight = furnitureDisplayHeight(furniture);
   if (!furniture?.supportId || visited.has(furniture.id)) {
     return { bottomCm: 0, topCm: ownHeight, schematic: !Number.isFinite(furniture?.heightCm), support: null };
   }
