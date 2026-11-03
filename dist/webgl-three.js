@@ -1,6 +1,6 @@
 import * as THREE from "./vendor/three/three.module.js";
-import { buildKitchenCabinetLayout, buildKitchenComponentRects, resolveFurnitureVerticalRange } from "./model.js?v=79";
-import { cabinetDoorPanelCount, cabinetThreePlacement, clampWebGLPan, closetThreePlacement, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRoomBounds, threeSelectionKey, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=79";
+import { buildKitchenCabinetLayout, buildKitchenComponentRects, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=80";
+import { cabinetDoorPanelCount, cabinetThreePlacement, clampWebGLPan, closetThreePlacement, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRoomBounds, threeSelectionKey, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=80";
 
 const WALL_THICKNESS = 6;
 const DEFAULT_WALL_HEIGHT = 220;
@@ -696,9 +696,12 @@ function buildScene(root, documentData, options) {
       if (!mesh) continue;
       root.add(mesh);
       if (item.kind === "kitchen") {
+        const componentRange = kitchenComponentVerticalRange(item);
         for (const component of buildKitchenComponentRects(item)) {
           const componentItem = { ...component, name: item.name };
-          const componentMesh = boxObject(componentItem, { bottomCm: vertical.topCm + .5, topCm: vertical.topCm + 2.5 }, component.kind === "sink" ? 0x6f9faf : 0x303331, "feature");
+          const componentMesh = componentRange
+            ? boxObject(componentItem, componentRange, component.kind === "sink" ? 0x6f9faf : 0x303331, "feature")
+            : null;
           if (componentMesh) root.add(componentMesh);
           kitchenComponentCount += 1;
         }

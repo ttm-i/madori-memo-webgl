@@ -117,6 +117,12 @@ export function buildKitchenCabinetLayout(feature) {
   };
 }
 
+export function kitchenComponentVerticalRange(feature) {
+  if (!Number.isFinite(feature?.worktopHeightCm)) return null;
+  const worktopSurfaceCm = feature.worktopHeightCm + 3;
+  return { bottomCm: worktopSurfaceCm + .2, topCm: worktopSurfaceCm + 2.2 };
+}
+
 export function resolveFurnitureVerticalRange(plan, furniture, visited = new Set()) {
   const ownHeight = Number.isFinite(furniture?.heightCm) ? furniture.heightCm : 35;
   if (!furniture?.supportId || visited.has(furniture.id)) {
