@@ -1,6 +1,6 @@
 import * as THREE from "./vendor/three/three.module.js";
-import { buildKitchenComponentRects, resolveFurnitureVerticalRange } from "./model.js?v=66";
-import { featureVerticalRange, isCutawayEdge, openingVerticalRange, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRoomBounds, threeWallBelongsToRoom, yawToQuarterTurn } from "./three.js?v=66";
+import { buildKitchenComponentRects, resolveFurnitureVerticalRange } from "./model.js?v=67";
+import { featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRoomBounds, threeWallBelongsToRoom, yawToQuarterTurn } from "./three.js?v=67";
 
 const WALL_THICKNESS = 6;
 const DEFAULT_WALL_HEIGHT = 220;
@@ -152,6 +152,54 @@ function textSprite(text, position) {
   return sprite;
 }
 
+function openingAssembly(opening, range) {
+  const length = Math.hypot(opening.to.x - opening.from.x, opening.to.y - opening.from.y);
+  if (length < 8) return null;
+  const group = markSelectable(new THREE.Group(), "opening", opening);
+  const frameWidth = Math.min(4, length / 8);
+  const innerFrom = pointAt(opening.from, opening.to, frameWidth, length);
+  const innerTo = pointAt(opening.from, opening.to, length - frameWidth, length);
+  const panelBottom = range.bottomCm + (range.isWindow ? frameWidth : 1);
+  const panelTop = Math.max(panelBottom + 1, range.topCm - frameWidth);
+  const frameColor = range.isWindow ? 0x326f83 : 0x8a6042;
+  const panelColor = range.isWindow ? 0x72bdd5 : 0xf5efe5;
+  const frame = (from, to, bottom, top) => {
+    const mesh = segmentBox(from, to, bottom, top, 4, material(frameColor, { roughness: .55 }));
+    addOutline(mesh, range.isWindow ? 0x235d70 : 0x6d482f, .9);
+    group.add(mesh);
+  };
+
+  frame(opening.from, innerFrom, range.bottomCm, range.topCm);
+  frame(innerTo, opening.to, range.bottomCm, range.topCm);
+  frame(opening.from, opening.to, range.topCm - frameWidth, range.topCm);
+  if (range.isWindow) frame(opening.from, opening.to, range.bottomCm, range.bottomCm + frameWidth);
+
+  const pane = segmentBox(
+    innerFrom,
+    innerTo,
+    panelBottom,
+    panelTop,
+    1.8,
+    material(panelColor, { opacity: range.isWindow ? .46 : 1, roughness: .38 }),
+  );
+  pane.renderOrder = range.isWindow ? 3 : 1;
+  addOutline(pane, range.isWindow ? 0x2b718a : 0x8a6042, .82);
+  group.add(pane);
+
+  const panels = openingPanelCount(opening, range.isWindow);
+  for (let index = 1; index < panels; index += 1) {
+    const center = length * index / panels;
+    const from = pointAt(opening.from, opening.to, center - 1.25, length);
+    const to = pointAt(opening.from, opening.to, center + 1.25, length);
+    frame(from, to, panelBottom, panelTop);
+  }
+  if (range.isWindow) {
+    const railHeight = panelBottom + (panelTop - panelBottom) * .52;
+    frame(innerFrom, innerTo, railHeight - 1.25, railHeight + 1.25);
+  }
+  return group;
+}
+
 function layerEnabled(layer, options) { return options[layer] !== false; }
 
 function buildScene(root, documentData, options) {
@@ -229,17 +277,8 @@ function buildScene(root, documentData, options) {
   if (layerEnabled("openings", options)) {
     for (const { opening, range } of openings) {
       if (hiddenOpeningIds.has(opening.id)) continue;
-      const pane = segmentBox(
-        opening.from,
-        opening.to,
-        range.bottomCm,
-        range.topCm,
-        2.5,
-        material(range.isWindow ? 0x69b7d3 : 0xf8f3e9, { opacity: range.isWindow ? .5 : 1, roughness: .45 }),
-      );
-      pane.renderOrder = range.isWindow ? 3 : 1;
-      addOutline(pane, range.isWindow ? 0x26718d : 0x805936, .9);
-      root.add(markSelectable(pane, "opening", opening));
+      const assembly = openingAssembly(opening, range);
+      if (assembly) root.add(assembly);
     }
   }
 

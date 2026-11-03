@@ -1,4 +1,4 @@
-import { buildKitchenComponentRects, featureSupportRange, pointInPolygon, resolveFurnitureVerticalRange } from "./model.js?v=66";
+import { buildKitchenComponentRects, featureSupportRange, pointInPolygon, resolveFurnitureVerticalRange } from "./model.js?v=67";
 
 const NS = "http://www.w3.org/2000/svg";
 
@@ -134,6 +134,13 @@ export function threeItemFootprint(item, type) {
     width: item.width ?? item.widthCm,
     depth: item.height ?? item.depth ?? item.depthCm,
   };
+}
+
+export function openingPanelCount(opening, isWindow = String(opening?.kind ?? "").includes("window")) {
+  const kind = String(opening?.kind ?? "");
+  if (kind.includes("three-panel") || kind.includes("trapezoid-bay")) return 3;
+  if (isWindow) return 2;
+  return 1;
 }
 
 export function threeWallBelongsToRoom(wall, room) {
