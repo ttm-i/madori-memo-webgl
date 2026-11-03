@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { alignFurnitureToSupport, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, buildElevationItems, buildKitchenCabinetLayout, buildKitchenComponentRects, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, duplicateFurniture, findDeliveryDoorPath, fitsRectangle, FORMAT, FURNITURE_PRESETS, furnitureDisplayHeight, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, kitchenComponentVerticalRange, moveDimensionGuide, pointInPolygon, rectangleIntersectsPolygon, rectanglesOverlap, resolveFurnitureElevationPlacement, resolveFurnitureVerticalRange, rotateFurniture, snapToGrid, updateFurniture, validatePlan, wallDisplayWidth } from "../dist/model.js";
+import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, buildElevationItems, buildKitchenCabinetLayout, buildKitchenComponentRects, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, duplicateFurniture, findDeliveryDoorPath, fitsRectangle, FORMAT, FURNITURE_PRESETS, furnitureDisplayHeight, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, kitchenComponentVerticalRange, moveDimensionGuide, pointInPolygon, rectangleIntersectsPolygon, rectanglesOverlap, resolveFurnitureElevationPlacement, resolveFurnitureVerticalRange, rotateFurniture, rotateFurnitureStack, snapToGrid, updateFurniture, validatePlan, wallDisplayWidth } from "../dist/model.js";
 import { detailMarkup, gestureExceedsTapThreshold, measurementMetrics, PlanRenderer, snapMeasurementPoint, zoomTransformAround } from "../dist/renderer.js";
 import { cabinetDoorPanelCount, cabinetThreePlacement, clampWebGLPan, closetDoorPanelCount, closetThreePlacement, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, projectThreeDepth, projectThreePoint, roomEdgeWallHeight, splitWallFace, subdivideVerticalRange, subdivideWallRectangle, subdivideWallRectangleTiles, subdivideWallSegment, threeItemBelongsToRoom, threeItemFootprint, threeLayerEnabled, threeRoomBounds, threeSelectableType, threeSelectionKey, threeViewportBox, threeWallBelongsToRoom, visibleBoxSideIndexes, wallFeatureThreePlacement, yawToQuarterTurn } from "../dist/three.js";
 
@@ -233,6 +233,27 @@ test("furniture rotates around its center", () => {
   rotateFurniture(furniture);
   rotateFurniture(furniture);
   assert.deepEqual(furniture, { id: "f1", name: "テーブル", x: 100, y: 200, widthCm: 140, depthCm: 80, rotationQuarterTurns: 0 });
+});
+
+test("rotating a support keeps stacked furniture aligned and facing the same way", () => {
+  const stand = { id: "stand", name: "テレビ台", x: 100, y: 100, widthCm: 150, depthCm: 40 };
+  const tv = { id: "tv", name: "テレビ", supportId: "stand", x: 120, y: 107.5, widthCm: 110, depthCm: 25, supportOffsetX: 20, supportOffsetY: 7.5 };
+  const plan = { furniture: [stand, tv] };
+  rotateFurnitureStack(plan, stand);
+  assert.deepEqual(stand, { id: "stand", name: "テレビ台", x: 155, y: 45, widthCm: 40, depthCm: 150, rotationQuarterTurns: 1 });
+  assert.deepEqual(tv, { id: "tv", name: "テレビ", supportId: "stand", x: 162.5, y: 65, widthCm: 25, depthCm: 110, supportOffsetX: 7.5, supportOffsetY: 20, rotationQuarterTurns: 1 });
+  alignSupportedFurniture(plan);
+  assert.deepEqual({ x: tv.x, y: tv.y }, { x: 162.5, y: 65 });
+});
+
+test("rotating stacked furniture itself preserves its new position on the support", () => {
+  const stand = { id: "stand", name: "テレビ台", x: 100, y: 100, widthCm: 150, depthCm: 40 };
+  const tv = { id: "tv", name: "テレビ", supportId: "stand", x: 120, y: 107.5, widthCm: 110, depthCm: 25, supportOffsetX: 20, supportOffsetY: 7.5 };
+  const plan = { furniture: [stand, tv] };
+  rotateFurnitureStack(plan, tv);
+  assert.deepEqual(tv, { id: "tv", name: "テレビ", supportId: "stand", x: 162.5, y: 65, widthCm: 25, depthCm: 110, supportOffsetX: 62.5, supportOffsetY: -35, rotationQuarterTurns: 1 });
+  alignSupportedFurniture(plan);
+  assert.deepEqual({ x: tv.x, y: tv.y }, { x: 162.5, y: 65 });
 });
 
 test("furniture duplication preserves size and offsets position", () => {

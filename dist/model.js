@@ -461,6 +461,52 @@ export function rotateFurniture(furniture) {
   return furniture;
 }
 
+export function rotateFurnitureStack(plan, furniture) {
+  const furnitureItems = plan?.furniture ?? [];
+  const visited = new Set();
+  const rotateNode = (item, nextCenter = null) => {
+    if (!item || visited.has(item.id)) return;
+    visited.add(item.id);
+    const center = {
+      x: item.x + item.widthCm / 2,
+      y: item.y + item.depthCm / 2,
+    };
+    const children = furnitureItems
+      .filter((candidate) => candidate.supportId === item.id && !visited.has(candidate.id))
+      .map((candidate) => ({
+        item: candidate,
+        center: {
+          x: candidate.x + candidate.widthCm / 2,
+          y: candidate.y + candidate.depthCm / 2,
+        },
+      }));
+    rotateFurniture(item);
+    const rotatedCenter = nextCenter ?? center;
+    item.x = rotatedCenter.x - item.widthCm / 2;
+    item.y = rotatedCenter.y - item.depthCm / 2;
+    for (const child of children) {
+      const relativeX = child.center.x - center.x;
+      const relativeY = child.center.y - center.y;
+      rotateNode(child.item, {
+        x: rotatedCenter.x + relativeY,
+        y: rotatedCenter.y - relativeX,
+      });
+      child.item.supportOffsetX = child.item.x - item.x;
+      child.item.supportOffsetY = child.item.y - item.y;
+    }
+  };
+  rotateNode(furniture);
+  if (furniture.supportId) {
+    const support = furnitureItems.find((item) => item.id === furniture.supportId);
+    if (support) {
+      furniture.supportOffsetX = furniture.x - support.x;
+      furniture.supportOffsetY = furniture.y - support.y;
+      alignFurnitureToSupport(plan, furniture);
+    }
+  }
+  return furniture;
+}
+
 export function duplicateFurniture(furniture, id) {
   return {
     ...structuredClone(furniture),

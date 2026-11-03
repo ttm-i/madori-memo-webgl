@@ -1,7 +1,7 @@
-import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=83";
-import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, buildElevationItems, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurniture, findSupportItem, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, resolveFurnitureVerticalRange, rotateFurniture, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=83";
-import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=83";
-import { createWebGLThreeView } from "./webgl-three.js?v=83";
+import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=84";
+import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, buildElevationItems, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurniture, findSupportItem, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, resolveFurnitureVerticalRange, rotateFurnitureStack, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=84";
+import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=84";
+import { createWebGLThreeView } from "./webgl-three.js?v=84";
 
 const elements = Object.fromEntries([
   "menuButton", "dataMenu", "detailDialog", "detailType", "detailTitle", "detailBody", "fileInput",
@@ -1076,8 +1076,9 @@ elements.rotateFurnitureButton.addEventListener("click", async () => {
   const furniture = selectedFurniture();
   if (!furniture) return;
   pushHistory();
-  rotateFurniture(furniture);
-  await commitFurnitureChange("家具を90°回転しました");
+  rotateFurnitureStack(activePlan.plan, furniture);
+  const supportedCount = activePlan.plan.furniture.filter((item) => item.supportId === furniture.id).length;
+  await commitFurnitureChange(supportedCount ? "上に載せた家具と一緒に90°回転しました" : "家具を90°回転しました");
 });
 elements.duplicateFurnitureButton.addEventListener("click", async () => {
   if (locked) return;
