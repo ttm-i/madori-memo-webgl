@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildElevationItems, buildKitchenCabinetLayout, buildKitchenComponentRects, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, duplicateFurniture, duplicateFurnitureStack, findDeliveryDoorPath, fitsRectangle, FORMAT, furnitureDescendantIds, FURNITURE_PRESETS, furnitureDisplayHeight, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, kitchenComponentVerticalRange, moveDimensionGuide, pointInPolygon, rectangleIntersectsPolygon, rectanglesOverlap, removeFurnitureStack, resolveFurnitureElevationPlacement, resolveFurnitureVerticalRange, rotateFurniture, rotateFurnitureStack, snapToGrid, translateFurnitureDescendants, updateFurniture, validatePlan, wallDisplayWidth } from "../dist/model.js";
+import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildElevationItems, buildFurnitureHierarchy, buildKitchenCabinetLayout, buildKitchenComponentRects, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, duplicateFurniture, duplicateFurnitureStack, findDeliveryDoorPath, fitsRectangle, FORMAT, furnitureDescendantIds, FURNITURE_PRESETS, furnitureDisplayHeight, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, kitchenComponentVerticalRange, moveDimensionGuide, pointInPolygon, rectangleIntersectsPolygon, rectanglesOverlap, removeFurnitureStack, resolveFurnitureElevationPlacement, resolveFurnitureVerticalRange, rotateFurniture, rotateFurnitureStack, snapToGrid, translateFurnitureDescendants, updateFurniture, validatePlan, wallDisplayWidth } from "../dist/model.js";
 import { detailMarkup, gestureExceedsTapThreshold, measurementMetrics, PlanRenderer, snapMeasurementPoint, zoomTransformAround } from "../dist/renderer.js";
 import { cabinetDoorPanelCount, cabinetThreePlacement, clampWebGLPan, closetDoorPanelCount, closetThreePlacement, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, projectThreeDepth, projectThreePoint, roomEdgeWallHeight, splitWallFace, subdivideVerticalRange, subdivideWallRectangle, subdivideWallRectangleTiles, subdivideWallSegment, threeItemBelongsToRoom, threeItemFootprint, threeLayerEnabled, threeRoomBounds, threeSelectableType, threeSelectionKey, threeViewportBox, threeWallBelongsToRoom, visibleBoxSideIndexes, wallFeatureThreePlacement, yawToQuarterTurn } from "../dist/three.js";
 
@@ -290,6 +290,24 @@ test("moving a support translates every stacked descendant by the same delta", (
   assert.deepEqual({ x: tv.x, y: tv.y, offsetX: tv.supportOffsetX, offsetY: tv.supportOffsetY }, { x: 145, y: 97.5, offsetX: 20, offsetY: 7.5 });
   assert.deepEqual({ x: speaker.x, y: speaker.y, offsetX: speaker.supportOffsetX, offsetY: speaker.supportOffsetY }, { x: 155, y: 100, offsetX: 10, offsetY: 2.5 });
   assert.deepEqual({ x: unrelated.x, y: unrelated.y }, { x: 300, y: 300 });
+});
+
+test("furniture hierarchy keeps stacked items beside their parent and retains orphans", () => {
+  const stand = { id: "stand", name: "テレビ台" };
+  const chair = { id: "chair", name: "椅子" };
+  const tv = { id: "tv", name: "テレビ", supportId: "stand" };
+  const speaker = { id: "speaker", name: "スピーカー", supportId: "tv" };
+  const microwave = { id: "microwave", name: "電子レンジ", supportId: "fixed-counter" };
+  const orphan = { id: "orphan", name: "参照切れ", supportId: "missing-furniture" };
+  const plan = { furniture: [stand, chair, tv, speaker, microwave, orphan] };
+  assert.deepEqual(buildFurnitureHierarchy(plan).map(({ furniture, depth }) => [furniture.id, depth]), [
+    ["stand", 0],
+    ["tv", 1],
+    ["speaker", 2],
+    ["chair", 0],
+    ["microwave", 0],
+    ["orphan", 0],
+  ]);
 });
 
 test("furniture positions snap to a 5cm grid", () => {

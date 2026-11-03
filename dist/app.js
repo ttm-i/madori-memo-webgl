@@ -1,7 +1,7 @@
-import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=87";
-import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildElevationItems, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurnitureStack, findSupportItem, furnitureDescendantIds as modelFurnitureDescendantIds, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, removeFurnitureStack, resolveFurnitureVerticalRange, rotateFurnitureStack, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=87";
-import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=87";
-import { createWebGLThreeView } from "./webgl-three.js?v=87";
+import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=88";
+import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildElevationItems, buildFurnitureHierarchy, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurnitureStack, findSupportItem, furnitureDescendantIds as modelFurnitureDescendantIds, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, removeFurnitureStack, resolveFurnitureVerticalRange, rotateFurnitureStack, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=88";
+import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=88";
+import { createWebGLThreeView } from "./webgl-three.js?v=88";
 
 const elements = Object.fromEntries([
   "menuButton", "dataMenu", "detailDialog", "detailType", "detailTitle", "detailBody", "fileInput",
@@ -810,16 +810,19 @@ function renderFurnitureList() {
     elements.furnitureList.replaceChildren(empty);
     return;
   }
-  const rows = furnitureItems.map((furniture) => {
+  const rows = buildFurnitureHierarchy(activePlan.plan).map(({ furniture, depth }) => {
     const room = activePlan.plan.rooms.find((candidate) => candidate.id === furniture.roomId);
     const placement = analyzeFurniturePlacement(furniture, room);
     const conflicts = analyzeFurnitureConflicts(furniture, activePlan.plan);
     const supportFit = analyzeFurnitureSupportFit(furniture, activePlan.plan);
+    const vertical = resolveFurnitureVerticalRange(activePlan.plan, furniture);
     const row = document.createElement("button");
     row.type = "button";
     row.className = `furniture-list-item ${!placement.inside ? "danger" : supportFit?.fits === false || conflicts.length ? "warning" : ""}`;
+    row.classList.toggle("is-nested", depth > 0);
+    row.style.setProperty("--tree-indent", `${depth * 16}px`);
     const name = document.createElement("strong");
-    name.textContent = furniture.name;
+    name.textContent = `${depth > 0 ? "↳ " : ""}${furniture.name}`;
     const roomLabel = document.createElement("span");
     const support = findSupportItem(activePlan.plan, furniture.supportId);
     const statuses = [];
@@ -827,12 +830,16 @@ function renderFurnitureList() {
     if (supportFit?.fits === false) statuses.push("設置面からはみ出し");
     if (conflicts.length) statuses.push("重なりあり");
     roomLabel.textContent = `${room?.name ?? "未設定"}${support ? `・${support.name}の上` : ""}${statuses.map((status) => `・${status}`).join("")}`;
+    const heightLabel = document.createElement("span");
+    heightLabel.className = "furniture-list-height";
+    const topLabel = vertical.schematic ? `最上部 約${vertical.topCm} cm（模式）` : `最上部 ${vertical.topCm} cm`;
+    heightLabel.textContent = vertical.bottomCm > 0 ? `底面 ${vertical.bottomCm} cm・${topLabel}` : topLabel;
     const size = document.createElement("span");
     size.className = "furniture-list-size";
     size.textContent = Number.isFinite(furniture.heightCm)
       ? `${furniture.widthCm}×${furniture.depthCm}×高さ${furniture.heightCm} cm`
       : `${furniture.widthCm}×${furniture.depthCm} cm・高さ未登録`;
-    row.append(name, roomLabel, size);
+    row.append(name, roomLabel, heightLabel, size);
     row.addEventListener("click", () => {
       elements.furnitureListDialog.close();
       setFurnitureVisible(true);

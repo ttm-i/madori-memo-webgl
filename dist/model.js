@@ -566,6 +566,22 @@ export function translateFurnitureDescendants(plan, furnitureId, deltaX, deltaY)
   return moved;
 }
 
+export function buildFurnitureHierarchy(plan) {
+  const furnitureItems = plan?.furniture ?? [];
+  const furnitureIds = new Set(furnitureItems.map((item) => item.id));
+  const visited = new Set();
+  const rows = [];
+  const visit = (item, depth) => {
+    if (!item || visited.has(item.id)) return;
+    visited.add(item.id);
+    rows.push({ furniture: item, depth });
+    for (const child of furnitureItems) if (child.supportId === item.id) visit(child, depth + 1);
+  };
+  for (const item of furnitureItems) if (!furnitureIds.has(item.supportId)) visit(item, 0);
+  for (const item of furnitureItems) visit(item, 0);
+  return rows;
+}
+
 export function duplicateFurnitureStack(plan, furniture, createId) {
   if (!furniture) return [];
   const furnitureItems = plan?.furniture ?? [];
