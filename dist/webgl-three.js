@@ -1,6 +1,6 @@
 import * as THREE from "./vendor/three/three.module.js";
-import { buildKitchenCabinetLayout, buildKitchenComponentRects, inferFurnitureKind, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=91";
-import { cabinetDoorPanelCount, cabinetThreePlacement, clampWebGLPan, closetThreePlacement, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRoomBounds, threeSelectionKey, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=91";
+import { buildKitchenCabinetLayout, buildKitchenComponentRects, inferFurnitureKind, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=92";
+import { cabinetDoorPanelCount, cabinetThreePlacement, clampWebGLPan, closetThreePlacement, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRoomBounds, threeSelectionKey, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=92";
 
 const WALL_THICKNESS = 6;
 const DEFAULT_WALL_HEIGHT = 220;
@@ -885,7 +885,7 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null) {
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
   const pointers = new Map();
-  const view = { yaw: -Math.PI / 4, pitch: .72, zoom: 1, panX: 0, panY: 0, quarterTurn: 0 };
+  const view = { yaw: -Math.PI / 4, pitch: .72, zoom: 1, panX: 0, panY: 0, quarterTurn: 0, focus: null };
   let sceneInfo = { bounds: { x: 0, y: 0, width: 1, height: 1 }, wallHeight: DEFAULT_WALL_HEIGHT };
   let frameRequested = false;
   let pinchStart = null;
@@ -919,11 +919,13 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null) {
     camera.top = span / 2;
     camera.bottom = -span / 2;
     camera.updateProjectionMatrix();
-    const center = new THREE.Vector3(
-      sceneInfo.bounds.x + sceneInfo.bounds.width / 2,
-      sceneInfo.wallHeight * .28,
-      sceneInfo.bounds.y + sceneInfo.bounds.height / 2,
-    );
+    const center = view.focus
+      ? new THREE.Vector3(view.focus.x, view.focus.y, view.focus.z)
+      : new THREE.Vector3(
+        sceneInfo.bounds.x + sceneInfo.bounds.width / 2,
+        sceneInfo.wallHeight * .28,
+        sceneInfo.bounds.y + sceneInfo.bounds.height / 2,
+      );
     const distance = Math.max(sceneInfo.bounds.width, sceneInfo.bounds.height, 500) * 1.65;
     const horizontal = Math.cos(view.pitch) * distance;
     camera.position.set(
@@ -968,6 +970,7 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null) {
     view.zoom = 1;
     view.panX = 0;
     view.panY = 0;
+    view.focus = null;
     rebuildScene();
   }
 
@@ -1008,7 +1011,7 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null) {
     });
   }
 
-  function applySelectionHighlight() {
+  function applySelectionHighlight({ focus = false } = {}) {
     restoreSelectionMaterials();
     if (!selectedKey) return;
     let selectedObject = null;
@@ -1029,7 +1032,12 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null) {
       }
     });
     if (selectedObject) {
-      selectionOutline = new THREE.Box3Helper(new THREE.Box3().setFromObject(selectedObject), 0x08795f);
+      const bounds = new THREE.Box3().setFromObject(selectedObject);
+      if (focus) {
+        const center = bounds.getCenter(new THREE.Vector3());
+        view.focus = { x: center.x, y: center.y, z: center.z };
+      }
+      selectionOutline = new THREE.Box3Helper(bounds, 0x08795f);
       selectionOutline.renderOrder = 20;
       selectionOutline.material.depthTest = false;
       root.add(selectionOutline);
@@ -1037,7 +1045,11 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null) {
   }
 
   function clearSelection() {
-    if (!selectedKey) return;
+    view.focus = null;
+    if (!selectedKey) {
+      requestRender();
+      return;
+    }
     selectedKey = null;
     restoreSelectionMaterials();
     requestRender();
@@ -1045,7 +1057,10 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null) {
 
   function setSelection(type, item) {
     selectedKey = threeSelectionKey(type, item);
-    applySelectionHighlight();
+    view.focus = null;
+    view.panX = 0;
+    view.panY = 0;
+    applySelectionHighlight({ focus: true });
     requestRender();
     return Boolean(selectedKey);
   }
@@ -1180,6 +1195,7 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null) {
     },
     getZoom: () => view.zoom,
     getPan: () => ({ x: view.panX, y: view.panY }),
+    getFocus: () => view.focus ? { ...view.focus } : null,
     setZoom,
     resetView,
     clearSelection,
