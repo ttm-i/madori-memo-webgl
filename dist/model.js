@@ -455,6 +455,7 @@ export function rotateFurniture(furniture) {
   const centerX = furniture.x + furniture.widthCm / 2;
   const centerY = furniture.y + furniture.depthCm / 2;
   [furniture.widthCm, furniture.depthCm] = [furniture.depthCm, furniture.widthCm];
+  furniture.rotationQuarterTurns = ((furniture.rotationQuarterTurns ?? 0) + 1) % 4;
   furniture.x = centerX - furniture.widthCm / 2;
   furniture.y = centerY - furniture.depthCm / 2;
   return furniture;

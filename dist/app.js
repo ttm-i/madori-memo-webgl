@@ -1,7 +1,7 @@
-import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=82";
-import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, buildElevationItems, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurniture, findSupportItem, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, resolveFurnitureVerticalRange, rotateFurniture, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=82";
-import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=82";
-import { createWebGLThreeView } from "./webgl-three.js?v=82";
+import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=83";
+import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, buildElevationItems, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurniture, findSupportItem, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, resolveFurnitureVerticalRange, rotateFurniture, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=83";
+import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=83";
+import { createWebGLThreeView } from "./webgl-three.js?v=83";
 
 const elements = Object.fromEntries([
   "menuButton", "dataMenu", "detailDialog", "detailType", "detailTitle", "detailBody", "fileInput",
@@ -48,6 +48,7 @@ let threeCutaway = true;
 let threeShowLabels = false;
 let threeRoomId = "";
 let webglThreeView = null;
+let activeView = "plan";
 const threeLayers = { walls: true, openings: true, features: true, furniture: true, electrical: true };
 const selectableByMode = {
   view: new Set(["room", "dimension", "equipment", "electrical", "furniture"]),
@@ -724,8 +725,8 @@ function showDetail(type, item) {
   selectedFurnitureId = type === "furniture" ? item.id : null;
   preserveFurnitureSelectionOnClose = false;
   renderer.setSelectedFurniture(selectedFurnitureId);
-  const furnitureEditable = type === "furniture" && !locked;
-  elements.furnitureViewActions.hidden = type !== "furniture";
+  const furnitureEditable = type === "furniture" && !locked && activeView === "plan";
+  elements.furnitureViewActions.hidden = type !== "furniture" || activeView !== "plan";
   elements.furnitureActions.hidden = !furnitureEditable;
   elements.furnitureRoomEditGroup.hidden = !furnitureEditable;
   const typeLabels = { room: "ROOM", dimension: "DIMENSION", opening: "OPENING", feature: "EQUIPMENT", outlet: "OUTLET", switch: "SWITCH", furniture: "FURNITURE" };
@@ -872,6 +873,7 @@ function setWallViewportMode(mode) {
 
 document.querySelectorAll(".tab").forEach((tab) => tab.addEventListener("click", () => {
   if (tab.dataset.view !== "plan" && renderer.measurementMode) setMeasurementMode(false);
+  activeView = tab.dataset.view;
   document.querySelectorAll(".tab").forEach((item) => item.classList.toggle("is-active", item === tab));
   document.querySelectorAll(".view").forEach((view) => view.classList.remove("is-active"));
   document.getElementById(`${tab.dataset.view}View`).classList.add("is-active");

@@ -228,7 +228,11 @@ test("custom elevations can replace a room edge and omit a non-wall opening", ()
 test("furniture rotates around its center", () => {
   const furniture = { id: "f1", name: "テーブル", x: 100, y: 200, widthCm: 140, depthCm: 80 };
   rotateFurniture(furniture);
-  assert.deepEqual(furniture, { id: "f1", name: "テーブル", x: 130, y: 170, widthCm: 80, depthCm: 140 });
+  assert.deepEqual(furniture, { id: "f1", name: "テーブル", x: 130, y: 170, widthCm: 80, depthCm: 140, rotationQuarterTurns: 1 });
+  rotateFurniture(furniture);
+  rotateFurniture(furniture);
+  rotateFurniture(furniture);
+  assert.deepEqual(furniture, { id: "f1", name: "テーブル", x: 100, y: 200, widthCm: 140, depthCm: 80, rotationQuarterTurns: 0 });
 });
 
 test("furniture duplication preserves size and offsets position", () => {
