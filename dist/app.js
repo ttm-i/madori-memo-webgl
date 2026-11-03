@@ -1,7 +1,7 @@
-import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=89";
-import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildElevationItems, buildFurnitureHierarchy, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurnitureStack, findSupportItem, furnitureDescendantIds as modelFurnitureDescendantIds, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, removeFurnitureStack, resolveFurnitureVerticalRange, rotateFurnitureStack, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=89";
-import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=89";
-import { createWebGLThreeView } from "./webgl-three.js?v=89";
+import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=91";
+import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildElevationItems, buildFurnitureHierarchy, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurnitureStack, findSupportItem, furnitureDescendantIds as modelFurnitureDescendantIds, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, removeFurnitureStack, resolveFurnitureVerticalRange, rotateFurnitureStack, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=91";
+import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=91";
+import { createWebGLThreeView } from "./webgl-three.js?v=91";
 
 const elements = Object.fromEntries([
   "menuButton", "dataMenu", "detailDialog", "detailType", "detailTitle", "detailBody", "fileInput",
@@ -15,7 +15,7 @@ const elements = Object.fromEntries([
   "summaryTitle", "roomCount", "measuredCount", "uncertainCount", "connectionBadge", "saveStatus", "toast",
   "furnitureButton", "furnitureDialog", "furnitureForm", "cancelFurnitureButton",
   "furnitureName", "furnitureWidth", "furnitureDepth", "furnitureHeight", "furnitureRoom", "furniturePreset", "furnitureSupport", "furnitureSupportHelp",
-  "furnitureViewActions", "showFurnitureClearanceButton", "furnitureActions", "rotateFurnitureButton", "duplicateFurnitureButton", "deleteFurnitureButton",
+  "furnitureViewActions", "showFurnitureInPlanButton", "showFurnitureInThreeButton", "showFurnitureClearanceButton", "furnitureActions", "rotateFurnitureButton", "duplicateFurnitureButton", "deleteFurnitureButton",
   "furnitureRoomEditGroup", "furnitureRoomEdit",
   "editFurnitureButton", "furnitureDialogTitle", "furnitureSubmitButton",
   "furnitureListButton", "furnitureListDialog", "furnitureList", "furnitureListCount", "furnitureListRoomFilter", "furnitureListExpandAll",
@@ -753,7 +753,7 @@ function showDetail(type, item) {
   preserveFurnitureSelectionOnClose = false;
   renderer.setSelectedFurniture(selectedFurnitureId);
   const furnitureEditable = type === "furniture" && !locked && activeView === "plan";
-  elements.furnitureViewActions.hidden = type !== "furniture" || activeView !== "plan";
+  elements.furnitureViewActions.hidden = type !== "furniture";
   elements.furnitureActions.hidden = !furnitureEditable;
   elements.furnitureRoomEditGroup.hidden = !furnitureEditable;
   const typeLabels = { room: "ROOM", dimension: "DIMENSION", opening: "OPENING", feature: "EQUIPMENT", outlet: "OUTLET", switch: "SWITCH", furniture: "FURNITURE" };
@@ -782,18 +782,49 @@ elements.detailDialog.addEventListener("click", (event) => {
   if (event.target === elements.detailDialog) elements.detailDialog.close();
 });
 elements.detailDialog.addEventListener("close", () => {
-  webglThreeView?.clearSelection();
   if (preserveFurnitureSelectionOnClose) {
     preserveFurnitureSelectionOnClose = false;
     return;
   }
+  webglThreeView?.clearSelection();
   selectedFurnitureId = null;
   renderer.setSelectedFurniture(null);
 });
-elements.showFurnitureClearanceButton.addEventListener("click", () => {
-  if (!selectedFurniture()) return;
+elements.showFurnitureInPlanButton.addEventListener("click", () => {
+  const furniture = selectedFurniture();
+  if (!furniture) return;
   preserveFurnitureSelectionOnClose = true;
+  webglThreeView?.clearSelection();
+  setFurnitureVisible(true);
   document.querySelector('.tab[data-view="plan"]').click();
+  renderer.setSelectedFurniture(furniture.id);
+  renderer.focusFurniture(furniture.id);
+  elements.detailDialog.close();
+  showToast(`「${furniture.name}」を2D中央に表示しました`);
+});
+elements.showFurnitureInThreeButton.addEventListener("click", () => {
+  const furniture = selectedFurniture();
+  if (!furniture) return;
+  preserveFurnitureSelectionOnClose = true;
+  threeLayers.furniture = true;
+  elements.threeFurnitureToggle.checked = true;
+  threeRoomId = furniture.roomId ?? "";
+  updateThreeRoomFilter();
+  document.querySelector('.tab[data-view="three"]').click();
+  webglThreeView?.setSelection("furniture", furniture);
+  setThreeZoom(1.35);
+  elements.detailDialog.close();
+  showToast(`「${furniture.name}」を3Dで強調しました`);
+});
+elements.showFurnitureClearanceButton.addEventListener("click", () => {
+  const furniture = selectedFurniture();
+  if (!furniture) return;
+  preserveFurnitureSelectionOnClose = true;
+  webglThreeView?.clearSelection();
+  setFurnitureVisible(true);
+  document.querySelector('.tab[data-view="plan"]').click();
+  renderer.setSelectedFurniture(furniture.id);
+  renderer.focusFurniture(furniture.id);
   elements.detailDialog.close();
   showToast("空白部分をタップすると距離表示を終了します");
 });

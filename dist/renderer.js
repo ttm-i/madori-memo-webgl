@@ -1,4 +1,4 @@
-import { analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildKitchenComponentRects, findSupportItem, furnitureDescendantIds, getDimensionGroup, getElectricalPlanPosition, moveDimensionGuide, QUALITY_LABELS, snapToGrid, translateFurnitureDescendants } from "./model.js?v=89";
+import { analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildKitchenComponentRects, findSupportItem, furnitureDescendantIds, getDimensionGroup, getElectricalPlanPosition, moveDimensionGuide, QUALITY_LABELS, snapToGrid, translateFurnitureDescendants } from "./model.js?v=91";
 
 const NS = "http://www.w3.org/2000/svg";
 
@@ -483,6 +483,22 @@ export class PlanRenderer {
   setSelectedFurniture(id) {
     this.selectedFurnitureId = id;
     if (this.document) this.render(this.document);
+  }
+
+  focusFurniture(id) {
+    if (!this.document) return false;
+    const furniture = this.document.plan.furniture?.find((item) => item.id === id);
+    if (!furniture) return false;
+    const viewport = this.svg.viewBox.baseVal;
+    const fitScale = this.fitTransform?.scale ?? this.transform.scale;
+    const scale = Math.min(3, Math.max(this.transform.scale, fitScale * 1.75));
+    const centerX = furniture.x + furniture.widthCm / 2;
+    const centerY = furniture.y + furniture.depthCm / 2;
+    this.transform.scale = scale;
+    this.transform.x = viewport.x + viewport.width / 2 - centerX * scale;
+    this.transform.y = viewport.y + viewport.height / 2 - centerY * scale;
+    this.applyTransform();
+    return true;
   }
 
   fit() {
