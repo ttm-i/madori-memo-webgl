@@ -10,7 +10,7 @@
     <meta name="description" content="間取りと家具寸法を端末内だけで確認するオフラインPWA" />
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./icon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="./styles.css?v=72" />
+    <link rel="stylesheet" href="./styles.css?v=73" />
     <title>間取りメモ WebGL試作版</title>
   </head>
   <body>
@@ -212,7 +212,7 @@
             <div><p class="eyebrow">WEBGL PROTOTYPE · PHASE 5</p><h2>WebGL 3D</h2></div>
             <span class="unmeasured-badge">天井高 未測定</span>
           </div>
-          <p class="three-intro">端末内の間取りデータからWebGLで立体表示します。1本指で視点回転、2本指で拡大縮小できます。壁の高さと、高さ未登録の家具は模式表示であり、実測値ではありません。</p>
+          <p class="three-intro">端末内の間取りデータからWebGLで立体表示します。1本指で視点回転、2本指で拡大縮小と画面移動ができます。壁の高さと、高さ未登録の家具は模式表示であり、実測値ではありません。</p>
           <div class="three-toolbar" aria-label="3D表示の向き">
             <button id="threeRotateLeft" type="button" aria-label="左へ90度回転">↶ 左へ</button>
             <button id="threeReset" type="button">初期方向</button>
@@ -239,7 +239,7 @@
               <button id="threeZoomReset" type="button" aria-label="3Dを全体表示"><span id="threeZoomValue">100%</span></button>
               <button id="threeZoomIn" type="button" aria-label="3Dを拡大">＋</button>
             </div>
-            <span id="threeZoomHint" class="three-zoom-hint" hidden>1本指で回転・2本指で拡大縮小</span>
+            <span id="threeZoomHint" class="three-zoom-hint" hidden>1本指で回転・2本指で拡大縮小／移動</span>
             <div id="threeEmpty" class="wall-empty"><strong>間取りデータがありません</strong><span>JSONを読み込むと概略3Dを表示します。</span></div>
           </div>
           <div class="three-legend"><span><i class="three-legend-wall"></i>壁（模式高さ）</span><span><i class="three-legend-door"></i>ドア</span><span><i class="three-legend-window"></i>窓</span><span><i class="three-legend-feature"></i>設備</span><span><i class="three-legend-furniture"></i>家具</span><span><i class="three-legend-electrical"></i>コンセント・スイッチ</span></div>
@@ -353,7 +353,7 @@
       <input id="fileInput" type="file" accept="application/json,.json" hidden />
       <div id="toast" class="toast" role="status" aria-live="polite"></div>
     </div>
-    <script type="module" src="./app.js?v=72"></script>
+    <script type="module" src="./app.js?v=73"></script>
   </body>
 </html>
 

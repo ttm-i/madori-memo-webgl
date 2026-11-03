@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { alignFurnitureToSupport, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, buildElevationItems, buildKitchenComponentRects, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, duplicateFurniture, findDeliveryDoorPath, fitsRectangle, FORMAT, getDimensionGroup, getElectricalPlanPosition, moveDimensionGuide, pointInPolygon, rectangleIntersectsPolygon, rectanglesOverlap, resolveFurnitureElevationPlacement, resolveFurnitureVerticalRange, rotateFurniture, snapToGrid, updateFurniture, validatePlan, wallDisplayWidth } from "../dist/model.js";
 import { detailMarkup, gestureExceedsTapThreshold, measurementMetrics, PlanRenderer, snapMeasurementPoint, zoomTransformAround } from "../dist/renderer.js";
-import { electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, projectThreeDepth, projectThreePoint, roomEdgeWallHeight, splitWallFace, subdivideVerticalRange, subdivideWallRectangle, subdivideWallRectangleTiles, subdivideWallSegment, threeItemBelongsToRoom, threeItemFootprint, threeLayerEnabled, threeRoomBounds, threeSelectableType, threeViewportBox, threeWallBelongsToRoom, visibleBoxSideIndexes, yawToQuarterTurn } from "../dist/three.js";
+import { clampWebGLPan, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, projectThreeDepth, projectThreePoint, roomEdgeWallHeight, splitWallFace, subdivideVerticalRange, subdivideWallRectangle, subdivideWallRectangleTiles, subdivideWallSegment, threeItemBelongsToRoom, threeItemFootprint, threeLayerEnabled, threeRoomBounds, threeSelectableType, threeViewportBox, threeWallBelongsToRoom, visibleBoxSideIndexes, yawToQuarterTurn } from "../dist/three.js";
 
 test("sample plan conforms to the public schema", () => {
   const sample = createSamplePlan();
@@ -359,6 +359,12 @@ test("3D viewport zoom stays inside the rendered scene", () => {
   assert.deepEqual(threeViewportBox(), { x: 0, y: 0, width: 900, height: 620, scale: 1, panX: 0, panY: 0 });
   assert.deepEqual(threeViewportBox({ scale: 2, panX: 999, panY: -999 }), { x: 450, y: 0, width: 450, height: 310, scale: 2, panX: 225, panY: -155 });
   assert.equal(threeViewportBox({ scale: 9 }).scale, 3);
+});
+
+test("WebGL pan is disabled at 100% and clamped to the zoomed scene", () => {
+  assert.deepEqual(clampWebGLPan(120, -80, 1, 400, 300), { x: 0, y: 0 });
+  assert.deepEqual(clampWebGLPan(500, -500, 2, 400, 300), { x: 200, y: -150 });
+  assert.deepEqual(clampWebGLPan(75, 40, 2, 400, 300), { x: 75, y: 40 });
 });
 
 test("3D layers default to visible and can be independently hidden", () => {

@@ -1,6 +1,6 @@
 import * as THREE from "./vendor/three/three.module.js";
-import { buildKitchenComponentRects, resolveFurnitureVerticalRange } from "./model.js?v=72";
-import { electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRoomBounds, threeWallBelongsToRoom, yawToQuarterTurn } from "./three.js?v=72";
+import { buildKitchenComponentRects, resolveFurnitureVerticalRange } from "./model.js?v=73";
+import { clampWebGLPan, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRoomBounds, threeWallBelongsToRoom, yawToQuarterTurn } from "./three.js?v=73";
 
 const WALL_THICKNESS = 6;
 const DEFAULT_WALL_HEIGHT = 220;
@@ -411,7 +411,7 @@ export function createWebGLThreeView(canvas, onSelect = null) {
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
   const pointers = new Map();
-  const view = { yaw: -Math.PI / 4, pitch: .72, zoom: 1, quarterTurn: 0 };
+  const view = { yaw: -Math.PI / 4, pitch: .72, zoom: 1, panX: 0, panY: 0, quarterTurn: 0 };
   let sceneInfo = { bounds: { x: 0, y: 0, width: 1, height: 1 }, wallHeight: DEFAULT_WALL_HEIGHT };
   let frameRequested = false;
   let pinchStart = null;
@@ -456,10 +456,31 @@ export function createWebGLThreeView(canvas, onSelect = null) {
       center.z + Math.cos(view.yaw) * horizontal,
     );
     camera.lookAt(center);
+    camera.updateMatrixWorld();
+    const pan = clampWebGLPan(view.panX, view.panY, view.zoom, width, height);
+    view.panX = pan.x;
+    view.panY = pan.y;
+    const worldPerPixelY = span / height;
+    const worldPerPixelX = span * aspect / width;
+    const cameraRight = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+    const cameraUp = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
+    const shift = cameraRight.multiplyScalar(-view.panX * worldPerPixelX)
+      .add(cameraUp.multiplyScalar(view.panY * worldPerPixelY));
+    camera.position.add(shift);
+    center.add(shift);
+    camera.lookAt(center);
   }
 
   function setZoom(value) {
     view.zoom = Math.max(1, Math.min(3, value));
+    if (view.zoom <= 1.001) {
+      view.panX = 0;
+      view.panY = 0;
+    } else {
+      const pan = clampWebGLPan(view.panX, view.panY, view.zoom, canvas.clientWidth, canvas.clientHeight);
+      view.panX = pan.x;
+      view.panY = pan.y;
+    }
     requestRender();
     return view.zoom;
   }
@@ -469,6 +490,8 @@ export function createWebGLThreeView(canvas, onSelect = null) {
     view.yaw = -Math.PI / 4 + quarterTurn * Math.PI / 2;
     view.pitch = .72;
     view.zoom = 1;
+    view.panX = 0;
+    view.panY = 0;
     rebuildScene();
   }
 
@@ -515,7 +538,14 @@ export function createWebGLThreeView(canvas, onSelect = null) {
     if (pointers.size === 2) {
       usedMultiplePointers = true;
       const values = [...pointers.values()];
-      pinchStart = { distance: Math.hypot(values[0].x - values[1].x, values[0].y - values[1].y), zoom: view.zoom };
+      pinchStart = {
+        distance: Math.hypot(values[0].x - values[1].x, values[0].y - values[1].y),
+        midpointX: (values[0].x + values[1].x) / 2,
+        midpointY: (values[0].y + values[1].y) / 2,
+        zoom: view.zoom,
+        panX: view.panX,
+        panY: view.panY,
+      };
     }
   });
 
@@ -527,7 +557,7 @@ export function createWebGLThreeView(canvas, onSelect = null) {
     current.x = event.clientX;
     current.y = event.clientY;
     if (Math.hypot(event.clientX - current.startX, event.clientY - current.startY) > 5) current.moved = true;
-    if (pointers.size === 1) {
+    if (pointers.size === 1 && !usedMultiplePointers) {
       view.yaw -= dx * .009;
       view.pitch = Math.max(.25, Math.min(1.3, view.pitch + dy * .006));
       requestRender();
@@ -535,6 +565,18 @@ export function createWebGLThreeView(canvas, onSelect = null) {
       const values = [...pointers.values()];
       const distance = Math.hypot(values[0].x - values[1].x, values[0].y - values[1].y);
       if (pinchStart.distance > 0) setZoom(pinchStart.zoom * distance / pinchStart.distance);
+      const midpointX = (values[0].x + values[1].x) / 2;
+      const midpointY = (values[0].y + values[1].y) / 2;
+      const pan = clampWebGLPan(
+        pinchStart.panX + midpointX - pinchStart.midpointX,
+        pinchStart.panY + midpointY - pinchStart.midpointY,
+        view.zoom,
+        canvas.clientWidth,
+        canvas.clientHeight,
+      );
+      view.panX = pan.x;
+      view.panY = pan.y;
+      requestRender();
     }
     event.preventDefault();
   });
@@ -587,6 +629,7 @@ export function createWebGLThreeView(canvas, onSelect = null) {
       return rebuildScene();
     },
     getZoom: () => view.zoom,
+    getPan: () => ({ x: view.panX, y: view.panY }),
     setZoom,
     resetView,
     requestRender,

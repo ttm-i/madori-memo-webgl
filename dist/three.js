@@ -1,4 +1,4 @@
-import { buildKitchenComponentRects, buildRoomWalls, featureSupportRange, getElectricalPlanPosition, pointInPolygon, resolveFurnitureVerticalRange } from "./model.js?v=72";
+import { buildKitchenComponentRects, buildRoomWalls, featureSupportRange, getElectricalPlanPosition, pointInPolygon, resolveFurnitureVerticalRange } from "./model.js?v=73";
 
 const NS = "http://www.w3.org/2000/svg";
 
@@ -37,6 +37,20 @@ export function threeViewportBox({ scale = 1, panX = 0, panY = 0 } = {}) {
   const safePanX = Math.max(-maxPanX, Math.min(maxPanX, Number.isFinite(panX) ? panX : 0));
   const safePanY = Math.max(-maxPanY, Math.min(maxPanY, Number.isFinite(panY) ? panY : 0));
   return { x: 450 + safePanX - width / 2, y: 310 + safePanY - height / 2, width, height, scale: safeScale, panX: safePanX, panY: safePanY };
+}
+
+export function clampWebGLPan(panX, panY, zoom, width, height) {
+  const safeZoom = Math.max(1, Math.min(3, Number.isFinite(zoom) ? zoom : 1));
+  const safeWidth = Math.max(1, Number.isFinite(width) ? width : 1);
+  const safeHeight = Math.max(1, Number.isFinite(height) ? height : 1);
+  const limitX = safeWidth * (safeZoom - 1) / 2;
+  const limitY = safeHeight * (safeZoom - 1) / 2;
+  const requestedX = Number.isFinite(panX) ? panX : 0;
+  const requestedY = Number.isFinite(panY) ? panY : 0;
+  return {
+    x: limitX > 0 ? Math.max(-limitX, Math.min(limitX, requestedX)) : 0,
+    y: limitY > 0 ? Math.max(-limitY, Math.min(limitY, requestedY)) : 0,
+  };
 }
 
 function pointsValue(points) { return points.map((point) => `${point.x},${point.y}`).join(" "); }
