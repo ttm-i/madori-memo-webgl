@@ -1,6 +1,6 @@
 import * as THREE from "./vendor/three/three.module.js";
-import { buildKitchenComponentRects, resolveFurnitureVerticalRange } from "./model.js?v=73";
-import { clampWebGLPan, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRoomBounds, threeWallBelongsToRoom, yawToQuarterTurn } from "./three.js?v=73";
+import { buildKitchenComponentRects, resolveFurnitureVerticalRange } from "./model.js?v=74";
+import { clampWebGLPan, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRoomBounds, threeSelectionKey, threeWallBelongsToRoom, yawToQuarterTurn } from "./three.js?v=74";
 
 const WALL_THICKNESS = 6;
 const DEFAULT_WALL_HEIGHT = 220;
@@ -247,6 +247,30 @@ function electricalAssembly(documentData, electrical, electricalType) {
   } else {
     glyph(0, Math.max(3, placement.widthCm - 3), placement.centerHeightCm - 3.2, placement.centerHeightCm + 3.2, 0x5a8f7f);
   }
+  const hitWidth = Math.max(22, placement.widthCm);
+  const hitHeight = Math.max(26, placement.heightCm);
+  const hitCenter = {
+    x: placement.anchor.x + placement.normal.x * (offset + 2),
+    y: placement.anchor.y + placement.normal.y * (offset + 2),
+  };
+  const hitFrom = {
+    x: hitCenter.x - placement.tangent.x * hitWidth / 2,
+    y: hitCenter.y - placement.tangent.y * hitWidth / 2,
+  };
+  const hitTo = {
+    x: hitCenter.x + placement.tangent.x * hitWidth / 2,
+    y: hitCenter.y + placement.tangent.y * hitWidth / 2,
+  };
+  const hitTarget = segmentBox(
+    hitFrom,
+    hitTo,
+    placement.centerHeightCm - hitHeight / 2,
+    placement.centerHeightCm + hitHeight / 2,
+    9,
+    material(0xffffff, { opacity: 0 }),
+  );
+  hitTarget.userData.selectionHitTarget = true;
+  group.add(hitTarget);
   return { group, placement };
 }
 
@@ -394,7 +418,7 @@ function buildScene(root, documentData, options) {
   };
 }
 
-export function createWebGLThreeView(canvas, onSelect = null) {
+export function createWebGLThreeView(canvas, onSelect = null, onClear = null) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: "high-performance" });
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.setClearColor(0xf3efe6, 1);
@@ -419,6 +443,7 @@ export function createWebGLThreeView(canvas, onSelect = null) {
   let currentDocument = null;
   let currentOptions = {};
   let builtCutawayTurn = 0;
+  let selectedKey = null;
   const contextMessage = canvas.parentElement?.querySelector("[data-webgl-status]");
 
   function requestRender() {
@@ -504,8 +529,55 @@ export function createWebGLThreeView(canvas, onSelect = null) {
     root.clear();
     builtCutawayTurn = yawToQuarterTurn(view.yaw);
     sceneInfo = buildScene(root, currentDocument, { ...currentOptions, quarterTurn: builtCutawayTurn });
+    applySelectionHighlight();
     requestRender();
     return sceneInfo;
+  }
+
+  function materialList(object) {
+    if (!object?.material) return [];
+    return Array.isArray(object.material) ? object.material : [object.material];
+  }
+
+  function restoreSelectionMaterials() {
+    root.traverse((object) => {
+      for (const meshMaterial of materialList(object)) {
+        const original = meshMaterial.userData?.selectionOriginal;
+        if (!original) continue;
+        meshMaterial.emissive?.copy(original.emissive);
+        meshMaterial.emissiveIntensity = original.emissiveIntensity;
+        delete meshMaterial.userData.selectionOriginal;
+      }
+    });
+  }
+
+  function applySelectionHighlight() {
+    restoreSelectionMaterials();
+    if (!selectedKey) return;
+    let selectedObject = null;
+    root.traverse((object) => {
+      const selection = object.userData.selection;
+      if (!selectedObject && threeSelectionKey(selection?.type, selection?.item) === selectedKey) selectedObject = object;
+    });
+    selectedObject?.traverse((object) => {
+      if (object.userData.selectionHitTarget) return;
+      for (const meshMaterial of materialList(object)) {
+        if (!meshMaterial.emissive) continue;
+        meshMaterial.userData.selectionOriginal = {
+          emissive: meshMaterial.emissive.clone(),
+          emissiveIntensity: meshMaterial.emissiveIntensity,
+        };
+        meshMaterial.emissive.set(0x18836a);
+        meshMaterial.emissiveIntensity = .5;
+      }
+    });
+  }
+
+  function clearSelection() {
+    if (!selectedKey) return;
+    selectedKey = null;
+    restoreSelectionMaterials();
+    requestRender();
   }
 
   function selectionAt(clientX, clientY) {
@@ -529,7 +601,15 @@ export function createWebGLThreeView(canvas, onSelect = null) {
   function pick(clientX, clientY) {
     const offsets = [[0, 0], [-8, 0], [8, 0], [0, -8], [0, 8]];
     const selected = offsets.map(([x, y]) => selectionAt(clientX + x, clientY + y)).find(Boolean);
-    if (selected) onSelect?.(selected.type, selected.item);
+    if (selected) {
+      selectedKey = threeSelectionKey(selected.type, selected.item);
+      applySelectionHighlight();
+      requestRender();
+      onSelect?.(selected.type, selected.item);
+      return;
+    }
+    clearSelection();
+    onClear?.();
   }
 
   canvas.addEventListener("pointerdown", (event) => {
@@ -632,6 +712,7 @@ export function createWebGLThreeView(canvas, onSelect = null) {
     getPan: () => ({ x: view.panX, y: view.panY }),
     setZoom,
     resetView,
+    clearSelection,
     requestRender,
   };
 }

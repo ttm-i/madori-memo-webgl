@@ -1,4 +1,4 @@
-import { buildKitchenComponentRects, buildRoomWalls, featureSupportRange, getElectricalPlanPosition, pointInPolygon, resolveFurnitureVerticalRange } from "./model.js?v=73";
+import { buildKitchenComponentRects, buildRoomWalls, featureSupportRange, getElectricalPlanPosition, pointInPolygon, resolveFurnitureVerticalRange } from "./model.js?v=74";
 
 const NS = "http://www.w3.org/2000/svg";
 
@@ -68,6 +68,11 @@ function wallStripElement(points, { first = true, last = true, bottomEdge = true
 }
 
 export function threeLayerEnabled(layer, options = {}) { return options[layer] !== false; }
+
+export function threeSelectionKey(type, item) {
+  if (!type || !item?.id) return null;
+  return `${type}:${item.id}`;
+}
 
 export function threeSelectableType(item) {
   return item?.type === "feature" || item?.type === "furniture" ? item.type : null;
