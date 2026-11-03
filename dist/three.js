@@ -1,4 +1,4 @@
-import { buildKitchenComponentRects, featureSupportRange, pointInPolygon, resolveFurnitureVerticalRange } from "./model.js?v=68";
+import { buildKitchenComponentRects, featureSupportRange, pointInPolygon, resolveFurnitureVerticalRange } from "./model.js?v=69";
 
 const NS = "http://www.w3.org/2000/svg";
 
@@ -141,6 +141,15 @@ export function openingPanelCount(opening, isWindow = String(opening?.kind ?? ""
   if (kind.includes("three-panel") || kind.includes("trapezoid-bay")) return 3;
   if (isWindow) return 2;
   return 1;
+}
+
+export function roomEdgeWallHeight(room, hasOpening, defaultHeight, balconyHeight = 110) {
+  const roomType = `${room?.id ?? ""} ${room?.kind ?? ""} ${room?.name ?? ""}`;
+  const isBalcony = /(?:^|\s)balcony(?:\s|$)|バルコニー/i.test(roomType);
+  if (!isBalcony || hasOpening) return defaultHeight;
+  const explicitHeight = room?.wallHeightCm ?? room?.balconyWallHeightCm;
+  const lowHeight = Number.isFinite(explicitHeight) && explicitHeight > 0 ? explicitHeight : balconyHeight;
+  return Math.min(defaultHeight, lowHeight);
 }
 
 export function threeWallBelongsToRoom(wall, room) {

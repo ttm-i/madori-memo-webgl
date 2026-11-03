@@ -1,6 +1,6 @@
 import * as THREE from "./vendor/three/three.module.js";
-import { buildKitchenComponentRects, resolveFurnitureVerticalRange } from "./model.js?v=68";
-import { featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRoomBounds, threeWallBelongsToRoom, yawToQuarterTurn } from "./three.js?v=68";
+import { buildKitchenComponentRects, resolveFurnitureVerticalRange } from "./model.js?v=69";
+import { featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRoomBounds, threeWallBelongsToRoom, yawToQuarterTurn } from "./three.js?v=69";
 
 const WALL_THICKNESS = 6;
 const DEFAULT_WALL_HEIGHT = 220;
@@ -237,8 +237,9 @@ function buildScene(root, documentData, options) {
         return;
       }
       const length = Math.hypot(to.x - from.x, to.y - from.y);
+      const edgeWallHeight = roomEdgeWallHeight(room, cuts.length > 0, wallHeight);
       cuts.forEach((cut) => cutOpeningIds.add(cut.opening.id));
-      const rectangles = cuts.length ? splitWallFace(length, wallHeight, cuts) : [{ u1: 0, u2: length, z1: 0, z2: wallHeight }];
+      const rectangles = cuts.length ? splitWallFace(length, edgeWallHeight, cuts) : [{ u1: 0, u2: length, z1: 0, z2: edgeWallHeight }];
       if (!layerEnabled("walls", options)) return;
       for (const rectangle of rectangles) {
         const segmentFrom = pointAt(from, to, rectangle.u1, length);

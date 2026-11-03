@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { alignFurnitureToSupport, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, buildElevationItems, buildKitchenComponentRects, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, duplicateFurniture, findDeliveryDoorPath, fitsRectangle, FORMAT, getDimensionGroup, getElectricalPlanPosition, moveDimensionGuide, pointInPolygon, rectangleIntersectsPolygon, rectanglesOverlap, resolveFurnitureElevationPlacement, resolveFurnitureVerticalRange, rotateFurniture, snapToGrid, updateFurniture, validatePlan, wallDisplayWidth } from "../dist/model.js";
 import { detailMarkup, gestureExceedsTapThreshold, measurementMetrics, PlanRenderer, snapMeasurementPoint, zoomTransformAround } from "../dist/renderer.js";
-import { featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, projectThreeDepth, projectThreePoint, splitWallFace, subdivideVerticalRange, subdivideWallRectangle, subdivideWallRectangleTiles, subdivideWallSegment, threeItemBelongsToRoom, threeItemFootprint, threeLayerEnabled, threeRoomBounds, threeSelectableType, threeViewportBox, threeWallBelongsToRoom, visibleBoxSideIndexes, yawToQuarterTurn } from "../dist/three.js";
+import { featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, projectThreeDepth, projectThreePoint, roomEdgeWallHeight, splitWallFace, subdivideVerticalRange, subdivideWallRectangle, subdivideWallRectangleTiles, subdivideWallSegment, threeItemBelongsToRoom, threeItemFootprint, threeLayerEnabled, threeRoomBounds, threeSelectableType, threeViewportBox, threeWallBelongsToRoom, visibleBoxSideIndexes, yawToQuarterTurn } from "../dist/three.js";
 
 test("sample plan conforms to the public schema", () => {
   const sample = createSamplePlan();
@@ -437,6 +437,14 @@ test("WebGL opening assemblies use the expected number of panels", () => {
   assert.equal(openingPanelCount({ kind: "window" }), 2);
   assert.equal(openingPanelCount({ kind: "floor-sliding-window" }), 2);
   assert.equal(openingPanelCount({ kind: "trapezoid-bay-window" }), 3);
+});
+
+test("balcony exterior edges use a low schematic wall except at an opening", () => {
+  const balcony = { id: "balcony", name: "Balcony" };
+  assert.equal(roomEdgeWallHeight(balcony, false, 220), 110);
+  assert.equal(roomEdgeWallHeight(balcony, true, 220), 220);
+  assert.equal(roomEdgeWallHeight({ name: "室内" }, false, 220), 220);
+  assert.equal(roomEdgeWallHeight({ name: "バルコニー", wallHeightCm: 95 }, false, 220), 95);
 });
 
 test("3D wall faces are split around door and window openings", () => {
