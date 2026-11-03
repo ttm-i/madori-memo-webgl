@@ -1,6 +1,6 @@
 import * as THREE from "./vendor/three/three.module.js";
-import { buildKitchenComponentRects, resolveFurnitureVerticalRange } from "./model.js?v=64";
-import { featureVerticalRange, isCutawayEdge, openingVerticalRange, splitWallFace, threeItemBelongsToRoom, threeRoomBounds, threeWallBelongsToRoom, yawToQuarterTurn } from "./three.js?v=64";
+import { buildKitchenComponentRects, resolveFurnitureVerticalRange } from "./model.js?v=65";
+import { featureVerticalRange, isCutawayEdge, openingVerticalRange, splitWallFace, threeItemBelongsToRoom, threeRoomBounds, threeWallBelongsToRoom, yawToQuarterTurn } from "./three.js?v=65";
 
 const WALL_THICKNESS = 6;
 const DEFAULT_WALL_HEIGHT = 220;
@@ -37,6 +37,11 @@ function addOutline(mesh, color = 0x6f766f, opacity = .65) {
 
 function markSelectable(mesh, type, item) {
   mesh.userData.selection = { type, item };
+  return mesh;
+}
+
+function markSelectionBlocker(mesh) {
+  mesh.userData.blocksSelection = true;
   return mesh;
 }
 
@@ -104,7 +109,7 @@ function roomFloor(room) {
   mesh.rotation.x = Math.PI / 2;
   mesh.position.y = -.8;
   mesh.receiveShadow = true;
-  return mesh;
+  return markSelectionBlocker(mesh);
 }
 
 function boxObject(item, vertical, color, type) {
@@ -200,6 +205,7 @@ function buildScene(root, documentData, options) {
           material(0xdedbd1, { roughness: 1 }),
         );
         wall.receiveShadow = true;
+        markSelectionBlocker(wall);
         addOutline(wall, 0x7c817b, .42);
         root.add(wall);
       }
@@ -214,6 +220,7 @@ function buildScene(root, documentData, options) {
         const to = points[(index + 1) % points.length];
         const mesh = segmentBox(from, to, 0, wallHeight, WALL_THICKNESS, material(0xd6d3ca));
         mesh.receiveShadow = true;
+        markSelectionBlocker(mesh);
         addOutline(mesh, 0x70766f, .5);
         root.add(mesh);
       }
@@ -286,7 +293,6 @@ export function createWebGLThreeView(canvas, onSelect = null) {
   const coarsePointer = window.matchMedia?.("(pointer: coarse)")?.matches;
   renderer.setPixelRatio(Math.min(coarsePointer ? 1.5 : 2, window.devicePixelRatio || 1));
   const scene = new THREE.Scene();
-  scene.fog = new THREE.Fog(0xf3efe6, 900, 2300);
   const camera = new THREE.OrthographicCamera(-500, 500, 350, -350, 1, 4000);
   const root = new THREE.Group();
   scene.add(root);
@@ -305,6 +311,7 @@ export function createWebGLThreeView(canvas, onSelect = null) {
   let currentDocument = null;
   let currentOptions = {};
   let builtCutawayTurn = 0;
+  const contextMessage = canvas.parentElement?.querySelector("[data-webgl-status]");
 
   function requestRender() {
     if (frameRequested) return;
@@ -370,16 +377,27 @@ export function createWebGLThreeView(canvas, onSelect = null) {
     return sceneInfo;
   }
 
-  function pick(clientX, clientY) {
+  function selectionAt(clientX, clientY) {
     const rect = canvas.getBoundingClientRect();
     pointer.set(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
     raycaster.setFromCamera(pointer, camera);
     const hits = raycaster.intersectObjects(root.children, true);
-    const selected = hits.map((hit) => {
+    for (const hit of hits) {
       let object = hit.object;
-      while (object && !object.userData.selection) object = object.parent;
-      return object?.userData.selection;
-    }).find(Boolean);
+      let blocked = false;
+      while (object) {
+        if (object.userData.selection) return object.userData.selection;
+        if (object.userData.blocksSelection) blocked = true;
+        object = object.parent;
+      }
+      if (blocked) return null;
+    }
+    return null;
+  }
+
+  function pick(clientX, clientY) {
+    const offsets = [[0, 0], [-8, 0], [8, 0], [0, -8], [0, 8]];
+    const selected = offsets.map(([x, y]) => selectionAt(clientX + x, clientY + y)).find(Boolean);
     if (selected) onSelect?.(selected.type, selected.item);
   }
 
@@ -435,6 +453,16 @@ export function createWebGLThreeView(canvas, onSelect = null) {
     setZoom(view.zoom + (event.deltaY < 0 ? .15 : -.15));
     event.preventDefault();
   }, { passive: false });
+  canvas.addEventListener("webglcontextlost", (event) => {
+    event.preventDefault();
+    if (contextMessage) contextMessage.hidden = false;
+    canvas.setAttribute("aria-label", "間取りのWebGL 3D表示（一時停止中）");
+  });
+  canvas.addEventListener("webglcontextrestored", () => {
+    if (contextMessage) contextMessage.hidden = true;
+    canvas.setAttribute("aria-label", "間取りのWebGL 3D表示");
+    rebuildScene();
+  });
 
   const observer = new ResizeObserver(requestRender);
   observer.observe(canvas);

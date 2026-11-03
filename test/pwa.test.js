@@ -41,4 +41,6 @@ test("the WebGL prototype stays local-first and isolated from the stable databas
   assert.doesNotMatch(webgl, /https?:\/\//);
   assert.match(database, /floor-plan-webgl-private/);
   assert.doesNotMatch(database, /const DB_NAME = "floor-plan-private"/);
+  assert.doesNotMatch(webgl, /new THREE\.Fog/);
+  assert.match(html, /data-webgl-status/);
 });
