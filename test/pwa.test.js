@@ -31,6 +31,17 @@ test("the redundant current-plan summary stays out of the 2D layout", () => {
   assert.match(html, /<section class="summary-card"[^>]*\bhidden\b/);
 });
 
+test("the furniture list can filter inspection findings without losing stack context", () => {
+  const html = readFileSync(new URL("../dist/index.html", import.meta.url), "utf8");
+  const app = readFileSync(new URL("../dist/app.js", import.meta.url), "utf8");
+  assert.match(html, /id="furnitureListIssueFilter"/);
+  for (const value of ["review", "outside", "overlap", "support"]) {
+    assert.match(html, new RegExp(`option value="${value}"`));
+  }
+  assert.match(app, /statuses\.push\("関連家具"\)/);
+  assert.match(app, /collapsedFurnitureIds\.clear\(\);\s*renderFurnitureList\(\);/);
+});
+
 test("the WebGL prototype stays local-first and isolated from the stable database", () => {
   const html = readFileSync(new URL("../dist/index.html", import.meta.url), "utf8");
   const webgl = readFileSync(new URL("../dist/webgl-three.js", import.meta.url), "utf8");
