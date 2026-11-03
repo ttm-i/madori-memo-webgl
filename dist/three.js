@@ -1,4 +1,4 @@
-import { buildKitchenComponentRects, featureSupportRange, pointInPolygon, resolveFurnitureVerticalRange } from "./model.js?v=65";
+import { buildKitchenComponentRects, featureSupportRange, pointInPolygon, resolveFurnitureVerticalRange } from "./model.js?v=66";
 
 const NS = "http://www.w3.org/2000/svg";
 
@@ -121,6 +121,19 @@ export function threeRoomBounds(rooms, fallback = { x: 0, y: 0, width: 1, height
 export function yawToQuarterTurn(yaw) {
   const turn = Math.round((yaw + Math.PI / 4) / (Math.PI / 2));
   return ((turn % 4) + 4) % 4;
+}
+
+export function threeItemFootprint(item, type) {
+  if (type === "furniture") {
+    return {
+      width: item.widthCm ?? item.width,
+      depth: item.depthCm ?? item.depth ?? item.height,
+    };
+  }
+  return {
+    width: item.width ?? item.widthCm,
+    depth: item.height ?? item.depth ?? item.depthCm,
+  };
 }
 
 export function threeWallBelongsToRoom(wall, room) {

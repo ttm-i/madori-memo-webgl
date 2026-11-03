@@ -1,6 +1,6 @@
 import * as THREE from "./vendor/three/three.module.js";
-import { buildKitchenComponentRects, resolveFurnitureVerticalRange } from "./model.js?v=65";
-import { featureVerticalRange, isCutawayEdge, openingVerticalRange, splitWallFace, threeItemBelongsToRoom, threeRoomBounds, threeWallBelongsToRoom, yawToQuarterTurn } from "./three.js?v=65";
+import { buildKitchenComponentRects, resolveFurnitureVerticalRange } from "./model.js?v=66";
+import { featureVerticalRange, isCutawayEdge, openingVerticalRange, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRoomBounds, threeWallBelongsToRoom, yawToQuarterTurn } from "./three.js?v=66";
 
 const WALL_THICKNESS = 6;
 const DEFAULT_WALL_HEIGHT = 220;
@@ -113,8 +113,7 @@ function roomFloor(room) {
 }
 
 function boxObject(item, vertical, color, type) {
-  const width = item.width ?? item.widthCm;
-  const depth = item.depth ?? item.depthCm ?? item.height;
+  const { width, depth } = threeItemFootprint(item, type);
   if (![item.x, item.y, width, depth, vertical.bottomCm, vertical.topCm].every(Number.isFinite)) return null;
   const height = Math.max(1.5, vertical.topCm - vertical.bottomCm);
   const displayColor = vertical.schematic ? new THREE.Color(color).lerp(new THREE.Color(0xffffff), .28) : color;

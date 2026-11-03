@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { alignFurnitureToSupport, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, buildElevationItems, buildKitchenComponentRects, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, duplicateFurniture, findDeliveryDoorPath, fitsRectangle, FORMAT, getDimensionGroup, getElectricalPlanPosition, moveDimensionGuide, pointInPolygon, rectangleIntersectsPolygon, rectanglesOverlap, resolveFurnitureElevationPlacement, resolveFurnitureVerticalRange, rotateFurniture, snapToGrid, updateFurniture, validatePlan, wallDisplayWidth } from "../dist/model.js";
 import { detailMarkup, gestureExceedsTapThreshold, measurementMetrics, PlanRenderer, snapMeasurementPoint, zoomTransformAround } from "../dist/renderer.js";
-import { featureVerticalRange, isCutawayEdge, openingVerticalRange, projectThreeDepth, projectThreePoint, splitWallFace, subdivideVerticalRange, subdivideWallRectangle, subdivideWallRectangleTiles, subdivideWallSegment, threeItemBelongsToRoom, threeLayerEnabled, threeRoomBounds, threeSelectableType, threeViewportBox, threeWallBelongsToRoom, visibleBoxSideIndexes, yawToQuarterTurn } from "../dist/three.js";
+import { featureVerticalRange, isCutawayEdge, openingVerticalRange, projectThreeDepth, projectThreePoint, splitWallFace, subdivideVerticalRange, subdivideWallRectangle, subdivideWallRectangleTiles, subdivideWallSegment, threeItemBelongsToRoom, threeItemFootprint, threeLayerEnabled, threeRoomBounds, threeSelectableType, threeViewportBox, threeWallBelongsToRoom, visibleBoxSideIndexes, yawToQuarterTurn } from "../dist/three.js";
 
 test("sample plan conforms to the public schema", () => {
   const sample = createSamplePlan();
@@ -416,6 +416,17 @@ test("WebGL orbit angles choose the nearest cutaway direction", () => {
   assert.equal(yawToQuarterTurn(Math.PI * 3 / 4), 2);
   assert.equal(yawToQuarterTurn(-Math.PI * 3 / 4), 3);
   assert.equal(yawToQuarterTurn(Math.PI * 7 / 4), 0);
+});
+
+test("WebGL fixed equipment uses its plan footprint instead of duplicate physical depth fields", () => {
+  assert.deepEqual(
+    threeItemFootprint({ width: 40, height: 90, depthCm: 40 }, "feature"),
+    { width: 40, depth: 90 },
+  );
+  assert.deepEqual(
+    threeItemFootprint({ widthCm: 100, depthCm: 55, height: 90 }, "furniture"),
+    { width: 100, depth: 55 },
+  );
 });
 
 test("3D wall faces are split around door and window openings", () => {
