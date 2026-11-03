@@ -1,6 +1,6 @@
 import * as THREE from "./vendor/three/three.module.js";
-import { buildKitchenCabinetLayout, buildKitchenComponentRects, inferFurnitureKind, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=81";
-import { cabinetDoorPanelCount, cabinetThreePlacement, clampWebGLPan, closetThreePlacement, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRoomBounds, threeSelectionKey, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=81";
+import { buildKitchenCabinetLayout, buildKitchenComponentRects, inferFurnitureKind, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=82";
+import { cabinetDoorPanelCount, cabinetThreePlacement, clampWebGLPan, closetThreePlacement, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRoomBounds, threeSelectionKey, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=82";
 
 const WALL_THICKNESS = 6;
 const DEFAULT_WALL_HEIGHT = 220;
@@ -152,7 +152,7 @@ function detailedFurnitureAssembly(item, vertical) {
   const dark = 0x494b49;
   const metal = 0x8d9390;
 
-  if (kind === "single-bed") {
+  if (kind === "bed") {
     const frameHeight = Math.min(12, height * .28);
     furniturePart(group, width, frameHeight, depth, cx, bottom + frameHeight / 2, cy, wood);
     const mattressHeight = Math.max(10, height - frameHeight - 5);
@@ -166,17 +166,52 @@ function detailedFurnitureAssembly(item, vertical) {
     furniturePart(group, width * .9, height * .16, depth * .64, cx, seatTop, cy + depth * .12, 0xe0c2af);
     furniturePart(group, width, height * .62, depth * .18, cx, bottom + height * .69, item.y + depth * .09, fabric);
     for (const direction of [-1, 1]) furniturePart(group, Math.max(8, width * .08), height * .52, depth * .72, cx + direction * width * .46, bottom + height * .44, cy + depth * .1, fabric);
-  } else if (kind === "dining") {
+  } else if (kind === "dining" || kind === "desk") {
     const topThickness = Math.min(5, height * .1);
     furniturePart(group, width, topThickness, depth, cx, top - topThickness / 2, cy, wood);
     const leg = Math.max(4, Math.min(7, Math.min(width, depth) * .08));
     for (const dx of [-1, 1]) for (const dy of [-1, 1]) furniturePart(group, leg, height - topThickness, leg, cx + dx * (width / 2 - leg * 1.4), bottom + (height - topThickness) / 2, cy + dy * (depth / 2 - leg * 1.4), wood);
+  } else if (kind === "chair") {
+    const seatTop = bottom + Math.min(45, height * .58);
+    const seatThickness = Math.max(4, height * .07);
+    furniturePart(group, width, seatThickness, depth * .82, cx, seatTop, cy + depth * .06, fabric);
+    const leg = Math.max(3, Math.min(5, Math.min(width, depth) * .1));
+    for (const dx of [-1, 1]) for (const dy of [-1, 1]) furniturePart(group, leg, seatTop - bottom, leg, cx + dx * (width / 2 - leg * 1.3), bottom + (seatTop - bottom) / 2, cy + dy * (depth * .38 - leg), wood);
+    furniturePart(group, width, Math.max(10, top - seatTop), Math.max(4, depth * .1), cx, seatTop + (top - seatTop) / 2, item.y + depth * .07, fabric);
   } else if (kind === "tv-board") {
     furniturePart(group, width, height, depth, cx, bottom + height / 2, cy, wood);
     const frontY = item.y + depth + 1.1;
     for (let index = 0; index < 3; index += 1) {
       const panelWidth = width / 3;
       furniturePart(group, panelWidth - 1, height - 5, 2, item.x + panelWidth * (index + .5), bottom + height / 2, frontY, 0xc39470);
+    }
+  } else if (kind === "tv") {
+    const screenHeight = height * .78;
+    const screenDepth = Math.max(3, depth * .14);
+    const screenCenter = bottom + height * .58;
+    furniturePart(group, width * .96, screenHeight, screenDepth, cx, screenCenter, cy, 0x242827, 0x171a19);
+    furniturePart(group, width * .88, screenHeight * .86, screenDepth + 1, cx, screenCenter, cy + screenDepth * .55, 0x101817, 0x343a38);
+    furniturePart(group, Math.max(5, width * .055), height * .14, Math.max(5, depth * .25), cx, bottom + height * .13, cy, dark, 0x252726);
+    furniturePart(group, width * .38, Math.max(2.5, height * .035), depth * .65, cx, bottom + Math.max(1.5, height * .018), cy, dark, 0x252726);
+  } else if (kind === "shelf") {
+    const panel = Math.max(2.5, Math.min(5, width * .045));
+    furniturePart(group, panel, height, depth, item.x + panel / 2, bottom + height / 2, cy, wood);
+    furniturePart(group, panel, height, depth, item.x + width - panel / 2, bottom + height / 2, cy, wood);
+    furniturePart(group, width - panel * 2, height, Math.max(2, depth * .07), cx, bottom + height / 2, item.y + 1, 0xc9a98c);
+    const shelfCount = 5;
+    for (let index = 0; index <= shelfCount; index += 1) {
+      const shelfZ = bottom + panel / 2 + (height - panel) * index / shelfCount;
+      furniturePart(group, width - panel * 2, panel, depth, cx, shelfZ, cy, wood);
+    }
+  } else if (kind === "chest") {
+    furniturePart(group, width, height, depth, cx, bottom + height / 2, cy, wood);
+    const frontY = item.y + depth + 1.2;
+    const drawerCount = 4;
+    for (let index = 0; index < drawerCount; index += 1) {
+      const drawerHeight = height / drawerCount;
+      const drawerZ = bottom + drawerHeight * (index + .5);
+      furniturePart(group, width - 4, drawerHeight - 2, 2.2, cx, drawerZ, frontY, 0xc39470);
+      furniturePart(group, width * .16, 2.2, 3.2, cx, drawerZ, frontY + 2, metal, 0x626764);
     }
   } else if (kind === "fridge") {
     furniturePart(group, width, height, depth, cx, bottom + height / 2, cy, light, 0x717572);

@@ -1,7 +1,7 @@
-import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=81";
-import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, buildElevationItems, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurniture, findSupportItem, getDimensionGroup, getElectricalPlanPosition, resolveFurnitureVerticalRange, rotateFurniture, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=81";
-import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=81";
-import { createWebGLThreeView } from "./webgl-three.js?v=81";
+import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=82";
+import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, buildElevationItems, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurniture, findSupportItem, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, resolveFurnitureVerticalRange, rotateFurniture, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=82";
+import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=82";
+import { createWebGLThreeView } from "./webgl-three.js?v=82";
 
 const elements = Object.fromEntries([
   "menuButton", "dataMenu", "detailDialog", "detailType", "detailTitle", "detailBody", "fileInput",
@@ -958,21 +958,13 @@ elements.furnitureListButton.addEventListener("click", () => {
   renderFurnitureList();
   elements.furnitureListDialog.showModal();
 });
-const furniturePresets = {
-  dining: { name: "ダイニングテーブル", width: 140, depth: 80 },
-  sofa: { name: "ソファ", width: 180, depth: 85 },
-  "single-bed": { name: "シングルベッド", width: 97, depth: 195 },
-  "tv-board": { name: "テレビ台", width: 150, depth: 40 },
-  fridge: { name: "冷蔵庫", width: 70, depth: 70 },
-  washer: { name: "洗濯機", width: 60, depth: 60 },
-  microwave: { name: "電子レンジ", width: 50, depth: 40 },
-};
 elements.furniturePreset.addEventListener("change", () => {
-  const preset = furniturePresets[elements.furniturePreset.value];
+  const preset = FURNITURE_PRESETS[elements.furniturePreset.value];
   if (!preset) return;
   elements.furnitureName.value = preset.name;
   elements.furnitureWidth.value = String(preset.width);
   elements.furnitureDepth.value = String(preset.depth);
+  elements.furnitureHeight.value = String(preset.height);
 });
 elements.furnitureRoom.addEventListener("change", () => updateFurnitureSupportOptions());
 elements.furnitureSupport.addEventListener("change", () => {
@@ -1023,7 +1015,8 @@ elements.furnitureForm.addEventListener("submit", async (event) => {
     const furniture = activePlan.plan.furniture.find((item) => item.id === editingFurnitureId);
     if (!furniture) return showToast("編集する家具が見つかりません");
     pushHistory();
-    updateFurniture(furniture, { name, roomId: room.id, widthCm, depthCm, heightCm, supportId });
+    const furnitureKind = elements.furniturePreset.value === "custom" ? null : elements.furniturePreset.value;
+    updateFurniture(furniture, { name, roomId: room.id, widthCm, depthCm, heightCm, supportId, furnitureKind });
     alignFurnitureToSupport(activePlan.plan, furniture);
     alignSupportedFurniture(activePlan.plan);
     renderer.render(activePlan);
@@ -1063,7 +1056,7 @@ elements.editFurnitureButton.addEventListener("click", () => {
   const furniture = selectedFurniture();
   if (!furniture) return;
   editingFurnitureId = furniture.id;
-  elements.furniturePreset.value = "custom";
+  elements.furniturePreset.value = inferFurnitureKind(furniture);
   elements.furnitureName.value = furniture.name;
   elements.furnitureWidth.value = String(furniture.widthCm);
   elements.furnitureDepth.value = String(furniture.depthCm);

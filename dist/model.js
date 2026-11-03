@@ -123,32 +123,30 @@ export function kitchenComponentVerticalRange(feature) {
   return { bottomCm: worktopSurfaceCm + .2, topCm: worktopSurfaceCm + 2.2 };
 }
 
+export const FURNITURE_PRESETS = {
+  dining: { name: "ダイニングテーブル", width: 140, depth: 80, height: 72 },
+  sofa: { name: "ソファ", width: 180, depth: 85, height: 80 },
+  bed: { name: "ダブルベッド", width: 140, depth: 195, height: 45 },
+  desk: { name: "デスク", width: 120, depth: 60, height: 72 },
+  chair: { name: "椅子", width: 45, depth: 50, height: 80 },
+  "tv-board": { name: "テレビ台", width: 150, depth: 40, height: 45 },
+  tv: { name: "テレビ", width: 110, depth: 25, height: 65 },
+  shelf: { name: "本棚・収納棚", width: 90, depth: 30, height: 180 },
+  chest: { name: "チェスト", width: 90, depth: 45, height: 90 },
+  fridge: { name: "冷蔵庫", width: 60, depth: 68, height: 180 },
+  washer: { name: "洗濯機", width: 60, depth: 60, height: 100 },
+  microwave: { name: "電子レンジ", width: 50, depth: 40, height: 30 },
+};
+
 export function inferFurnitureKind(furniture) {
   const explicit = furniture?.furnitureKind;
-  if (["dining", "sofa", "single-bed", "tv-board", "fridge", "washer", "microwave"].includes(explicit)) return explicit;
-  const name = String(furniture?.name ?? "").toLowerCase();
-  if (/ベッド|bed/.test(name)) return "single-bed";
-  if (/ソファ|sofa/.test(name)) return "sofa";
-  if (/ダイニング|テーブル|table/.test(name)) return "dining";
-  if (/テレビ台|tv.?board/.test(name)) return "tv-board";
-  if (/冷蔵庫|fridge|refrigerator/.test(name)) return "fridge";
-  if (/洗濯機|washer/.test(name)) return "washer";
-  if (/電子レンジ|microwave/.test(name)) return "microwave";
-  return "custom";
+  if (explicit === "single-bed") return "bed";
+  return Object.hasOwn(FURNITURE_PRESETS, explicit) ? explicit : "custom";
 }
 
 export function furnitureDisplayHeight(furniture) {
   if (Number.isFinite(furniture?.heightCm)) return furniture.heightCm;
-  return {
-    dining: 72,
-    sofa: 80,
-    "single-bed": 45,
-    "tv-board": 45,
-    fridge: 180,
-    washer: 100,
-    microwave: 35,
-    custom: 35,
-  }[inferFurnitureKind(furniture)];
+  return FURNITURE_PRESETS[inferFurnitureKind(furniture)]?.height ?? 35;
 }
 
 export function resolveFurnitureVerticalRange(plan, furniture, visited = new Set()) {
@@ -481,6 +479,8 @@ export function updateFurniture(furniture, values) {
   furniture.depthCm = values.depthCm;
   if (Number.isFinite(values.heightCm)) furniture.heightCm = values.heightCm;
   else delete furniture.heightCm;
+  if (values.furnitureKind && Object.hasOwn(FURNITURE_PRESETS, values.furnitureKind)) furniture.furnitureKind = values.furnitureKind;
+  else delete furniture.furnitureKind;
   const supportChanged = furniture.supportId !== values.supportId;
   if (values.supportId) furniture.supportId = values.supportId;
   else delete furniture.supportId;
@@ -740,7 +740,7 @@ export function createSamplePlan() {
         omittedFromDrawing: [],
       },
       furniture: [
-        { id:"sample-sofa", name:"サンプルソファ", roomId:"sample-room", x:250, y:630, widthCm:180, depthCm:85, deliveryDimensions:{sideACm:80,sideBCm:45,sideCCm:190,basis:"packed"}, quality:"measured" },
+        { id:"sample-sofa", name:"サンプルソファ", furnitureKind:"sofa", roomId:"sample-room", x:250, y:630, widthCm:180, depthCm:85, deliveryDimensions:{sideACm:80,sideBCm:45,sideCCm:190,basis:"packed"}, quality:"measured" },
       ],
       dimensions: [
         { id: "sample-d1", label: "500", valueCm: 500, from: {x:60,y:35}, to: {x:560,y:35}, offset: 0, quality: "measured" },
