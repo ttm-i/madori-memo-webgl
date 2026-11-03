@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, buildElevationItems, buildKitchenCabinetLayout, buildKitchenComponentRects, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, duplicateFurniture, findDeliveryDoorPath, fitsRectangle, FORMAT, FURNITURE_PRESETS, furnitureDisplayHeight, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, kitchenComponentVerticalRange, moveDimensionGuide, pointInPolygon, rectangleIntersectsPolygon, rectanglesOverlap, resolveFurnitureElevationPlacement, resolveFurnitureVerticalRange, rotateFurniture, rotateFurnitureStack, snapToGrid, updateFurniture, validatePlan, wallDisplayWidth } from "../dist/model.js";
+import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, buildElevationItems, buildKitchenCabinetLayout, buildKitchenComponentRects, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, duplicateFurniture, duplicateFurnitureStack, findDeliveryDoorPath, fitsRectangle, FORMAT, furnitureDescendantIds, FURNITURE_PRESETS, furnitureDisplayHeight, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, kitchenComponentVerticalRange, moveDimensionGuide, pointInPolygon, rectangleIntersectsPolygon, rectanglesOverlap, removeFurnitureStack, resolveFurnitureElevationPlacement, resolveFurnitureVerticalRange, rotateFurniture, rotateFurnitureStack, snapToGrid, updateFurniture, validatePlan, wallDisplayWidth } from "../dist/model.js";
 import { detailMarkup, gestureExceedsTapThreshold, measurementMetrics, PlanRenderer, snapMeasurementPoint, zoomTransformAround } from "../dist/renderer.js";
 import { cabinetDoorPanelCount, cabinetThreePlacement, clampWebGLPan, closetDoorPanelCount, closetThreePlacement, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, projectThreeDepth, projectThreePoint, roomEdgeWallHeight, splitWallFace, subdivideVerticalRange, subdivideWallRectangle, subdivideWallRectangleTiles, subdivideWallSegment, threeItemBelongsToRoom, threeItemFootprint, threeLayerEnabled, threeRoomBounds, threeSelectableType, threeSelectionKey, threeViewportBox, threeWallBelongsToRoom, visibleBoxSideIndexes, wallFeatureThreePlacement, yawToQuarterTurn } from "../dist/three.js";
 
@@ -261,6 +261,23 @@ test("furniture duplication preserves size and offsets position", () => {
   const copy = duplicateFurniture(original, "f2");
   assert.deepEqual(copy, { id: "f2", name: "ソファ コピー", x: 35, y: 45, widthCm: 180, depthCm: 85 });
   assert.equal(original.name, "ソファ");
+});
+
+test("furniture stack duplication preserves nested support relationships", () => {
+  const stand = { id: "stand", name: "テレビ台", x: 100, y: 100, widthCm: 150, depthCm: 40 };
+  const tv = { id: "tv", name: "テレビ", supportId: "stand", x: 120, y: 107.5, widthCm: 110, depthCm: 25, supportOffsetX: 20, supportOffsetY: 7.5 };
+  const speaker = { id: "speaker", name: "スピーカー", supportId: "tv", x: 130, y: 110, widthCm: 20, depthCm: 10, supportOffsetX: 10, supportOffsetY: 2.5 };
+  const plan = { furniture: [stand, tv, speaker] };
+  let index = 0;
+  const copies = duplicateFurnitureStack(plan, stand, () => `copy-${++index}`);
+  assert.deepEqual(copies.map(({ id, name, supportId, x, y }) => ({ id, name, supportId, x, y })), [
+    { id: "copy-1", name: "テレビ台 コピー", supportId: undefined, x: 115, y: 115 },
+    { id: "copy-2", name: "テレビ コピー", supportId: "copy-1", x: 135, y: 122.5 },
+    { id: "copy-3", name: "スピーカー コピー", supportId: "copy-2", x: 145, y: 125 },
+  ]);
+  assert.deepEqual([...furnitureDescendantIds(plan, "stand")], ["tv", "speaker"]);
+  assert.equal(removeFurnitureStack(plan, "stand"), 3);
+  assert.deepEqual(plan.furniture, []);
 });
 
 test("furniture positions snap to a 5cm grid", () => {

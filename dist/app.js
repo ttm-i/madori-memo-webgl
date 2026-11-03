@@ -1,7 +1,7 @@
-import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=84";
-import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, buildElevationItems, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurniture, findSupportItem, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, resolveFurnitureVerticalRange, rotateFurnitureStack, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=84";
-import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=84";
-import { createWebGLThreeView } from "./webgl-three.js?v=84";
+import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=85";
+import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, buildElevationItems, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurnitureStack, findSupportItem, furnitureDescendantIds as modelFurnitureDescendantIds, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, removeFurnitureStack, resolveFurnitureVerticalRange, rotateFurnitureStack, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=85";
+import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=85";
+import { createWebGLThreeView } from "./webgl-three.js?v=85";
 
 const elements = Object.fromEntries([
   "menuButton", "dataMenu", "detailDialog", "detailType", "detailTitle", "detailBody", "fileInput",
@@ -186,18 +186,7 @@ function handleFurnitureEvent(stage) {
 }
 
 function furnitureDescendantIds(furnitureId) {
-  const descendants = new Set();
-  let changed = true;
-  while (changed) {
-    changed = false;
-    for (const item of activePlan?.plan.furniture ?? []) {
-      if ((item.supportId === furnitureId || descendants.has(item.supportId)) && !descendants.has(item.id)) {
-        descendants.add(item.id);
-        changed = true;
-      }
-    }
-  }
-  return descendants;
+  return modelFurnitureDescendantIds(activePlan?.plan, furnitureId);
 }
 
 function updateFurnitureSupportOptions(selectedId = "") {
@@ -744,6 +733,9 @@ function showDetail(type, item) {
   elements.detailBody.innerHTML = detailMarkup(type, detailItem);
   if (type === "furniture") {
     elements.furnitureRoomEdit.replaceChildren(...activePlan.plan.rooms.map((candidate) => new Option(candidate.name, candidate.id, false, candidate.id === item.roomId)));
+    const stackCount = furnitureDescendantIds(item.id).size + 1;
+    elements.duplicateFurnitureButton.textContent = stackCount > 1 ? `一式を複製（${stackCount}点）` : "複製";
+    elements.deleteFurnitureButton.textContent = stackCount > 1 ? `一式を削除（${stackCount}点）` : "削除";
   }
   elements.detailDialog.showModal();
 }
@@ -1077,7 +1069,7 @@ elements.rotateFurnitureButton.addEventListener("click", async () => {
   if (!furniture) return;
   pushHistory();
   rotateFurnitureStack(activePlan.plan, furniture);
-  const supportedCount = activePlan.plan.furniture.filter((item) => item.supportId === furniture.id).length;
+  const supportedCount = furnitureDescendantIds(furniture.id).size;
   await commitFurnitureChange(supportedCount ? "上に載せた家具と一緒に90°回転しました" : "家具を90°回転しました");
 });
 elements.duplicateFurnitureButton.addEventListener("click", async () => {
@@ -1085,21 +1077,22 @@ elements.duplicateFurnitureButton.addEventListener("click", async () => {
   const furniture = selectedFurniture();
   if (!furniture) return;
   pushHistory();
-  activePlan.plan.furniture.push(duplicateFurniture(furniture, crypto.randomUUID()));
-  await commitFurnitureChange("家具を複製しました");
+  const copies = duplicateFurnitureStack(activePlan.plan, furniture, () => crypto.randomUUID());
+  activePlan.plan.furniture.push(...copies);
+  await commitFurnitureChange(copies.length > 1 ? `家具一式（${copies.length}点）を複製しました` : "家具を複製しました");
 });
 elements.deleteFurnitureButton.addEventListener("click", async () => {
   if (locked) return;
   const furniture = selectedFurniture();
-  if (!furniture || !confirm(`「${furniture.name}」を削除しますか？`)) return;
+  if (!furniture) return;
+  const descendantIds = furnitureDescendantIds(furniture.id);
+  const message = descendantIds.size
+    ? `「${furniture.name}」と、その上に載っている家具${descendantIds.size}点をまとめて削除しますか？`
+    : `「${furniture.name}」を削除しますか？`;
+  if (!confirm(message)) return;
   pushHistory();
-  activePlan.plan.furniture = activePlan.plan.furniture.filter((item) => item.id !== furniture.id);
-  for (const item of activePlan.plan.furniture) if (item.supportId === furniture.id) {
-    delete item.supportId;
-    delete item.supportOffsetX;
-    delete item.supportOffsetY;
-  }
-  await commitFurnitureChange("家具を削除しました");
+  const removedCount = removeFurnitureStack(activePlan.plan, furniture.id);
+  await commitFurnitureChange(removedCount > 1 ? `家具一式（${removedCount}点）を削除しました` : "家具を削除しました");
 });
 elements.furnitureRoomEdit.addEventListener("change", async () => {
   if (locked) return;

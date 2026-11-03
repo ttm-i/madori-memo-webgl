@@ -517,6 +517,52 @@ export function duplicateFurniture(furniture, id) {
   };
 }
 
+export function furnitureDescendantIds(plan, furnitureId) {
+  const furnitureItems = plan?.furniture ?? [];
+  const descendants = new Set();
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const item of furnitureItems) {
+      if ((item.supportId === furnitureId || descendants.has(item.supportId)) && item.id !== furnitureId && !descendants.has(item.id)) {
+        descendants.add(item.id);
+        changed = true;
+      }
+    }
+  }
+  return descendants;
+}
+
+export function duplicateFurnitureStack(plan, furniture, createId) {
+  if (!furniture) return [];
+  const furnitureItems = plan?.furniture ?? [];
+  const descendants = furnitureDescendantIds(plan, furniture.id);
+  const sourceIds = new Set([furniture.id, ...descendants]);
+  const sources = [];
+  const queued = [furniture];
+  const visited = new Set();
+  while (queued.length) {
+    const source = queued.shift();
+    if (!source || visited.has(source.id)) continue;
+    visited.add(source.id);
+    sources.push(source);
+    queued.push(...furnitureItems.filter((item) => sourceIds.has(item.id) && item.supportId === source.id));
+  }
+  const idMap = new Map(sources.map((source) => [source.id, createId()]));
+  return sources.map((source) => {
+    const copy = duplicateFurniture(source, idMap.get(source.id));
+    if (idMap.has(source.supportId)) copy.supportId = idMap.get(source.supportId);
+    return copy;
+  });
+}
+
+export function removeFurnitureStack(plan, furnitureId) {
+  const furnitureItems = plan?.furniture ?? [];
+  const deleteIds = new Set([furnitureId, ...furnitureDescendantIds(plan, furnitureId)]);
+  if (plan) plan.furniture = furnitureItems.filter((item) => !deleteIds.has(item.id));
+  return furnitureItems.length - (plan?.furniture?.length ?? furnitureItems.length);
+}
+
 export function updateFurniture(furniture, values) {
   const centerX = furniture.x + furniture.widthCm / 2;
   const centerY = furniture.y + furniture.depthCm / 2;
