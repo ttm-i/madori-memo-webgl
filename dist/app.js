@@ -1,7 +1,7 @@
-import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=88";
-import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildElevationItems, buildFurnitureHierarchy, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurnitureStack, findSupportItem, furnitureDescendantIds as modelFurnitureDescendantIds, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, removeFurnitureStack, resolveFurnitureVerticalRange, rotateFurnitureStack, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=88";
-import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=88";
-import { createWebGLThreeView } from "./webgl-three.js?v=88";
+import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=89";
+import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildElevationItems, buildFurnitureHierarchy, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurnitureStack, findSupportItem, furnitureDescendantIds as modelFurnitureDescendantIds, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, removeFurnitureStack, resolveFurnitureVerticalRange, rotateFurnitureStack, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=89";
+import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=89";
+import { createWebGLThreeView } from "./webgl-three.js?v=89";
 
 const elements = Object.fromEntries([
   "menuButton", "dataMenu", "detailDialog", "detailType", "detailTitle", "detailBody", "fileInput",
@@ -18,7 +18,7 @@ const elements = Object.fromEntries([
   "furnitureViewActions", "showFurnitureClearanceButton", "furnitureActions", "rotateFurnitureButton", "duplicateFurnitureButton", "deleteFurnitureButton",
   "furnitureRoomEditGroup", "furnitureRoomEdit",
   "editFurnitureButton", "furnitureDialogTitle", "furnitureSubmitButton",
-  "furnitureListButton", "furnitureListDialog", "furnitureList", "furnitureListCount",
+  "furnitureListButton", "furnitureListDialog", "furnitureList", "furnitureListCount", "furnitureListRoomFilter", "furnitureListExpandAll",
   "wallDiagramModeButton", "wallHeightModeButton", "wallRoomList", "wallEmpty",
   "wallDiagramPanel", "wallPlanTitle", "wallPlanSvg", "wallList", "wallDiagramTitle", "wallDiagramMeta", "wallDiagramSvg", "wallDiagramDetails",
   "wallScrollViewButton", "wallOverviewButton", "wallSvgScroll",
@@ -36,6 +36,8 @@ let toastTimer = null;
 let selectedFurnitureId = null;
 let editingFurnitureId = null;
 let preserveFurnitureSelectionOnClose = false;
+let furnitureListRoomId = "";
+const collapsedFurnitureIds = new Set();
 let locked = true;
 let dimensionGroups = new Set();
 let selectedWallRoomId = null;
@@ -802,7 +804,19 @@ function selectedFurniture() {
 
 function renderFurnitureList() {
   const furnitureItems = activePlan?.plan.furniture ?? [];
-  elements.furnitureListCount.textContent = String(furnitureItems.length);
+  const roomsWithFurniture = activePlan.plan.rooms.filter((room) => furnitureItems.some((item) => item.roomId === room.id));
+  if (furnitureListRoomId && !roomsWithFurniture.some((room) => room.id === furnitureListRoomId)) furnitureListRoomId = "";
+  elements.furnitureListRoomFilter.replaceChildren(
+    new Option("すべての部屋", "", false, !furnitureListRoomId),
+    ...roomsWithFurniture.map((room) => new Option(room.name, room.id, false, room.id === furnitureListRoomId)),
+  );
+  const hierarchy = buildFurnitureHierarchy(activePlan.plan);
+  const filteredHierarchy = furnitureListRoomId
+    ? hierarchy.filter(({ furniture }) => furniture.roomId === furnitureListRoomId)
+    : hierarchy;
+  elements.furnitureListCount.textContent = filteredHierarchy.length === furnitureItems.length
+    ? String(furnitureItems.length)
+    : `${filteredHierarchy.length} / ${furnitureItems.length}`;
   if (!furnitureItems.length) {
     const empty = document.createElement("p");
     empty.className = "furniture-list-empty";
@@ -810,17 +824,44 @@ function renderFurnitureList() {
     elements.furnitureList.replaceChildren(empty);
     return;
   }
-  const rows = buildFurnitureHierarchy(activePlan.plan).map(({ furniture, depth }) => {
+  if (!filteredHierarchy.length) {
+    const empty = document.createElement("p");
+    empty.className = "furniture-list-empty";
+    empty.textContent = "この部屋に配置した家具はありません。";
+    elements.furnitureList.replaceChildren(empty);
+    return;
+  }
+  const furnitureById = new Map(furnitureItems.map((item) => [item.id, item]));
+  const visibleIds = new Set(filteredHierarchy.map(({ furniture }) => furniture.id));
+  const childIdsByParent = new Map();
+  for (const item of furnitureItems) {
+    if (!furnitureById.has(item.supportId) || !visibleIds.has(item.id)) continue;
+    if (!childIdsByParent.has(item.supportId)) childIdsByParent.set(item.supportId, []);
+    childIdsByParent.get(item.supportId).push(item.id);
+  }
+  const isHiddenByCollapsedAncestor = (furniture) => {
+    let supportId = furniture.supportId;
+    const seen = new Set();
+    while (furnitureById.has(supportId) && !seen.has(supportId)) {
+      if (collapsedFurnitureIds.has(supportId)) return true;
+      seen.add(supportId);
+      supportId = furnitureById.get(supportId).supportId;
+    }
+    return false;
+  };
+  const rows = filteredHierarchy.filter(({ furniture }) => !isHiddenByCollapsedAncestor(furniture)).map(({ furniture, depth }) => {
     const room = activePlan.plan.rooms.find((candidate) => candidate.id === furniture.roomId);
     const placement = analyzeFurniturePlacement(furniture, room);
     const conflicts = analyzeFurnitureConflicts(furniture, activePlan.plan);
     const supportFit = analyzeFurnitureSupportFit(furniture, activePlan.plan);
     const vertical = resolveFurnitureVerticalRange(activePlan.plan, furniture);
+    const wrapper = document.createElement("div");
+    wrapper.className = "furniture-list-row";
+    wrapper.classList.toggle("is-nested", depth > 0);
+    wrapper.style.setProperty("--tree-indent", `${depth * 16}px`);
     const row = document.createElement("button");
     row.type = "button";
     row.className = `furniture-list-item ${!placement.inside ? "danger" : supportFit?.fits === false || conflicts.length ? "warning" : ""}`;
-    row.classList.toggle("is-nested", depth > 0);
-    row.style.setProperty("--tree-indent", `${depth * 16}px`);
     const name = document.createElement("strong");
     name.textContent = `${depth > 0 ? "↳ " : ""}${furniture.name}`;
     const roomLabel = document.createElement("span");
@@ -845,7 +886,24 @@ function renderFurnitureList() {
       setFurnitureVisible(true);
       showDetail("furniture", furniture);
     });
-    return row;
+    wrapper.append(row);
+    const childIds = childIdsByParent.get(furniture.id) ?? [];
+    if (childIds.length) {
+      const toggle = document.createElement("button");
+      toggle.type = "button";
+      toggle.className = "furniture-list-collapse";
+      const collapsed = collapsedFurnitureIds.has(furniture.id);
+      toggle.textContent = collapsed ? "+" : "−";
+      toggle.setAttribute("aria-label", `${furniture.name}の上の家具を${collapsed ? "表示" : "折りたたむ"}`);
+      toggle.setAttribute("aria-expanded", String(!collapsed));
+      toggle.addEventListener("click", () => {
+        if (collapsed) collapsedFurnitureIds.delete(furniture.id);
+        else collapsedFurnitureIds.add(furniture.id);
+        renderFurnitureList();
+      });
+      wrapper.append(toggle);
+    }
+    return wrapper;
   });
   elements.furnitureList.replaceChildren(...rows);
 }
@@ -998,6 +1056,14 @@ elements.furnitureListButton.addEventListener("click", () => {
   if (!activePlan) return showToast("先に間取りデータを読み込んでください");
   renderFurnitureList();
   elements.furnitureListDialog.showModal();
+});
+elements.furnitureListRoomFilter.addEventListener("change", () => {
+  furnitureListRoomId = elements.furnitureListRoomFilter.value;
+  renderFurnitureList();
+});
+elements.furnitureListExpandAll.addEventListener("click", () => {
+  collapsedFurnitureIds.clear();
+  renderFurnitureList();
 });
 elements.furniturePreset.addEventListener("change", () => {
   const preset = FURNITURE_PRESETS[elements.furniturePreset.value];
