@@ -458,6 +458,27 @@ test("3D electrical plates reuse wall coordinates and measured center height", (
   assert.equal(Math.hypot(placement.normal.x, placement.normal.y), 1);
 });
 
+test("3D electrical plates choose the intended face of a custom counter wall", () => {
+  const documentData = {
+    plan: {
+      rooms: [{ id: "ldk", points: [{ x: 0, y: 0 }, { x: 300, y: 0 }, { x: 300, y: 300 }, { x: 0, y: 300 }] }],
+      elevationWalls: [
+        { id: "counter-side", roomId: "ldk", from: { x: 100, y: 200 }, to: { x: 100, y: 100 }, lengthCm: 100 },
+        { id: "counter-back", roomId: "ldk", from: { x: 60, y: 100 }, to: { x: 60, y: 200 }, lengthCm: 100 },
+      ],
+      features: [{ id: "counter", roomId: "ldk", elevationWallId: "counter-side", x: 70, y: 130, width: 30, height: 60 }],
+    },
+  };
+  const counterOutlet = { roomId: "ldk", elevationWallId: "counter-side", elevationCenterCm: 40, verticalPosition: { centerHeightCm: 100 } };
+  const kitchenOutlet = { roomId: "ldk", elevationWallId: "counter-back", elevationCenterCm: 40, verticalPosition: { centerHeightCm: 104 } };
+  const counterNormal = electricalThreePlacement(documentData, counterOutlet).normal;
+  const kitchenNormal = electricalThreePlacement(documentData, kitchenOutlet).normal;
+  assert.equal(counterNormal.x, -1);
+  assert.equal(Math.abs(counterNormal.y), 0);
+  assert.equal(kitchenNormal.x, -1);
+  assert.equal(Math.abs(kitchenNormal.y), 0);
+});
+
 test("3D wall faces are split around door and window openings", () => {
   assert.deepEqual(splitWallFace(300, 220, [{ u1: 100, u2: 180, z1: 0, z2: 199 }]), [
     { u1: 0, u2: 100, z1: 0, z2: 220 },

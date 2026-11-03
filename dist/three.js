@@ -1,4 +1,4 @@
-import { buildKitchenComponentRects, buildRoomWalls, featureSupportRange, getElectricalPlanPosition, pointInPolygon, resolveFurnitureVerticalRange } from "./model.js?v=70";
+import { buildKitchenComponentRects, buildRoomWalls, featureSupportRange, getElectricalPlanPosition, pointInPolygon, resolveFurnitureVerticalRange } from "./model.js?v=71";
 
 const NS = "http://www.w3.org/2000/svg";
 
@@ -173,7 +173,15 @@ export function electricalThreePlacement(documentData, electrical, electricalTyp
     y: (wall.to.y - wall.from.y) / wall.lengthCm,
   };
   const normal = { x: -tangent.y, y: tangent.x };
-  if (roomCenter && (roomCenter.x - position.anchor.x) * normal.x + (roomCenter.y - position.anchor.y) * normal.y < 0) {
+  const customWall = room && wall.index >= room.points.length;
+  const relatedFeature = customWall
+    ? documentData.plan.features?.find((item) => item.elevationWallId === wall.id
+      && [item.x, item.y, item.width, item.height].every(Number.isFinite))
+    : null;
+  const faceTarget = relatedFeature
+    ? { x: relatedFeature.x + relatedFeature.width / 2, y: relatedFeature.y + relatedFeature.height / 2 }
+    : (!customWall ? roomCenter : null);
+  if (faceTarget && (faceTarget.x - position.anchor.x) * normal.x + (faceTarget.y - position.anchor.y) * normal.y < 0) {
     normal.x *= -1;
     normal.y *= -1;
   }
