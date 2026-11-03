@@ -1,7 +1,7 @@
-import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=93";
-import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildElevationItems, buildFurnitureHierarchy, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurnitureStack, findSupportItem, furnitureDescendantIds as modelFurnitureDescendantIds, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, removeFurnitureStack, resolveFurnitureVerticalRange, rotateFurnitureStack, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=93";
-import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=93";
-import { createWebGLThreeView } from "./webgl-three.js?v=93";
+import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=94";
+import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildElevationItems, buildFurnitureHierarchy, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurnitureStack, findSupportItem, furnitureDescendantIds as modelFurnitureDescendantIds, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, removeFurnitureStack, resolveFurnitureVerticalRange, rotateFurnitureStack, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=94";
+import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=94";
+import { createWebGLThreeView } from "./webgl-three.js?v=94";
 
 const elements = Object.fromEntries([
   "menuButton", "dataMenu", "detailDialog", "detailType", "detailTitle", "detailBody", "fileInput",
@@ -834,6 +834,18 @@ function selectedFurniture() {
   return activePlan?.plan.furniture.find((item) => item.id === selectedFurnitureId);
 }
 
+function supportOverflowSummary(supportFit) {
+  const labels = { left: "左", right: "右", top: "上", bottom: "下" };
+  const parts = Object.entries(supportFit?.overflowEdgesCm ?? {})
+    .filter(([, value]) => value > .001)
+    .map(([edge, value]) => `${labels[edge]} ${Math.round(value * 10) / 10} cm`);
+  if (parts.length) return parts.join("・");
+  const sizeParts = [];
+  if (supportFit?.overflowWidthCm > .001) sizeParts.push(`幅 ${Math.round(supportFit.overflowWidthCm * 10) / 10} cm`);
+  if (supportFit?.overflowDepthCm > .001) sizeParts.push(`奥行 ${Math.round(supportFit.overflowDepthCm * 10) / 10} cm`);
+  return sizeParts.join("・");
+}
+
 function renderFurnitureList() {
   const furnitureItems = activePlan?.plan.furniture ?? [];
   const roomsWithFurniture = activePlan.plan.rooms.filter((room) => furnitureItems.some((item) => item.roomId === room.id));
@@ -939,7 +951,17 @@ function renderFurnitureList() {
     size.textContent = Number.isFinite(furniture.heightCm)
       ? `${furniture.widthCm}×${furniture.depthCm}×高さ${furniture.heightCm} cm`
       : `${furniture.widthCm}×${furniture.depthCm} cm・高さ未登録`;
-    row.append(name, roomLabel, heightLabel, size);
+    const issueDetails = [];
+    if (supportFit?.fits === false) issueDetails.push(`設置面超過: ${supportOverflowSummary(supportFit)}`);
+    if (conflicts.length) issueDetails.push(`重なり: ${conflicts.map((conflict) => conflict.name).join("、")}`);
+    row.append(name, roomLabel);
+    if (issueDetails.length) {
+      const issueLabel = document.createElement("span");
+      issueLabel.className = "furniture-list-issues";
+      issueLabel.textContent = issueDetails.join(" / ");
+      row.append(issueLabel);
+    }
+    row.append(heightLabel, size);
     row.addEventListener("click", () => {
       elements.furnitureListDialog.close();
       setFurnitureVisible(true);

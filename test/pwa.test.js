@@ -39,6 +39,8 @@ test("the furniture list can filter inspection findings without losing stack con
     assert.match(html, new RegExp(`option value="${value}"`));
   }
   assert.match(app, /statuses\.push\("関連家具"\)/);
+  assert.match(app, /設置面超過:.*supportOverflowSummary/);
+  assert.match(app, /重なり:.*conflicts\.map/);
   assert.match(app, /collapsedFurnitureIds\.clear\(\);\s*renderFurnitureList\(\);/);
 });
 

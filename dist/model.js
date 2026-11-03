@@ -64,6 +64,27 @@ export function analyzeFurnitureSupportFit(furniture, plan) {
   if (![supportWidthCm, supportDepthCm, furniture?.widthCm, furniture?.depthCm].every(Number.isFinite)) return null;
   const overflowWidthCm = Math.max(0, furniture.widthCm - supportWidthCm);
   const overflowDepthCm = Math.max(0, furniture.depthCm - supportDepthCm);
+  const availableX = supportWidthCm - furniture.widthCm;
+  const availableY = supportDepthCm - furniture.depthCm;
+  const defaultX = availableX / 2;
+  const defaultY = availableY / 2;
+  const fallbackOffsetX = availableX >= 0
+    ? Math.max(0, Math.min(availableX, Number.isFinite(furniture.supportOffsetX) ? furniture.supportOffsetX : defaultX))
+    : defaultX;
+  const fallbackOffsetY = availableY >= 0
+    ? Math.max(0, Math.min(availableY, Number.isFinite(furniture.supportOffsetY) ? furniture.supportOffsetY : defaultY))
+    : defaultY;
+  let overflowEdgesCm = null;
+  if (Number.isFinite(support.x) && Number.isFinite(support.y)) {
+    const furnitureX = Number.isFinite(furniture.x) ? furniture.x : support.x + fallbackOffsetX;
+    const furnitureY = Number.isFinite(furniture.y) ? furniture.y : support.y + fallbackOffsetY;
+    overflowEdgesCm = {
+      left: Math.max(0, support.x - furnitureX),
+      right: Math.max(0, furnitureX + furniture.widthCm - (support.x + supportWidthCm)),
+      top: Math.max(0, support.y - furnitureY),
+      bottom: Math.max(0, furnitureY + furniture.depthCm - (support.y + supportDepthCm)),
+    };
+  }
   return {
     support,
     supportWidthCm,
@@ -71,6 +92,7 @@ export function analyzeFurnitureSupportFit(furniture, plan) {
     fits: overflowWidthCm <= .001 && overflowDepthCm <= .001,
     overflowWidthCm,
     overflowDepthCm,
+    overflowEdgesCm,
     movementWidthCm: Math.max(0, supportWidthCm - furniture.widthCm),
     movementDepthCm: Math.max(0, supportDepthCm - furniture.depthCm),
   };

@@ -1,4 +1,4 @@
-import { analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildKitchenComponentRects, findSupportItem, furnitureDescendantIds, getDimensionGroup, getElectricalPlanPosition, moveDimensionGuide, QUALITY_LABELS, snapToGrid, translateFurnitureDescendants } from "./model.js?v=93";
+import { analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildKitchenComponentRects, findSupportItem, furnitureDescendantIds, getDimensionGroup, getElectricalPlanPosition, moveDimensionGuide, QUALITY_LABELS, snapToGrid, translateFurnitureDescendants } from "./model.js?v=94";
 
 const NS = "http://www.w3.org/2000/svg";
 
@@ -838,10 +838,15 @@ export function detailMarkup(type, item) {
   const warnings = [];
   if (type === "furniture" && item.placement && !item.placement.inside) warnings.push("指定した部屋から家具がはみ出しています。");
   if (type === "furniture" && item.supportFit?.fits === false) {
-    const overflow = [];
-    if (item.supportFit.overflowWidthCm > .001) overflow.push(`幅 ${item.supportFit.overflowWidthCm} cm`);
-    if (item.supportFit.overflowDepthCm > .001) overflow.push(`奥行 ${item.supportFit.overflowDepthCm} cm`);
-    warnings.push(`設置面より${overflow.join("・")}大きいため、中央に固定しています。`);
+    const edgeLabels = { left: "左", right: "右", top: "上", bottom: "下" };
+    const overflow = Object.entries(item.supportFit.overflowEdgesCm ?? {})
+      .filter(([, value]) => value > .001)
+      .map(([edge, value]) => `${edgeLabels[edge]} ${Math.round(value * 10) / 10} cm`);
+    if (!overflow.length) {
+      if (item.supportFit.overflowWidthCm > .001) overflow.push(`幅 ${item.supportFit.overflowWidthCm} cm`);
+      if (item.supportFit.overflowDepthCm > .001) overflow.push(`奥行 ${item.supportFit.overflowDepthCm} cm`);
+    }
+    warnings.push(`設置面からの超過: ${overflow.join("・")}（中央に固定）`);
   }
   if (type === "furniture" && item.conflicts?.length) warnings.push(`重なり: ${item.conflicts.map((conflict) => escapeHTML(conflict.name)).join("、")}`);
   const warning = warnings.length ? `<p class="placement-alert">${warnings.join("<br>")}</p>` : "";

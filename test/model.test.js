@@ -476,6 +476,7 @@ test("support fit reports movement range and oversized furniture overflow", () =
     fits: true,
     overflowWidthCm: 0,
     overflowDepthCm: 0,
+    overflowEdgesCm: { left: 0, right: 0, top: 0, bottom: 0 },
     movementWidthCm: 20,
     movementDepthCm: 20,
   });
@@ -483,6 +484,7 @@ test("support fit reports movement range and oversized furniture overflow", () =
   assert.deepEqual({ x: fitting.x, y: fitting.y, offsetX: fitting.supportOffsetX, offsetY: fitting.supportOffsetY }, { x: 120, y: 120, offsetX: 20, offsetY: 20 });
   const overflow = analyzeFurnitureSupportFit(oversized, plan);
   assert.deepEqual({ fits: overflow.fits, width: overflow.overflowWidthCm, depth: overflow.overflowDepthCm }, { fits: false, width: 10, depth: 10 });
+  assert.deepEqual(overflow.overflowEdgesCm, { left: 5, right: 5, top: 5, bottom: 5 });
   alignFurnitureToSupport(plan, oversized);
   assert.deepEqual({ x: oversized.x, y: oversized.y }, { x: 95, y: 95 });
 });
