@@ -1,4 +1,4 @@
-import { buildKitchenComponentRects, featureSupportRange, pointInPolygon, resolveFurnitureVerticalRange } from "./model.js?v=69";
+import { buildKitchenComponentRects, buildRoomWalls, featureSupportRange, getElectricalPlanPosition, pointInPolygon, resolveFurnitureVerticalRange } from "./model.js?v=70";
 
 const NS = "http://www.w3.org/2000/svg";
 
@@ -150,6 +150,42 @@ export function roomEdgeWallHeight(room, hasOpening, defaultHeight, balconyHeigh
   const explicitHeight = room?.wallHeightCm ?? room?.balconyWallHeightCm;
   const lowHeight = Number.isFinite(explicitHeight) && explicitHeight > 0 ? explicitHeight : balconyHeight;
   return Math.min(defaultHeight, lowHeight);
+}
+
+export function electricalThreePlacement(documentData, electrical, electricalType = "outlet") {
+  const position = getElectricalPlanPosition(documentData, electrical);
+  const wall = electrical?.roomId && electrical?.elevationWallId
+    ? buildRoomWalls(documentData, electrical.roomId).find((item) => item.id === electrical.elevationWallId)
+    : null;
+  const centerHeightCm = electrical?.verticalPosition?.centerHeightCm
+    ?? electrical?.verticalPosition?.derivedCenterHeightCm;
+  if (!position?.anchor || !wall || !Number.isFinite(centerHeightCm) || !wall.lengthCm) return null;
+  const room = documentData.plan.rooms?.find((item) => item.id === electrical.roomId);
+  const roomCenter = room?.points?.length
+    ? room.points.reduce((sum, point) => ({ x: sum.x + point.x, y: sum.y + point.y }), { x: 0, y: 0 })
+    : null;
+  if (roomCenter) {
+    roomCenter.x /= room.points.length;
+    roomCenter.y /= room.points.length;
+  }
+  const tangent = {
+    x: (wall.to.x - wall.from.x) / wall.lengthCm,
+    y: (wall.to.y - wall.from.y) / wall.lengthCm,
+  };
+  const normal = { x: -tangent.y, y: tangent.x };
+  if (roomCenter && (roomCenter.x - position.anchor.x) * normal.x + (roomCenter.y - position.anchor.y) * normal.y < 0) {
+    normal.x *= -1;
+    normal.y *= -1;
+  }
+  return {
+    anchor: position.anchor,
+    tangent,
+    normal,
+    wall,
+    centerHeightCm,
+    widthCm: electrical.elevationWidthCm ?? 8,
+    heightCm: electrical.elevationHeightCm ?? (electricalType === "switch" ? 13 : 12),
+  };
 }
 
 export function threeWallBelongsToRoom(wall, room) {

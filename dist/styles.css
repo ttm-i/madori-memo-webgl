@@ -269,6 +269,7 @@ button { color: inherit; touch-action: manipulation; }
 .three-legend-window { background: #82c4db; color: #41778b; }
 .three-legend-feature { background: #6b9e89; color: #467865; }
 .three-legend-furniture { background: #bd8763; color: #915f3f; }
+.three-legend-electrical { background: #f4f0e7; color: #4f7469; }
 .three-note { margin: 4px; color: #8a633a; font-size: .65rem; line-height: 1.5; }
 .delivery-route-heading { margin: 14px 3px 7px; }
 .delivery-route-heading:first-child { margin-top: 0; }

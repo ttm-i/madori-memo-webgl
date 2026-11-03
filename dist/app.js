@@ -1,7 +1,7 @@
-import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=69";
-import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, buildElevationItems, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurniture, findSupportItem, getDimensionGroup, getElectricalPlanPosition, resolveFurnitureVerticalRange, rotateFurniture, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=69";
-import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=69";
-import { createWebGLThreeView } from "./webgl-three.js?v=69";
+import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=70";
+import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, buildElevationItems, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurniture, findSupportItem, getDimensionGroup, getElectricalPlanPosition, resolveFurnitureVerticalRange, rotateFurniture, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=70";
+import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=70";
+import { createWebGLThreeView } from "./webgl-three.js?v=70";
 
 const elements = Object.fromEntries([
   "menuButton", "dataMenu", "detailDialog", "detailType", "detailTitle", "detailBody", "fileInput",
@@ -27,7 +27,7 @@ const elements = Object.fromEntries([
   "deliveryDialog", "deliveryForm", "deliveryDialogTitle", "cancelDeliveryButton", "deliveryBasis",
   "deliverySideA", "deliverySideB", "deliverySideC",
   "threeCanvas", "threeEmpty", "threeRotateLeft", "threeRotateRight", "threeReset", "threeHeightNote", "threeCutawayToggle", "threeLabelsToggle",
-  "threeRoomFilter", "threeWallsToggle", "threeOpeningsToggle", "threeFeaturesToggle", "threeFurnitureToggle",
+  "threeRoomFilter", "threeWallsToggle", "threeOpeningsToggle", "threeFeaturesToggle", "threeFurnitureToggle", "threeElectricalToggle",
   "threeZoomOut", "threeZoomReset", "threeZoomIn", "threeZoomValue", "threeZoomHint",
 ].map((id) => [id, document.getElementById(id)]));
 
@@ -48,7 +48,7 @@ let threeCutaway = true;
 let threeShowLabels = false;
 let threeRoomId = "";
 let webglThreeView = null;
-const threeLayers = { walls: true, openings: true, features: true, furniture: true };
+const threeLayers = { walls: true, openings: true, features: true, furniture: true, electrical: true };
 const selectableByMode = {
   view: new Set(["room", "dimension", "equipment", "electrical", "furniture"]),
   edit: new Set(["furniture"]),
@@ -78,6 +78,7 @@ function updateThreeView() {
   syncThreeZoomControls();
   const scope = result.selectedRoomName ? `${result.selectedRoomName}を表示中。` : "全体を表示中。";
   const notes = [`${scope} ドア・窓 ${result.openingCount}点のうち ${result.cutOpeningCount}点を壁の開口として反映。間仕切り壁 ${result.partitionWallCount}点。壁上端は天井位置ではありません。`];
+  notes.push(`コンセント・スイッチ ${result.electricalCount}点を壁面位置と実測中心高さから表示しています。`);
   notes.push(result.furnitureWithoutHeight
     ? `高さ未登録の家具 ${result.furnitureWithoutHeight}点は、位置確認用の低い箱として表示しています。`
     : "家具の高さデータを反映しています。");
@@ -884,6 +885,7 @@ for (const [toggle, layer] of [
   [elements.threeOpeningsToggle, "openings"],
   [elements.threeFeaturesToggle, "features"],
   [elements.threeFurnitureToggle, "furniture"],
+  [elements.threeElectricalToggle, "electrical"],
 ]) toggle.addEventListener("change", () => { threeLayers[layer] = toggle.checked; updateThreeView(); });
 
 elements.threeZoomOut.addEventListener("click", () => setThreeZoom((webglThreeView?.getZoom() ?? 1) - .25));

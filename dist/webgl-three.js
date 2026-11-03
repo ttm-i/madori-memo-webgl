@@ -1,6 +1,6 @@
 import * as THREE from "./vendor/three/three.module.js";
-import { buildKitchenComponentRects, resolveFurnitureVerticalRange } from "./model.js?v=69";
-import { featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRoomBounds, threeWallBelongsToRoom, yawToQuarterTurn } from "./three.js?v=69";
+import { buildKitchenComponentRects, resolveFurnitureVerticalRange } from "./model.js?v=70";
+import { electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRoomBounds, threeWallBelongsToRoom, yawToQuarterTurn } from "./three.js?v=70";
 
 const WALL_THICKNESS = 6;
 const DEFAULT_WALL_HEIGHT = 220;
@@ -200,6 +200,56 @@ function openingAssembly(opening, range) {
   return group;
 }
 
+function electricalAssembly(documentData, electrical, electricalType) {
+  const placement = electricalThreePlacement(documentData, electrical, electricalType);
+  if (!placement) return null;
+  const offset = WALL_THICKNESS / 2 + 1.4;
+  const center = {
+    x: placement.anchor.x + placement.normal.x * offset,
+    y: placement.anchor.y + placement.normal.y * offset,
+  };
+  const halfWidth = placement.widthCm / 2;
+  const from = {
+    x: center.x - placement.tangent.x * halfWidth,
+    y: center.y - placement.tangent.y * halfWidth,
+  };
+  const to = {
+    x: center.x + placement.tangent.x * halfWidth,
+    y: center.y + placement.tangent.y * halfWidth,
+  };
+  const bottom = placement.centerHeightCm - placement.heightCm / 2;
+  const top = placement.centerHeightCm + placement.heightCm / 2;
+  const group = markSelectable(new THREE.Group(), electricalType, electrical);
+  const plateColor = electricalType === "outlet" ? 0xf5f1e8 : 0xdce9e3;
+  const plate = segmentBox(from, to, bottom, top, 2.2, material(plateColor, { roughness: .48 }));
+  addOutline(plate, electricalType === "outlet" ? 0x6c665c : 0x3f7466, .9);
+  group.add(plate);
+
+  const glyphOffset = offset + 1.7;
+  const glyphCenter = {
+    x: placement.anchor.x + placement.normal.x * glyphOffset,
+    y: placement.anchor.y + placement.normal.y * glyphOffset,
+  };
+  const glyph = (alongCm, glyphWidth, glyphBottom, glyphTop, color) => {
+    const glyphFrom = {
+      x: glyphCenter.x + placement.tangent.x * (alongCm - glyphWidth / 2),
+      y: glyphCenter.y + placement.tangent.y * (alongCm - glyphWidth / 2),
+    };
+    const glyphTo = {
+      x: glyphCenter.x + placement.tangent.x * (alongCm + glyphWidth / 2),
+      y: glyphCenter.y + placement.tangent.y * (alongCm + glyphWidth / 2),
+    };
+    group.add(segmentBox(glyphFrom, glyphTo, glyphBottom, glyphTop, .8, material(color, { roughness: .5 })));
+  };
+  if (electricalType === "outlet") {
+    glyph(-2, 1, placement.centerHeightCm - 2.4, placement.centerHeightCm + 2.4, 0x4f4d49);
+    glyph(2, 1, placement.centerHeightCm - 2.4, placement.centerHeightCm + 2.4, 0x4f4d49);
+  } else {
+    glyph(0, Math.max(3, placement.widthCm - 3), placement.centerHeightCm - 3.2, placement.centerHeightCm + 3.2, 0x5a8f7f);
+  }
+  return { group, placement };
+}
+
 function layerEnabled(layer, options) { return options[layer] !== false; }
 
 function buildScene(root, documentData, options) {
@@ -214,6 +264,10 @@ function buildScene(root, documentData, options) {
   const features = (plan.features ?? [])
     .filter((item) => item.kind !== "column" && threeItemBelongsToRoom(item, selectedRoom?.id));
   const furniture = (plan.furniture ?? []).filter((item) => threeItemBelongsToRoom(item, selectedRoom?.id));
+  const electrical = [
+    ...(plan.electrical?.outlets ?? []).map((item) => ({ item, type: "outlet" })),
+    ...(plan.electrical?.switches ?? []).map((item) => ({ item, type: "switch" })),
+  ].filter(({ item }) => threeItemBelongsToRoom(item, selectedRoom?.id));
   const partitionWalls = (plan.walls ?? []).filter((wall) => threeWallBelongsToRoom(wall, selectedRoom));
   const wallHeight = Math.max(
     DEFAULT_WALL_HEIGHT,
@@ -311,6 +365,20 @@ function buildScene(root, documentData, options) {
     }
   }
 
+  let electricalCount = 0;
+  if (layerEnabled("electrical", options)) {
+    for (const { item, type } of electrical) {
+      const assembly = electricalAssembly(documentData, item, type);
+      if (!assembly) continue;
+      const room = plan.rooms?.find((entry) => entry.id === item.roomId);
+      const wallIndex = assembly.placement.wall.index;
+      if (options.cutaway !== false && room?.points?.length && wallIndex < room.points.length
+        && isCutawayEdge(room.points, wallIndex, options.quarterTurn ?? 0)) continue;
+      root.add(assembly.group);
+      electricalCount += 1;
+    }
+  }
+
   return {
     rendered: true,
     bounds,
@@ -322,6 +390,7 @@ function buildScene(root, documentData, options) {
     furnitureWithoutHeight: furniture.filter((item) => !Number.isFinite(item.heightCm)).length,
     selectedRoomName: selectedRoom?.name ?? null,
     kitchenComponentCount,
+    electricalCount,
   };
 }
 
