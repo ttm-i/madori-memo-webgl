@@ -96,6 +96,27 @@ export function buildKitchenComponentRects(feature) {
   ];
 }
 
+export function buildKitchenCabinetLayout(feature) {
+  const segments = feature?.horizontalSegmentsCm;
+  const required = [feature?.overallWidthCm ?? feature?.width, feature?.worktopHeightCm,
+    feature?.overheadCabinetClearanceCm, feature?.rangeHoodClearanceCm, segments?.stoveToLeftEdge,
+    segments?.stoveWidth, segments?.sinkWidth, segments?.rightEdgeToSink];
+  if (!required.every(Number.isFinite)) return null;
+  const width = feature.overallWidthCm ?? feature.width;
+  const stoveFrom = segments.stoveToLeftEdge;
+  const stoveTo = stoveFrom + segments.stoveWidth;
+  const sinkFrom = width - segments.rightEdgeToSink - segments.sinkWidth;
+  return {
+    lowerSections: [
+      { kind: "stove", fromCm: 0, toCm: stoveTo },
+      { kind: "prep", fromCm: stoveTo, toCm: sinkFrom },
+      { kind: "sink", fromCm: sinkFrom, toCm: width },
+    ],
+    overhead: { fromCm: stoveTo, toCm: width, bottomCm: feature.worktopHeightCm + feature.overheadCabinetClearanceCm, panelCount: 3 },
+    hood: { fromCm: stoveFrom, toCm: stoveTo, bottomCm: feature.worktopHeightCm + feature.rangeHoodClearanceCm },
+  };
+}
+
 export function resolveFurnitureVerticalRange(plan, furniture, visited = new Set()) {
   const ownHeight = Number.isFinite(furniture?.heightCm) ? furniture.heightCm : 35;
   if (!furniture?.supportId || visited.has(furniture.id)) {

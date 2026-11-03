@@ -1,6 +1,6 @@
 import * as THREE from "./vendor/three/three.module.js";
-import { buildKitchenComponentRects, resolveFurnitureVerticalRange } from "./model.js?v=78";
-import { cabinetDoorPanelCount, cabinetThreePlacement, clampWebGLPan, closetThreePlacement, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRoomBounds, threeSelectionKey, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=78";
+import { buildKitchenCabinetLayout, buildKitchenComponentRects, resolveFurnitureVerticalRange } from "./model.js?v=79";
+import { cabinetDoorPanelCount, cabinetThreePlacement, clampWebGLPan, closetThreePlacement, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRoomBounds, threeSelectionKey, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=79";
 
 const WALL_THICKNESS = 6;
 const DEFAULT_WALL_HEIGHT = 220;
@@ -268,6 +268,101 @@ function cabinetAssembly(documentData, item, vertical) {
   return group;
 }
 
+function kitchenAssembly(item, vertical) {
+  const layout = buildKitchenCabinetLayout(item);
+  if (!layout || ![item.x, item.y, item.width, item.height].every(Number.isFinite)) return boxObject(item, vertical, 0x5fa38f, "feature");
+  const group = markSelectable(new THREE.Group(), "feature", item);
+  const worktop = item.worktopHeightCm;
+  const depth = item.height;
+  const frontY = item.y + depth + 1.2;
+  const cabinetMaterial = () => material(0xf0efeb, { roughness: .58 });
+  const metalMaterial = () => material(0x919591, { roughness: .28, metalness: .68 });
+
+  const carcass = new THREE.Mesh(new THREE.BoxGeometry(item.width, worktop - 5, depth), cabinetMaterial());
+  carcass.position.set(item.x + item.width / 2, (worktop - 5) / 2, item.y + depth / 2);
+  addOutline(carcass, 0x777b76, .52);
+  group.add(carcass);
+
+  const worktopMesh = new THREE.Mesh(new THREE.BoxGeometry(item.width + 2, 3, depth + 2), material(0xf7f5ef, { roughness: .38 }));
+  worktopMesh.position.set(item.x + item.width / 2, worktop + 1.5, item.y + depth / 2);
+  addOutline(worktopMesh, 0x7e817c, .48);
+  group.add(worktopMesh);
+
+  for (const section of layout.lowerSections) {
+    const width = section.toCm - section.fromCm;
+    const centerX = item.x + (section.fromCm + section.toCm) / 2;
+    const lowerPanel = new THREE.Mesh(new THREE.BoxGeometry(Math.max(2, width - 1), 51, 2.2), cabinetMaterial());
+    lowerPanel.position.set(centerX, 32.5, frontY);
+    addOutline(lowerPanel, 0x858783, .55);
+    group.add(lowerPanel);
+
+    const upperPanel = new THREE.Mesh(new THREE.BoxGeometry(Math.max(2, width - 1), 18, 2.2), section.kind === "stove"
+      ? material(0x636663, { roughness: .42, metalness: .42 }) : cabinetMaterial());
+    upperPanel.position.set(centerX, 69, frontY);
+    addOutline(upperPanel, 0x777b77, .6);
+    group.add(upperPanel);
+
+    const handleWidth = Math.max(8, Math.min(width * .46, 28));
+    const handle = new THREE.Mesh(new THREE.BoxGeometry(handleWidth, 1.8, 2.4), metalMaterial());
+    handle.position.set(centerX, 60.5, frontY + 2.3);
+    group.add(handle);
+    if (section.kind !== "stove") {
+      const upperHandle = new THREE.Mesh(new THREE.BoxGeometry(handleWidth, 1.8, 2.4), metalMaterial());
+      upperHandle.position.set(centerX, 77, frontY + 2.3);
+      group.add(upperHandle);
+    }
+  }
+
+  const overheadHeight = 55;
+  const overheadDepth = Math.min(36, depth * .66);
+  const overheadWidth = layout.overhead.toCm - layout.overhead.fromCm;
+  const overheadCenterX = item.x + (layout.overhead.fromCm + layout.overhead.toCm) / 2;
+  const overheadCenterY = item.y + overheadDepth / 2;
+  const overheadBody = new THREE.Mesh(new THREE.BoxGeometry(overheadWidth, overheadHeight, overheadDepth), cabinetMaterial());
+  overheadBody.position.set(overheadCenterX, layout.overhead.bottomCm + overheadHeight / 2, overheadCenterY);
+  addOutline(overheadBody, 0x7e817c, .5);
+  group.add(overheadBody);
+  const overheadPanelWidth = overheadWidth / layout.overhead.panelCount;
+  for (let index = 0; index < layout.overhead.panelCount; index += 1) {
+    const panel = new THREE.Mesh(new THREE.BoxGeometry(overheadPanelWidth - 1, overheadHeight - 2, 2.2), cabinetMaterial());
+    panel.position.set(item.x + layout.overhead.fromCm + overheadPanelWidth * (index + .5), layout.overhead.bottomCm + overheadHeight / 2, item.y + overheadDepth + 1.2);
+    addOutline(panel, 0x858783, .52);
+    group.add(panel);
+  }
+  const cabinetRail = new THREE.Mesh(new THREE.BoxGeometry(overheadWidth * .5, 2.5, 2.8), metalMaterial());
+  cabinetRail.position.set(overheadCenterX, layout.overhead.bottomCm - 3, item.y + overheadDepth + 1.7);
+  group.add(cabinetRail);
+
+  const hoodWidth = layout.hood.toCm - layout.hood.fromCm;
+  const hoodCenterX = item.x + (layout.hood.fromCm + layout.hood.toCm) / 2;
+  const hoodDepth = Math.min(46, depth * .8);
+  const hoodTop = Math.max(layout.hood.bottomCm + 50, layout.overhead.bottomCm + overheadHeight);
+  const chimney = new THREE.Mesh(new THREE.BoxGeometry(hoodWidth, hoodTop - layout.hood.bottomCm - 9, 31), cabinetMaterial());
+  chimney.position.set(hoodCenterX, layout.hood.bottomCm + 9 + (hoodTop - layout.hood.bottomCm - 9) / 2, item.y + 15.5);
+  addOutline(chimney, 0x7b7e79, .52);
+  group.add(chimney);
+  const canopy = new THREE.Mesh(new THREE.BoxGeometry(hoodWidth + 2, 10, hoodDepth), material(0xdededa, { roughness: .38, metalness: .18 }));
+  canopy.position.set(hoodCenterX, layout.hood.bottomCm + 5, item.y + hoodDepth / 2);
+  addOutline(canopy, 0x555855, .65);
+  group.add(canopy);
+  const hoodUnderside = new THREE.Mesh(new THREE.BoxGeometry(hoodWidth * .88, 1.5, hoodDepth * .72), material(0x2d302f, { roughness: .48, metalness: .38 }));
+  hoodUnderside.position.set(hoodCenterX, layout.hood.bottomCm - .4, item.y + hoodDepth * .58);
+  group.add(hoodUnderside);
+
+  const sink = buildKitchenComponentRects(item).find((component) => component.kind === "sink");
+  if (sink) {
+    const faucet = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, 17, 14), metalMaterial());
+    faucet.position.set(sink.x + sink.width * .56, worktop + 10, item.y + 8);
+    group.add(faucet);
+    const spoutFrom = { x: sink.x + sink.width * .56, y: item.y + 8 };
+    const spoutTo = { x: spoutFrom.x, y: item.y + 22 };
+    group.add(segmentBox(spoutFrom, spoutTo, worktop + 17, worktop + 19, 2.4, metalMaterial()));
+  }
+
+  group.userData.labelPosition = new THREE.Vector3(item.x + item.width / 2, hoodTop + 18, item.y + depth / 2);
+  return group;
+}
+
 function washbasinAssembly(documentData, item, vertical) {
   const placement = wallFeatureThreePlacement(documentData, item);
   if (!placement) return null;
@@ -354,6 +449,7 @@ function featureAssembly(documentData, item, vertical) {
   if (item.kind === "washer-pan") return washerPanAssembly(item);
   if (item.kind === "washbasin") return washbasinAssembly(documentData, item, vertical);
   if (item.kind === "cabinet") return cabinetAssembly(documentData, item, vertical);
+  if (item.kind === "kitchen") return kitchenAssembly(item, vertical);
   return boxObject(item, vertical, 0x5fa38f, "feature");
 }
 

@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { alignFurnitureToSupport, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, buildElevationItems, buildKitchenComponentRects, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, duplicateFurniture, findDeliveryDoorPath, fitsRectangle, FORMAT, getDimensionGroup, getElectricalPlanPosition, moveDimensionGuide, pointInPolygon, rectangleIntersectsPolygon, rectanglesOverlap, resolveFurnitureElevationPlacement, resolveFurnitureVerticalRange, rotateFurniture, snapToGrid, updateFurniture, validatePlan, wallDisplayWidth } from "../dist/model.js";
+import { alignFurnitureToSupport, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, buildElevationItems, buildKitchenCabinetLayout, buildKitchenComponentRects, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, duplicateFurniture, findDeliveryDoorPath, fitsRectangle, FORMAT, getDimensionGroup, getElectricalPlanPosition, moveDimensionGuide, pointInPolygon, rectangleIntersectsPolygon, rectanglesOverlap, resolveFurnitureElevationPlacement, resolveFurnitureVerticalRange, rotateFurniture, snapToGrid, updateFurniture, validatePlan, wallDisplayWidth } from "../dist/model.js";
 import { detailMarkup, gestureExceedsTapThreshold, measurementMetrics, PlanRenderer, snapMeasurementPoint, zoomTransformAround } from "../dist/renderer.js";
 import { cabinetDoorPanelCount, cabinetThreePlacement, clampWebGLPan, closetDoorPanelCount, closetThreePlacement, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, projectThreeDepth, projectThreePoint, roomEdgeWallHeight, splitWallFace, subdivideVerticalRange, subdivideWallRectangle, subdivideWallRectangleTiles, subdivideWallSegment, threeItemBelongsToRoom, threeItemFootprint, threeLayerEnabled, threeRoomBounds, threeSelectableType, threeSelectionKey, threeViewportBox, threeWallBelongsToRoom, visibleBoxSideIndexes, wallFeatureThreePlacement, yawToQuarterTurn } from "../dist/three.js";
 
@@ -155,6 +155,21 @@ test("kitchen components are positioned from the measured edge segments", () => 
     { kind: "stove", label: "コンロ", x: 20, y: 23, width: 50, height: 45 },
     { kind: "sink", label: "シンク", x: 110, y: 24, width: 80, height: 44 },
   ]);
+  assert.deepEqual(buildKitchenCabinetLayout({
+    ...kitchen,
+    overallWidthCm: 200,
+    worktopHeightCm: 85,
+    overheadCabinetClearanceCm: 73.5,
+    rangeHoodClearanceCm: 83.5,
+  }), {
+    lowerSections: [
+      { kind: "stove", fromCm: 0, toCm: 60 },
+      { kind: "prep", fromCm: 60, toCm: 100 },
+      { kind: "sink", fromCm: 100, toCm: 200 },
+    ],
+    overhead: { fromCm: 60, toCm: 200, bottomCm: 158.5, panelCount: 3 },
+    hood: { fromCm: 10, toCm: 60, bottomCm: 168.5 },
+  });
   const markup = detailMarkup("feature", { ...kitchen, overallWidthCm: 200, overallDepthCm: 60, worktopHeightCm: 85, quality: "measured", placementQuality: "confirmed" });
   assert.match(markup, /キッチン全体/);
   assert.match(markup, /シンク/);
