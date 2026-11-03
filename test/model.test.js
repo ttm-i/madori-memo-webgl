@@ -406,8 +406,10 @@ test("3D openings preserve measured door and window heights", () => {
 
 test("3D cutaway walls follow the selected viewing direction", () => {
   const room = [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }, { x: 0, y: 100 }];
-  assert.deepEqual(room.map((_, index) => isCutawayEdge(room, index, 0)), [false, true, true, false]);
-  assert.deepEqual(room.map((_, index) => isCutawayEdge(room, index, 2)), [true, false, false, true]);
+  assert.deepEqual(room.map((_, index) => isCutawayEdge(room, index, 0)), [false, false, true, true]);
+  assert.deepEqual(room.map((_, index) => isCutawayEdge(room, index, 1)), [false, true, true, false]);
+  assert.deepEqual(room.map((_, index) => isCutawayEdge(room, index, 2)), [true, true, false, false]);
+  assert.deepEqual(room.map((_, index) => isCutawayEdge(room, index, 3)), [true, false, false, true]);
 });
 
 test("WebGL orbit angles choose the nearest cutaway direction", () => {

@@ -1,4 +1,4 @@
-import { buildKitchenComponentRects, featureSupportRange, pointInPolygon, resolveFurnitureVerticalRange } from "./model.js?v=67";
+import { buildKitchenComponentRects, featureSupportRange, pointInPolygon, resolveFurnitureVerticalRange } from "./model.js?v=68";
 
 const NS = "http://www.w3.org/2000/svg";
 
@@ -185,7 +185,9 @@ export function isCutawayEdge(points, index, quarterTurn = 0) {
   const dy = to.y - from.y;
   const clockwise = polygonArea(points) > 0;
   const outward = clockwise ? { x: dy, y: -dx } : { x: -dy, y: dx };
-  const nearDirections = [{ x: 1, y: 1 }, { x: 1, y: -1 }, { x: -1, y: -1 }, { x: -1, y: 1 }];
+  // WebGLの初期カメラは平面図の左下側（-x, +y）から室内を見る。
+  // 右回転ごとのカメラ位置と同じ順序にし、画面手前の外壁だけを外す。
+  const nearDirections = [{ x: -1, y: 1 }, { x: 1, y: 1 }, { x: 1, y: -1 }, { x: -1, y: -1 }];
   const near = nearDirections[((quarterTurn % 4) + 4) % 4];
   return outward.x * near.x + outward.y * near.y > .001;
 }

@@ -1,6 +1,6 @@
 import * as THREE from "./vendor/three/three.module.js";
-import { buildKitchenComponentRects, resolveFurnitureVerticalRange } from "./model.js?v=67";
-import { featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRoomBounds, threeWallBelongsToRoom, yawToQuarterTurn } from "./three.js?v=67";
+import { buildKitchenComponentRects, resolveFurnitureVerticalRange } from "./model.js?v=68";
+import { featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRoomBounds, threeWallBelongsToRoom, yawToQuarterTurn } from "./three.js?v=68";
 
 const WALL_THICKNESS = 6;
 const DEFAULT_WALL_HEIGHT = 220;
