@@ -1,6 +1,6 @@
 import * as THREE from "./vendor/three/three.module.js";
-import { buildKitchenComponentRects, resolveFurnitureVerticalRange } from "./model.js?v=77";
-import { cabinetDoorPanelCount, clampWebGLPan, closetThreePlacement, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRoomBounds, threeSelectionKey, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=77";
+import { buildKitchenComponentRects, resolveFurnitureVerticalRange } from "./model.js?v=78";
+import { cabinetDoorPanelCount, cabinetThreePlacement, clampWebGLPan, closetThreePlacement, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRoomBounds, threeSelectionKey, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=78";
 
 const WALL_THICKNESS = 6;
 const DEFAULT_WALL_HEIGHT = 220;
@@ -231,7 +231,7 @@ function closetAssembly(documentData, item, vertical) {
 }
 
 function cabinetAssembly(documentData, item, vertical) {
-  const placement = wallFeatureThreePlacement(documentData, item);
+  const placement = cabinetThreePlacement(item) ?? wallFeatureThreePlacement(documentData, item);
   if (!placement || !Number.isFinite(vertical?.topCm)) return null;
   const group = markSelectable(new THREE.Group(), "feature", item);
   const bottom = vertical.bottomCm ?? 0;

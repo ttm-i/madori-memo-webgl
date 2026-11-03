@@ -1,4 +1,4 @@
-import { buildKitchenComponentRects, buildRoomWalls, featureSupportRange, getElectricalPlanPosition, pointInPolygon, resolveFurnitureVerticalRange } from "./model.js?v=77";
+import { buildKitchenComponentRects, buildRoomWalls, featureSupportRange, getElectricalPlanPosition, pointInPolygon, resolveFurnitureVerticalRange } from "./model.js?v=78";
 
 const NS = "http://www.w3.org/2000/svg";
 
@@ -82,6 +82,24 @@ export function closetDoorPanelCount(feature) {
 
 export function cabinetDoorPanelCount(feature) {
   return feature?.kind === "cabinet" ? 2 : 0;
+}
+
+export function cabinetThreePlacement(feature) {
+  if (feature?.kind !== "cabinet" || ![feature.x, feature.y, feature.width, feature.height].every(Number.isFinite)) return null;
+  const { x, y, width, height } = feature;
+  if (feature.doorFacing === "left") {
+    return { from: { x: x + width, y }, to: { x: x + width, y: y + height }, tangent: { x: 0, y: 1 }, normal: { x: -1, y: 0 }, widthCm: height, depthCm: width };
+  }
+  if (feature.doorFacing === "right") {
+    return { from: { x, y: y + height }, to: { x, y }, tangent: { x: 0, y: -1 }, normal: { x: 1, y: 0 }, widthCm: height, depthCm: width };
+  }
+  if (feature.doorFacing === "up") {
+    return { from: { x, y: y + height }, to: { x: x + width, y: y + height }, tangent: { x: 1, y: 0 }, normal: { x: 0, y: -1 }, widthCm: width, depthCm: height };
+  }
+  if (feature.doorFacing === "down") {
+    return { from: { x: x + width, y }, to: { x, y }, tangent: { x: -1, y: 0 }, normal: { x: 0, y: 1 }, widthCm: width, depthCm: height };
+  }
+  return null;
 }
 
 export function wallFeatureThreePlacement(documentData, feature) {
