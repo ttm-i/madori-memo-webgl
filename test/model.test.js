@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { alignFurnitureToSupport, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, buildElevationItems, buildKitchenComponentRects, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, duplicateFurniture, findDeliveryDoorPath, fitsRectangle, FORMAT, getDimensionGroup, getElectricalPlanPosition, moveDimensionGuide, pointInPolygon, rectangleIntersectsPolygon, rectanglesOverlap, resolveFurnitureElevationPlacement, resolveFurnitureVerticalRange, rotateFurniture, snapToGrid, updateFurniture, validatePlan, wallDisplayWidth } from "../dist/model.js";
 import { detailMarkup, gestureExceedsTapThreshold, measurementMetrics, PlanRenderer, snapMeasurementPoint, zoomTransformAround } from "../dist/renderer.js";
-import { clampWebGLPan, closetDoorPanelCount, closetThreePlacement, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, projectThreeDepth, projectThreePoint, roomEdgeWallHeight, splitWallFace, subdivideVerticalRange, subdivideWallRectangle, subdivideWallRectangleTiles, subdivideWallSegment, threeItemBelongsToRoom, threeItemFootprint, threeLayerEnabled, threeRoomBounds, threeSelectableType, threeSelectionKey, threeViewportBox, threeWallBelongsToRoom, visibleBoxSideIndexes, wallFeatureThreePlacement, yawToQuarterTurn } from "../dist/three.js";
+import { cabinetDoorPanelCount, clampWebGLPan, closetDoorPanelCount, closetThreePlacement, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, projectThreeDepth, projectThreePoint, roomEdgeWallHeight, splitWallFace, subdivideVerticalRange, subdivideWallRectangle, subdivideWallRectangleTiles, subdivideWallSegment, threeItemBelongsToRoom, threeItemFootprint, threeLayerEnabled, threeRoomBounds, threeSelectableType, threeSelectionKey, threeViewportBox, threeWallBelongsToRoom, visibleBoxSideIndexes, wallFeatureThreePlacement, yawToQuarterTurn } from "../dist/three.js";
 
 test("3D selection keys distinguish element kinds and reject anonymous data", () => {
   assert.equal(threeSelectionKey("outlet", { id: "outlet-3" }), "outlet:outlet-3");
@@ -22,6 +22,11 @@ test("3D closets face the owning room and choose a plausible folding-door count"
   assert.equal(placement.panelCount, 2);
   assert.equal(closetDoorPanelCount({ elevationWidthCm: 263.5 }), 4);
   assert.equal(closetDoorPanelCount({ elevationWidthCm: 135.5 }), 2);
+});
+
+test("3D shoe cabinet uses a pair of center-opening doors", () => {
+  assert.equal(cabinetDoorPanelCount({ kind: "cabinet" }), 2);
+  assert.equal(cabinetDoorPanelCount({ kind: "washbasin" }), 0);
 });
 
 test("3D equipment without elevation metadata uses its nearest room wall", () => {

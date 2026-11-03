@@ -1,4 +1,4 @@
-import { buildKitchenComponentRects, buildRoomWalls, featureSupportRange, getElectricalPlanPosition, pointInPolygon, resolveFurnitureVerticalRange } from "./model.js?v=76";
+import { buildKitchenComponentRects, buildRoomWalls, featureSupportRange, getElectricalPlanPosition, pointInPolygon, resolveFurnitureVerticalRange } from "./model.js?v=77";
 
 const NS = "http://www.w3.org/2000/svg";
 
@@ -78,6 +78,10 @@ export function closetDoorPanelCount(feature) {
   const width = feature?.elevationWidthCm ?? feature?.internalWidthCm ?? feature?.width;
   if (!Number.isFinite(width) || width <= 0) return 0;
   return width >= 200 ? 4 : 2;
+}
+
+export function cabinetDoorPanelCount(feature) {
+  return feature?.kind === "cabinet" ? 2 : 0;
 }
 
 export function wallFeatureThreePlacement(documentData, feature) {

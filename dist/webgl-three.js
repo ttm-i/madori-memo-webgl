@@ -1,6 +1,6 @@
 import * as THREE from "./vendor/three/three.module.js";
-import { buildKitchenComponentRects, resolveFurnitureVerticalRange } from "./model.js?v=76";
-import { clampWebGLPan, closetThreePlacement, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRoomBounds, threeSelectionKey, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=76";
+import { buildKitchenComponentRects, resolveFurnitureVerticalRange } from "./model.js?v=77";
+import { cabinetDoorPanelCount, clampWebGLPan, closetThreePlacement, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRoomBounds, threeSelectionKey, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=77";
 
 const WALL_THICKNESS = 6;
 const DEFAULT_WALL_HEIGHT = 220;
@@ -239,29 +239,32 @@ function cabinetAssembly(documentData, item, vertical) {
   const depth = Math.max(12, placement.depthCm ?? 45);
   const midpoint = { x: (placement.from.x + placement.to.x) / 2, y: (placement.from.y + placement.to.y) / 2 };
   const center = offsetPoint(midpoint, placement.normal, depth / 2);
-  const body = orientedBox(placement.widthCm, top - bottom, depth, center, (top + bottom) / 2, placement.tangent, material(0x8b674b, { roughness: .7 }));
-  addOutline(body, 0x573d2d, .82);
+  const body = orientedBox(placement.widthCm, top - bottom, depth, center, (top + bottom) / 2, placement.tangent, material(0xe8e7e2, { roughness: .62 }));
+  addOutline(body, 0x777975, .62);
   group.add(body);
+
+  const topSlab = orientedBox(placement.widthCm + 1.5, 2.5, depth + 1, center, top + 1.25, placement.tangent, material(0xf5f3ed, { roughness: .42 }));
+  addOutline(topSlab, 0x858681, .52);
+  group.add(topSlab);
 
   const doorPlaneFrom = offsetPoint(placement.from, placement.normal, depth + 1.5);
   const doorPlaneTo = offsetPoint(placement.to, placement.normal, depth + 1.5);
-  const panelCount = placement.widthCm >= 55 ? 2 : 1;
+  const panelCount = cabinetDoorPanelCount(item);
   const panelWidth = placement.widthCm / panelCount;
   for (let index = 0; index < panelCount; index += 1) {
     const from = pointAt(doorPlaneFrom, doorPlaneTo, panelWidth * index + .5, placement.widthCm);
     const to = pointAt(doorPlaneFrom, doorPlaneTo, panelWidth * (index + 1) - .5, placement.widthCm);
-    const door = segmentBox(from, to, bottom + 2, top - 2, 2.2, material(0xa07a59, { roughness: .66 }));
-    addOutline(door, 0x5e4331, .9);
+    const door = segmentBox(from, to, bottom + 2, top - 2, 2.2, material(0xf1f0eb, { roughness: .58 }));
+    addOutline(door, 0x7e807c, .66);
     group.add(door);
   }
-  const handlePoint = pointAt(doorPlaneFrom, doorPlaneTo, placement.widthCm * .72, placement.widthCm);
-  const handle = new THREE.Mesh(new THREE.SphereGeometry(1.8, 12, 8), material(0xaaa49a, { roughness: .25, metalness: .72 }));
-  handle.position.set(
-    handlePoint.x + placement.normal.x * 2.3,
-    bottom + (top - bottom) * .55,
-    handlePoint.y + placement.normal.y * 2.3,
-  );
-  group.add(handle);
+  const handleHeight = Math.max(20, top - bottom - 10);
+  for (const direction of [-1, 1]) {
+    const handlePoint = pointAt(doorPlaneFrom, doorPlaneTo, placement.widthCm / 2 + direction * 1.45, placement.widthCm);
+    const handleCenter = offsetPoint(handlePoint, placement.normal, 2.7);
+    const handle = orientedBox(1.8, handleHeight, 2.4, handleCenter, (top + bottom) / 2, placement.tangent, material(0x555a59, { roughness: .28, metalness: .7 }));
+    group.add(handle);
+  }
   return group;
 }
 
