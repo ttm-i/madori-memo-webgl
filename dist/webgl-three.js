@@ -1,6 +1,6 @@
 import * as THREE from "./vendor/three/three.module.js";
-import { buildKitchenComponentRects, resolveFurnitureVerticalRange } from "./model.js?v=75";
-import { clampWebGLPan, closetThreePlacement, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRoomBounds, threeSelectionKey, threeWallBelongsToRoom, yawToQuarterTurn } from "./three.js?v=75";
+import { buildKitchenComponentRects, resolveFurnitureVerticalRange } from "./model.js?v=76";
+import { clampWebGLPan, closetThreePlacement, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRoomBounds, threeSelectionKey, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=76";
 
 const WALL_THICKNESS = 6;
 const DEFAULT_WALL_HEIGHT = 220;
@@ -143,6 +143,15 @@ function horizontalPanel(from, to, normal, depth, centerHeight, thickness, color
   return mesh;
 }
 
+function orientedBox(width, height, depth, center, centerHeight, tangent, meshMaterial) {
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), meshMaterial);
+  mesh.position.set(center.x, centerHeight, center.y);
+  mesh.rotation.y = -Math.atan2(tangent.y, tangent.x);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  return mesh;
+}
+
 function closetAssembly(documentData, item, vertical) {
   const placement = closetThreePlacement(documentData, item);
   if (!placement || !Number.isFinite(vertical?.topCm)) return null;
@@ -219,6 +228,130 @@ function closetAssembly(documentData, item, vertical) {
     (frontFrom.y + frontTo.y) / 2 + placement.normal.y * 16,
   );
   return group;
+}
+
+function cabinetAssembly(documentData, item, vertical) {
+  const placement = wallFeatureThreePlacement(documentData, item);
+  if (!placement || !Number.isFinite(vertical?.topCm)) return null;
+  const group = markSelectable(new THREE.Group(), "feature", item);
+  const bottom = vertical.bottomCm ?? 0;
+  const top = vertical.topCm;
+  const depth = Math.max(12, placement.depthCm ?? 45);
+  const midpoint = { x: (placement.from.x + placement.to.x) / 2, y: (placement.from.y + placement.to.y) / 2 };
+  const center = offsetPoint(midpoint, placement.normal, depth / 2);
+  const body = orientedBox(placement.widthCm, top - bottom, depth, center, (top + bottom) / 2, placement.tangent, material(0x8b674b, { roughness: .7 }));
+  addOutline(body, 0x573d2d, .82);
+  group.add(body);
+
+  const doorPlaneFrom = offsetPoint(placement.from, placement.normal, depth + 1.5);
+  const doorPlaneTo = offsetPoint(placement.to, placement.normal, depth + 1.5);
+  const panelCount = placement.widthCm >= 55 ? 2 : 1;
+  const panelWidth = placement.widthCm / panelCount;
+  for (let index = 0; index < panelCount; index += 1) {
+    const from = pointAt(doorPlaneFrom, doorPlaneTo, panelWidth * index + .5, placement.widthCm);
+    const to = pointAt(doorPlaneFrom, doorPlaneTo, panelWidth * (index + 1) - .5, placement.widthCm);
+    const door = segmentBox(from, to, bottom + 2, top - 2, 2.2, material(0xa07a59, { roughness: .66 }));
+    addOutline(door, 0x5e4331, .9);
+    group.add(door);
+  }
+  const handlePoint = pointAt(doorPlaneFrom, doorPlaneTo, placement.widthCm * .72, placement.widthCm);
+  const handle = new THREE.Mesh(new THREE.SphereGeometry(1.8, 12, 8), material(0xaaa49a, { roughness: .25, metalness: .72 }));
+  handle.position.set(
+    handlePoint.x + placement.normal.x * 2.3,
+    bottom + (top - bottom) * .55,
+    handlePoint.y + placement.normal.y * 2.3,
+  );
+  group.add(handle);
+  return group;
+}
+
+function washbasinAssembly(documentData, item, vertical) {
+  const placement = wallFeatureThreePlacement(documentData, item);
+  if (!placement) return null;
+  const group = markSelectable(new THREE.Group(), "feature", item);
+  const top = vertical.schematic ? 82 : vertical.topCm;
+  const depth = Math.max(25, placement.depthCm ?? 50);
+  const midpoint = { x: (placement.from.x + placement.to.x) / 2, y: (placement.from.y + placement.to.y) / 2 };
+  const center = offsetPoint(midpoint, placement.normal, depth / 2);
+  const cabinet = orientedBox(placement.widthCm * .94, top - 8, depth * .88, center, 8 + (top - 8) / 2, placement.tangent, material(0xe7e5df, { roughness: .74 }));
+  addOutline(cabinet, 0x88877f, .64);
+  group.add(cabinet);
+
+  const counter = orientedBox(placement.widthCm, 3.5, depth, center, top, placement.tangent, material(0xf3f0e9, { roughness: .45 }));
+  addOutline(counter, 0x85847d, .55);
+  group.add(counter);
+
+  const frontFrom = offsetPoint(placement.from, placement.normal, depth + 1.3);
+  const frontTo = offsetPoint(placement.to, placement.normal, depth + 1.3);
+  const half = placement.widthCm / 2;
+  for (let index = 0; index < 2; index += 1) {
+    const from = pointAt(frontFrom, frontTo, index * half + .6, placement.widthCm);
+    const to = pointAt(frontFrom, frontTo, (index + 1) * half - .6, placement.widthCm);
+    const door = segmentBox(from, to, 10, top - 5, 2, material(0xf0eee8, { roughness: .7 }));
+    addOutline(door, 0x949189, .58);
+    group.add(door);
+  }
+
+  const bowl = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 2.8, 28), material(0x9cc9d0, { roughness: .38, metalness: .12 }));
+  bowl.scale.set(placement.widthCm * .27, 1, depth * .22);
+  bowl.rotation.y = -Math.atan2(placement.tangent.y, placement.tangent.x);
+  const bowlCenter = offsetPoint(midpoint, placement.normal, depth * .58);
+  bowl.position.set(bowlCenter.x, top + 2.4, bowlCenter.y);
+  addOutline(bowl, 0x55828a, .72);
+  group.add(bowl);
+
+  const faucetBase = offsetPoint(midpoint, placement.normal, depth * .22);
+  const faucet = new THREE.Mesh(new THREE.CylinderGeometry(1.25, 1.25, 18, 14), material(0xaaa9a5, { roughness: .24, metalness: .72 }));
+  faucet.position.set(faucetBase.x, top + 10, faucetBase.y);
+  group.add(faucet);
+  const spoutTo = offsetPoint(faucetBase, placement.normal, depth * .22);
+  group.add(segmentBox(faucetBase, spoutTo, top + 17, top + 19, 2.4, material(0xaaa9a5, { roughness: .24, metalness: .72 })));
+
+  const mirrorFrom = pointAt(placement.from, placement.to, placement.widthCm * .08, placement.widthCm);
+  const mirrorTo = pointAt(placement.from, placement.to, placement.widthCm * .92, placement.widthCm);
+  const mirror = segmentBox(offsetPoint(mirrorFrom, placement.normal, 3.2), offsetPoint(mirrorTo, placement.normal, 3.2), top + 15, top + 92, 1.8, material(0xa9c8ca, { roughness: .18, metalness: .26 }));
+  addOutline(mirror, 0x6c8586, .76);
+  group.add(mirror);
+  return group;
+}
+
+function washerPanAssembly(item) {
+  if (![item.x, item.y, item.width, item.height].every(Number.isFinite)) return null;
+  const group = markSelectable(new THREE.Group(), "feature", item);
+  const width = item.width;
+  const depth = item.height;
+  const usableWidth = Math.min(width - 2, item.usableWidthCm ?? width - 5);
+  const usableDepth = Math.min(depth - 2, item.usableDepthCm ?? depth - 5);
+  const rimX = Math.max(1.5, (width - usableWidth) / 2);
+  const rimZ = Math.max(1.5, (depth - usableDepth) / 2);
+  const floor = new THREE.Mesh(new THREE.BoxGeometry(usableWidth, 1.2, usableDepth), material(0xe9ece8, { roughness: .52 }));
+  floor.position.set(item.x + width / 2, .6, item.y + depth / 2);
+  addOutline(floor, 0x89928d, .55);
+  group.add(floor);
+  const rimMaterial = () => material(0xf6f5f0, { roughness: .46 });
+  const rails = [
+    new THREE.Mesh(new THREE.BoxGeometry(width, 4, rimZ), rimMaterial()),
+    new THREE.Mesh(new THREE.BoxGeometry(width, 4, rimZ), rimMaterial()),
+    new THREE.Mesh(new THREE.BoxGeometry(rimX, 4, usableDepth), rimMaterial()),
+    new THREE.Mesh(new THREE.BoxGeometry(rimX, 4, usableDepth), rimMaterial()),
+  ];
+  rails[0].position.set(item.x + width / 2, 2, item.y + rimZ / 2);
+  rails[1].position.set(item.x + width / 2, 2, item.y + depth - rimZ / 2);
+  rails[2].position.set(item.x + rimX / 2, 2, item.y + depth / 2);
+  rails[3].position.set(item.x + width - rimX / 2, 2, item.y + depth / 2);
+  rails.forEach((rail) => { addOutline(rail, 0x8d918d, .58); group.add(rail); });
+  const drain = new THREE.Mesh(new THREE.CylinderGeometry(4.2, 4.2, .9, 22), material(0x8d9693, { roughness: .3, metalness: .48 }));
+  drain.position.set(item.x + width * .27, 1.5, item.y + depth * .72);
+  group.add(drain);
+  return group;
+}
+
+function featureAssembly(documentData, item, vertical) {
+  if (item.kind === "closet") return closetAssembly(documentData, item, vertical);
+  if (item.kind === "washer-pan") return washerPanAssembly(item);
+  if (item.kind === "washbasin") return washbasinAssembly(documentData, item, vertical);
+  if (item.kind === "cabinet") return cabinetAssembly(documentData, item, vertical);
+  return boxObject(item, vertical, 0x5fa38f, "feature");
 }
 
 function textSprite(text, position) {
@@ -460,9 +593,7 @@ function buildScene(root, documentData, options) {
   if (layerEnabled("features", options)) {
     for (const item of features) {
       const vertical = featureVerticalRange(item);
-      const mesh = item.kind === "closet"
-        ? closetAssembly(documentData, item, vertical)
-        : boxObject(item, vertical, 0x5fa38f, "feature");
+      const mesh = featureAssembly(documentData, item, vertical);
       if (!mesh) continue;
       root.add(mesh);
       if (item.kind === "kitchen") {
@@ -511,6 +642,7 @@ function buildScene(root, documentData, options) {
     hiddenWallCount,
     partitionWallCount: partitionWalls.length,
     furnitureWithoutHeight: furniture.filter((item) => !Number.isFinite(item.heightCm)).length,
+    schematicFeatureCount: features.filter((item) => featureVerticalRange(item).schematic).length,
     selectedRoomName: selectedRoom?.name ?? null,
     kitchenComponentCount,
     electricalCount,

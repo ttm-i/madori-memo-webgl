@@ -1,4 +1,4 @@
-import { buildKitchenComponentRects, buildRoomWalls, featureSupportRange, getElectricalPlanPosition, pointInPolygon, resolveFurnitureVerticalRange } from "./model.js?v=75";
+import { buildKitchenComponentRects, buildRoomWalls, featureSupportRange, getElectricalPlanPosition, pointInPolygon, resolveFurnitureVerticalRange } from "./model.js?v=76";
 
 const NS = "http://www.w3.org/2000/svg";
 
@@ -80,12 +80,33 @@ export function closetDoorPanelCount(feature) {
   return width >= 200 ? 4 : 2;
 }
 
-export function closetThreePlacement(documentData, feature) {
-  if (feature?.kind !== "closet" || !feature.roomId || !feature.elevationWallId) return null;
-  const wall = buildRoomWalls(documentData, feature.roomId).find((item) => item.id === feature.elevationWallId);
+export function wallFeatureThreePlacement(documentData, feature) {
+  if (!feature?.roomId) return null;
+  const walls = buildRoomWalls(documentData, feature.roomId);
   const room = documentData?.plan?.rooms?.find((item) => item.id === feature.roomId);
-  const widthCm = feature.elevationWidthCm ?? feature.internalWidthCm ?? feature.width;
-  const offsetCm = feature.elevationOffsetCm ?? 0;
+  let wall = feature.elevationWallId ? walls.find((item) => item.id === feature.elevationWallId) : null;
+  if (!wall && room?.points?.length && [feature.x, feature.y, feature.width, feature.height].every(Number.isFinite)) {
+    const corners = [
+      { x: feature.x, y: feature.y },
+      { x: feature.x + feature.width, y: feature.y },
+      { x: feature.x + feature.width, y: feature.y + feature.height },
+      { x: feature.x, y: feature.y + feature.height },
+    ];
+    wall = walls.filter((item) => item.index < room.points.length)
+      .map((item) => ({ item, distance: Math.min(...corners.map((corner) => pointToSegmentDistance(corner, item.from, item.to))) }))
+      .sort((first, second) => first.distance - second.distance)[0]?.item ?? null;
+  }
+  let widthCm = feature.elevationWidthCm ?? feature.internalWidthCm;
+  let offsetCm = feature.elevationOffsetCm;
+  if (wall?.lengthCm && !Number.isFinite(widthCm) && [feature.width, feature.height].every(Number.isFinite)) {
+    const tangentX = (wall.to.x - wall.from.x) / wall.lengthCm;
+    const tangentY = (wall.to.y - wall.from.y) / wall.lengthCm;
+    widthCm = Math.abs(feature.width * tangentX) + Math.abs(feature.height * tangentY);
+    const center = { x: feature.x + feature.width / 2, y: feature.y + feature.height / 2 };
+    const projectedCenter = (center.x - wall.from.x) * tangentX + (center.y - wall.from.y) * tangentY;
+    offsetCm = projectedCenter - widthCm / 2;
+  }
+  offsetCm ??= 0;
   if (!wall?.lengthCm || !room?.points?.length || !Number.isFinite(widthCm) || widthCm <= 0) return null;
   const tangent = {
     x: (wall.to.x - wall.from.x) / wall.lengthCm,
@@ -116,9 +137,14 @@ export function closetThreePlacement(documentData, feature) {
     normal,
     widthCm,
     depthCm: feature.depthCm ?? footprintDepth,
-    panelCount: closetDoorPanelCount(feature),
     wall,
   };
+}
+
+export function closetThreePlacement(documentData, feature) {
+  if (feature?.kind !== "closet") return null;
+  const placement = wallFeatureThreePlacement(documentData, feature);
+  return placement ? { ...placement, panelCount: closetDoorPanelCount(feature) } : null;
 }
 
 export function threeSelectableType(item) {

@@ -1,7 +1,7 @@
-import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=75";
-import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, buildElevationItems, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurniture, findSupportItem, getDimensionGroup, getElectricalPlanPosition, resolveFurnitureVerticalRange, rotateFurniture, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=75";
-import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=75";
-import { createWebGLThreeView } from "./webgl-three.js?v=75";
+import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=76";
+import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, buildElevationItems, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurniture, findSupportItem, getDimensionGroup, getElectricalPlanPosition, resolveFurnitureVerticalRange, rotateFurniture, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=76";
+import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=76";
+import { createWebGLThreeView } from "./webgl-three.js?v=76";
 
 const elements = Object.fromEntries([
   "menuButton", "dataMenu", "detailDialog", "detailType", "detailTitle", "detailBody", "fileInput",
@@ -86,6 +86,7 @@ function updateThreeView() {
   notes.push(result.furnitureWithoutHeight
     ? `高さ未登録の家具 ${result.furnitureWithoutHeight}点は、位置確認用の低い箱として表示しています。`
     : "家具の高さデータを反映しています。");
+  if (result.schematicFeatureCount) notes.push(`高さ未測定の設備 ${result.schematicFeatureCount}点は、用途を識別するための模式形状です。`);
   elements.threeHeightNote.textContent = notes.join(" ");
 }
 
