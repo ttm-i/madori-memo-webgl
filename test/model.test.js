@@ -3,12 +3,25 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { alignFurnitureToSupport, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, buildElevationItems, buildKitchenComponentRects, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, duplicateFurniture, findDeliveryDoorPath, fitsRectangle, FORMAT, getDimensionGroup, getElectricalPlanPosition, moveDimensionGuide, pointInPolygon, rectangleIntersectsPolygon, rectanglesOverlap, resolveFurnitureElevationPlacement, resolveFurnitureVerticalRange, rotateFurniture, snapToGrid, updateFurniture, validatePlan, wallDisplayWidth } from "../dist/model.js";
 import { detailMarkup, gestureExceedsTapThreshold, measurementMetrics, PlanRenderer, snapMeasurementPoint, zoomTransformAround } from "../dist/renderer.js";
-import { clampWebGLPan, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, projectThreeDepth, projectThreePoint, roomEdgeWallHeight, splitWallFace, subdivideVerticalRange, subdivideWallRectangle, subdivideWallRectangleTiles, subdivideWallSegment, threeItemBelongsToRoom, threeItemFootprint, threeLayerEnabled, threeRoomBounds, threeSelectableType, threeSelectionKey, threeViewportBox, threeWallBelongsToRoom, visibleBoxSideIndexes, yawToQuarterTurn } from "../dist/three.js";
+import { clampWebGLPan, closetDoorPanelCount, closetThreePlacement, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, projectThreeDepth, projectThreePoint, roomEdgeWallHeight, splitWallFace, subdivideVerticalRange, subdivideWallRectangle, subdivideWallRectangleTiles, subdivideWallSegment, threeItemBelongsToRoom, threeItemFootprint, threeLayerEnabled, threeRoomBounds, threeSelectableType, threeSelectionKey, threeViewportBox, threeWallBelongsToRoom, visibleBoxSideIndexes, yawToQuarterTurn } from "../dist/three.js";
 
 test("3D selection keys distinguish element kinds and reject anonymous data", () => {
   assert.equal(threeSelectionKey("outlet", { id: "outlet-3" }), "outlet:outlet-3");
   assert.equal(threeSelectionKey("switch", { id: "outlet-3" }), "switch:outlet-3");
   assert.equal(threeSelectionKey("outlet", { name: "コンセント" }), null);
+});
+
+test("3D closets face the owning room and choose a plausible folding-door count", () => {
+  const sample = createSamplePlan();
+  const closet = sample.plan.features.find((item) => item.kind === "closet");
+  const placement = closetThreePlacement(sample, closet);
+  assert.deepEqual(placement.from, { x: 420, y: 60 });
+  assert.deepEqual(placement.to, { x: 560, y: 60 });
+  assert.equal(Math.abs(placement.normal.x), 0);
+  assert.equal(placement.normal.y, 1);
+  assert.equal(placement.panelCount, 2);
+  assert.equal(closetDoorPanelCount({ elevationWidthCm: 263.5 }), 4);
+  assert.equal(closetDoorPanelCount({ elevationWidthCm: 135.5 }), 2);
 });
 
 test("sample plan conforms to the public schema", () => {

@@ -1,6 +1,6 @@
 import * as THREE from "./vendor/three/three.module.js";
-import { buildKitchenComponentRects, resolveFurnitureVerticalRange } from "./model.js?v=74";
-import { clampWebGLPan, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRoomBounds, threeSelectionKey, threeWallBelongsToRoom, yawToQuarterTurn } from "./three.js?v=74";
+import { buildKitchenComponentRects, resolveFurnitureVerticalRange } from "./model.js?v=75";
+import { clampWebGLPan, closetThreePlacement, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRoomBounds, threeSelectionKey, threeWallBelongsToRoom, yawToQuarterTurn } from "./three.js?v=75";
 
 const WALL_THICKNESS = 6;
 const DEFAULT_WALL_HEIGHT = 220;
@@ -123,6 +123,102 @@ function boxObject(item, vertical, color, type) {
   mesh.receiveShadow = true;
   addOutline(mesh, type === "furniture" ? 0x815c45 : 0x326b5e, .72);
   return markSelectable(mesh, type, item);
+}
+
+function offsetPoint(point, vector, distance) {
+  return { x: point.x + vector.x * distance, y: point.y + vector.y * distance };
+}
+
+function horizontalPanel(from, to, normal, depth, centerHeight, thickness, color) {
+  const width = Math.hypot(to.x - from.x, to.y - from.y);
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(width, thickness, depth), material(color, { roughness: .72 }));
+  mesh.position.set(
+    (from.x + to.x) / 2 - normal.x * depth / 2,
+    centerHeight,
+    (from.y + to.y) / 2 - normal.y * depth / 2,
+  );
+  mesh.rotation.y = -Math.atan2(to.y - from.y, to.x - from.x);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  return mesh;
+}
+
+function closetAssembly(documentData, item, vertical) {
+  const placement = closetThreePlacement(documentData, item);
+  if (!placement || !Number.isFinite(vertical?.topCm)) return null;
+  const group = markSelectable(new THREE.Group(), "feature", item);
+  const bottom = vertical.bottomCm ?? 0;
+  const top = vertical.topCm;
+  const depth = Math.max(12, placement.depthCm ?? 60);
+  const frontOffset = WALL_THICKNESS / 2 + 2;
+  const frontFrom = offsetPoint(placement.from, placement.normal, frontOffset);
+  const frontTo = offsetPoint(placement.to, placement.normal, frontOffset);
+  const backFrom = offsetPoint(frontFrom, placement.normal, -depth);
+  const backTo = offsetPoint(frontTo, placement.normal, -depth);
+  const innerMaterial = () => material(0xe8e3d9, { roughness: .9 });
+  const woodMaterial = () => material(0x77553d, { roughness: .68 });
+
+  const back = segmentBox(backFrom, backTo, bottom, top, 3, innerMaterial());
+  const leftSide = segmentBox(frontFrom, backFrom, bottom, top, 3.5, innerMaterial());
+  const rightSide = segmentBox(frontTo, backTo, bottom, top, 3.5, innerMaterial());
+  for (const panel of [back, leftSide, rightSide]) {
+    panel.receiveShadow = true;
+    addOutline(panel, 0x8a8175, .45);
+    group.add(panel);
+  }
+
+  const shelfThickness = Math.max(2, item.shelfThicknessCm ?? 4);
+  if (Number.isFinite(item.shelfUndersideHeightCm)) {
+    const shelfCenter = item.shelfUndersideHeightCm + shelfThickness / 2;
+    const shelf = horizontalPanel(frontFrom, frontTo, placement.normal, depth, shelfCenter, shelfThickness, 0x8a6247);
+    addOutline(shelf, 0x654631, .65);
+    group.add(shelf);
+    const railHeight = Math.max(bottom + 20, item.shelfUndersideHeightCm - 7);
+    const railFrom = offsetPoint(frontFrom, placement.normal, -depth * .58);
+    const railTo = offsetPoint(frontTo, placement.normal, -depth * .58);
+    group.add(segmentBox(railFrom, railTo, railHeight - 1, railHeight + 1, 2.2, material(0x9b958b, { roughness: .3, metalness: .65 })));
+  }
+
+  const frameWidth = 4;
+  const frameLeftTo = pointAt(frontFrom, frontTo, frameWidth, placement.widthCm);
+  const frameRightFrom = pointAt(frontFrom, frontTo, placement.widthCm - frameWidth, placement.widthCm);
+  const framePieces = [
+    segmentBox(frontFrom, frameLeftTo, bottom, top, 3.6, woodMaterial()),
+    segmentBox(frameRightFrom, frontTo, bottom, top, 3.6, woodMaterial()),
+    segmentBox(frontFrom, frontTo, top - 5, top, 3.6, woodMaterial()),
+  ];
+  framePieces.forEach((piece) => { addOutline(piece, 0x4f3829, .72); group.add(piece); });
+
+  const panelCount = placement.panelCount || 2;
+  const panelWidth = placement.widthCm / panelCount;
+  const doorBottom = bottom + 2;
+  const doorTop = top - 5;
+  for (let index = 0; index < panelCount; index += 1) {
+    const gap = .65;
+    const from = pointAt(frontFrom, frontTo, panelWidth * index + gap, placement.widthCm);
+    const to = pointAt(frontFrom, frontTo, panelWidth * (index + 1) - gap, placement.widthCm);
+    const door = segmentBox(from, to, doorBottom, doorTop, 2.8, woodMaterial());
+    door.castShadow = true;
+    addOutline(door, 0x4b3527, .9);
+    group.add(door);
+  }
+
+  const handleHeight = Math.min(top * .48, 108);
+  for (const direction of [-1, 1]) {
+    const center = placement.widthCm / 2 + direction * 8;
+    const from = pointAt(frontFrom, frontTo, center - 5, placement.widthCm);
+    const to = pointAt(frontFrom, frontTo, center + 5, placement.widthCm);
+    const handleFrom = offsetPoint(from, placement.normal, 3.4);
+    const handleTo = offsetPoint(to, placement.normal, 3.4);
+    group.add(segmentBox(handleFrom, handleTo, handleHeight - 1.2, handleHeight + 1.2, 2.4, material(0xa8a39a, { roughness: .28, metalness: .7 })));
+  }
+
+  group.userData.labelPosition = new THREE.Vector3(
+    (frontFrom.x + frontTo.x) / 2 + placement.normal.x * 16,
+    top + 22,
+    (frontFrom.y + frontTo.y) / 2 + placement.normal.y * 16,
+  );
+  return group;
 }
 
 function textSprite(text, position) {
@@ -364,7 +460,9 @@ function buildScene(root, documentData, options) {
   if (layerEnabled("features", options)) {
     for (const item of features) {
       const vertical = featureVerticalRange(item);
-      const mesh = boxObject(item, vertical, 0x5fa38f, "feature");
+      const mesh = item.kind === "closet"
+        ? closetAssembly(documentData, item, vertical)
+        : boxObject(item, vertical, 0x5fa38f, "feature");
       if (!mesh) continue;
       root.add(mesh);
       if (item.kind === "kitchen") {
@@ -375,7 +473,8 @@ function buildScene(root, documentData, options) {
           kitchenComponentCount += 1;
         }
       }
-      if (options.showLabels) root.add(textSprite(item.name, new THREE.Vector3(item.x + item.width / 2, vertical.topCm + 22, item.y + item.height / 2)));
+      if (options.showLabels) root.add(textSprite(item.name, mesh.userData.labelPosition
+        ?? new THREE.Vector3(item.x + item.width / 2, vertical.topCm + 22, item.y + item.height / 2)));
     }
   }
 
