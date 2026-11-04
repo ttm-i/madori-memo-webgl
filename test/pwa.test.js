@@ -137,6 +137,7 @@ test("the 3D tab opens with a compact viewport-first layout", () => {
   const webgl = readFileSync(new URL("../dist/webgl-three.js", import.meta.url), "utf8");
   assert.match(webgl, /view\.indoorYaw \+= dx/);
   assert.match(webgl, /view\.indoorYaw = view\.indoorDefaultYaw/);
+  assert.match(webgl, /viewpointType === "kitchen"[\s\S]*centerPoint\.x \+ 70/);
 });
 
 test("2D selection uses an in-plan summary, wall clearances and origin-aware detail actions", () => {
