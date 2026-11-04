@@ -1,6 +1,6 @@
 import * as THREE from "./vendor/three/three.module.js";
-import { buildKitchenCabinetLayout, buildKitchenComponentRects, inferFurnitureKind, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=105";
-import { cabinetDoorPanelCount, cabinetThreePlacement, clampWebGLPan, closetThreePlacement, cycleThreeSelectionCandidate, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRelatedSelectionStyle, threeRoomBounds, threeSelectionKey, threeSelectionStyle, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=105";
+import { buildKitchenCabinetLayout, buildKitchenComponentRects, inferFurnitureKind, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=106";
+import { cabinetDoorPanelCount, cabinetThreePlacement, clampWebGLPan, closetThreePlacement, cycleThreeSelectionCandidate, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRelatedSelectionStyle, threeRoomBounds, threeSelectionKey, threeSelectionStyle, threeSelectionXrayStyle, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=106";
 
 const WALL_THICKNESS = 6;
 const DEFAULT_WALL_HEIGHT = 220;
@@ -1025,7 +1025,33 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null) {
       if (!selectedObject && key === selectedKey) selectedObject = object;
       else if (relatedKeys.has(key)) relatedObjects.push(object);
     });
-    const highlightObject = (target, style) => {
+    const addXrayOverlay = (target, style) => {
+      if (!target) return;
+      target.updateWorldMatrix(true, true);
+      root.updateWorldMatrix(true, false);
+      const rootInverse = new THREE.Matrix4().copy(root.matrixWorld).invert();
+      target.traverse((object) => {
+        if (!object.isMesh || object.userData.selectionHitTarget || !object.geometry) return;
+        const overlay = new THREE.Mesh(
+          object.geometry.clone(),
+          new THREE.MeshBasicMaterial({
+            color: style.color,
+            opacity: style.opacity,
+            transparent: true,
+            depthTest: false,
+            depthWrite: false,
+            side: THREE.DoubleSide,
+          }),
+        );
+        overlay.matrixAutoUpdate = false;
+        overlay.matrix.copy(rootInverse).multiply(object.matrixWorld);
+        overlay.renderOrder = 19;
+        overlay.userData.selectionEffect = true;
+        root.add(overlay);
+        selectionOutlines.push(overlay);
+      });
+    };
+    const highlightObject = (target, style, { xray = false } = {}) => {
       target?.traverse((object) => {
         if (object.userData.selectionHitTarget) return;
         for (const meshMaterial of materialList(object)) {
@@ -1046,11 +1072,12 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null) {
       outline.material.depthTest = false;
       selectionOutlines.push(outline);
       root.add(outline);
+      if (xray) addXrayOverlay(target, threeSelectionXrayStyle(selectedTone));
     };
     const selectionStyle = threeSelectionStyle(selectedTone);
     const relatedStyle = threeRelatedSelectionStyle();
     relatedObjects.forEach((object) => highlightObject(object, relatedStyle));
-    highlightObject(selectedObject, selectionStyle);
+    highlightObject(selectedObject, selectionStyle, { xray: true });
     if (selectedObject) {
       const bounds = new THREE.Box3().setFromObject(selectedObject);
       if (focus) {
