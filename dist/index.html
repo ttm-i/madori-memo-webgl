@@ -10,7 +10,7 @@
     <meta name="description" content="間取りと家具寸法を端末内だけで確認するオフラインPWA" />
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./icon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="./styles.css?v=100" />
+    <link rel="stylesheet" href="./styles.css?v=101" />
     <title>間取りメモ WebGL試作版</title>
   </head>
   <body>
@@ -304,6 +304,12 @@
                 <option value="support">設置面超過</option>
               </select>
             </label>
+            <label>価格
+              <select id="furnitureListPriceFilter" aria-label="家具一覧を価格登録状況で絞り込む">
+                <option value="">すべて</option>
+                <option value="missing">未登録のみ</option>
+              </select>
+            </label>
             <button id="furnitureListExpandAll" class="secondary-button" type="button">すべて展開</button>
           </div>
           <div id="furnitureListPriceSummary" class="furniture-price-summary" aria-live="polite"></div>
@@ -378,7 +384,7 @@
       <input id="fileInput" type="file" accept="application/json,.json" hidden />
       <div id="toast" class="toast" role="status" aria-live="polite"></div>
     </div>
-    <script type="module" src="./app.js?v=100"></script>
+    <script type="module" src="./app.js?v=101"></script>
   </body>
 </html>
 

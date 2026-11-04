@@ -1,14 +1,14 @@
-const CACHE_NAME = "floor-plan-webgl-shell-v100";
+const CACHE_NAME = "floor-plan-webgl-shell-v101";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./styles.css?v=100",
-  "./app.js?v=100",
-  "./db.js?v=100",
-  "./model.js?v=100",
-  "./renderer.js?v=100",
-  "./three.js?v=100",
-  "./webgl-three.js?v=100",
+  "./styles.css?v=101",
+  "./app.js?v=101",
+  "./db.js?v=101",
+  "./model.js?v=101",
+  "./renderer.js?v=101",
+  "./three.js?v=101",
+  "./webgl-three.js?v=101",
   "./vendor/three/three.core.js",
   "./vendor/three/three.module.js",
   "./vendor/three/LICENSE",

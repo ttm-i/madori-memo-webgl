@@ -49,6 +49,15 @@ test("furniture prices are optional and summarized in the furniture list", () =>
   assert.match(app, /価格未登録/);
 });
 
+test("the furniture list can show only furniture with no registered price", () => {
+  const html = readFileSync(new URL("../dist/index.html", import.meta.url), "utf8");
+  const app = readFileSync(new URL("../dist/app.js", import.meta.url), "utf8");
+  assert.match(html, /id="furnitureListPriceFilter"/);
+  assert.match(html, /option value="missing">未登録のみ/);
+  assert.match(app, /furnitureListPrice === "missing"/);
+  assert.match(app, /matchesIssue\(furniture\) && matchesPrice\(furniture\)/);
+});
+
 test("the furniture list can filter inspection findings without losing stack context", () => {
   const html = readFileSync(new URL("../dist/index.html", import.meta.url), "utf8");
   const app = readFileSync(new URL("../dist/app.js", import.meta.url), "utf8");
