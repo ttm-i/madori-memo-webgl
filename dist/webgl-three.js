@@ -1,6 +1,6 @@
 import * as THREE from "./vendor/three/three.module.js";
-import { buildKitchenCabinetLayout, buildKitchenComponentRects, inferFurnitureKind, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=112";
-import { bayWindowFootprint, cabinetDoorPanelCount, cabinetThreePlacement, clampIndoorPitch, clampWebGLPan, closetThreePlacement, cycleThreeSelectionCandidate, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, roomInteriorViewpoint, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRelatedSelectionStyle, threeRoomBounds, threeSelectionKey, threeSelectionStyle, threeSelectionXrayStyle, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=112";
+import { buildKitchenCabinetLayout, buildKitchenComponentRects, inferFurnitureKind, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=113";
+import { bayWindowFootprint, cabinetDoorPanelCount, cabinetThreePlacement, clampIndoorPitch, clampWebGLPan, closetThreePlacement, cycleThreeSelectionCandidate, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, roomInteriorViewpoint, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRelatedSelectionStyle, threeRoomBounds, threeSelectionKey, threeSelectionStyle, threeSelectionXrayStyle, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=113";
 
 const WALL_THICKNESS = 6;
 const DEFAULT_WALL_HEIGHT = 220;
@@ -1076,7 +1076,7 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null) {
   const pointers = new Map();
   const view = {
     mode: "overview", yaw: -Math.PI / 4, pitch: .72, zoom: 1, panX: 0, panY: 0, quarterTurn: 0, focus: null,
-    indoorYaw: -Math.PI / 4, indoorPitch: 0, indoorRoomId: null, indoorPoint: null,
+    indoorYaw: -Math.PI / 4, indoorPitch: 0, indoorDefaultYaw: -Math.PI / 4, indoorDefaultPitch: -.24, indoorRoomId: null, indoorPoint: null,
   };
   let sceneInfo = { bounds: { x: 0, y: 0, width: 1, height: 1 }, wallHeight: DEFAULT_WALL_HEIGHT };
   let frameRequested = false;
@@ -1204,6 +1204,8 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null) {
         ? Math.atan2(towardCenter.x, towardCenter.z)
         : Math.max(...xs) - Math.min(...xs) >= Math.max(...ys) - Math.min(...ys) ? Math.PI / 2 : 0;
       view.indoorPitch = -.24;
+      view.indoorDefaultYaw = view.indoorYaw;
+      view.indoorDefaultPitch = view.indoorPitch;
     }
     return view.indoorPoint;
   }
@@ -1221,6 +1223,13 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null) {
     resolveIndoorPoint(roomId);
     requestRender();
     return view.indoorPoint ? { ...view.indoorPoint } : null;
+  }
+
+  function resetIndoorDirection() {
+    view.indoorYaw = view.indoorDefaultYaw;
+    view.indoorPitch = view.indoorDefaultPitch;
+    requestRender();
+    return { yaw: view.indoorYaw, pitch: view.indoorPitch };
   }
 
   function rebuildScene() {
@@ -1524,6 +1533,7 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null) {
     setZoom,
     setViewMode,
     setIndoorViewpoint,
+    resetIndoorDirection,
     resetView,
     clearSelection,
     setSelection,

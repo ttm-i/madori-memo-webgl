@@ -125,10 +125,13 @@ test("the 3D tab opens with a compact viewport-first layout", () => {
   assert.match(html, /id="threeOverviewMode"/);
   assert.match(html, /id="threeIndoorMode"/);
   assert.match(html, /id="threeIndoorViewpoint"/);
+  assert.match(html, /id="threeIndoorResetDirection"[^>]*>正面へ戻す/);
   assert.match(app, /cameraMode: threeCameraMode/);
   assert.match(app, /viewpointRoomId: threeViewpointRoomId/);
+  assert.match(app, /threeIndoorResetDirection[\s\S]*resetIndoorDirection\(\)/);
   const webgl = readFileSync(new URL("../dist/webgl-three.js", import.meta.url), "utf8");
   assert.match(webgl, /view\.indoorYaw \+= dx/);
+  assert.match(webgl, /view\.indoorYaw = view\.indoorDefaultYaw/);
 });
 
 test("2D selection uses an in-plan summary, wall clearances and origin-aware detail actions", () => {

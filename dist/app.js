@@ -1,7 +1,7 @@
-import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=112";
-import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildElevationItems, buildFurnitureHierarchy, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurnitureStack, featureSupportRange, findSupportItem, furnitureDescendantIds as modelFurnitureDescendantIds, furniturePriceSummary, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, QUALITY_LABELS, removeFurnitureStack, resolveFurnitureVerticalRange, rotateFurnitureStack, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=112";
-import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=112";
-import { createWebGLThreeView } from "./webgl-three.js?v=112";
+import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=113";
+import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildElevationItems, buildFurnitureHierarchy, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurnitureStack, featureSupportRange, findSupportItem, furnitureDescendantIds as modelFurnitureDescendantIds, furniturePriceSummary, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, QUALITY_LABELS, removeFurnitureStack, resolveFurnitureVerticalRange, rotateFurnitureStack, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=113";
+import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=113";
+import { createWebGLThreeView } from "./webgl-three.js?v=113";
 
 const elements = Object.fromEntries([
   "menuButton", "dataMenu", "detailDialog", "detailType", "detailTitle", "detailBody", "fileInput",
@@ -29,7 +29,7 @@ const elements = Object.fromEntries([
   "deliverySideA", "deliverySideB", "deliverySideC",
   "threeCanvas", "threeEmpty", "threeHeightNote", "threeSelectionStatus", "threeSelectionSummary", "threeSelectionDetailsButton", "threeCutawayToggle", "threeLabelsToggle",
   "threeRoomFilter", "threeWallsToggle", "threeOpeningsToggle", "threeFeaturesToggle", "threeFurnitureToggle", "threeElectricalToggle",
-  "threeZoomOut", "threeZoomReset", "threeZoomIn", "threeZoomValue", "threeZoomHint", "threeCameraControls", "threeOverviewMode", "threeIndoorMode", "threeIndoorViewpointGroup", "threeIndoorViewpoint",
+  "threeZoomOut", "threeZoomReset", "threeZoomIn", "threeZoomValue", "threeZoomHint", "threeCameraControls", "threeOverviewMode", "threeIndoorMode", "threeIndoorViewpointGroup", "threeIndoorViewpoint", "threeIndoorResetDirection",
 ].map((id) => [id, document.getElementById(id)]));
 
 let activePlan = null;
@@ -157,6 +157,7 @@ function setThreeCameraMode(mode) {
   elements.threeIndoorMode.classList.toggle("is-active", indoor);
   elements.threeIndoorMode.setAttribute("aria-pressed", String(indoor));
   elements.threeIndoorViewpointGroup.hidden = !indoor;
+  elements.threeIndoorResetDirection.hidden = !indoor;
   elements.threeCanvas.parentElement.classList.toggle("is-indoor", indoor);
   updateThreeView();
 }
@@ -1321,6 +1322,9 @@ elements.threeIndoorViewpoint.addEventListener("change", () => {
   threeViewpointRoomId = elements.threeIndoorViewpoint.value;
   webglThreeView?.setIndoorViewpoint(threeViewpointRoomId);
   updateThreeView();
+});
+elements.threeIndoorResetDirection.addEventListener("click", () => {
+  webglThreeView?.resetIndoorDirection();
 });
 for (const [toggle, layer] of [
   [elements.threeWallsToggle, "walls"],
