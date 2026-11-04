@@ -1,4 +1,4 @@
-import { buildKitchenComponentRects, buildRoomWalls, featureSupportRange, getElectricalPlanPosition, pointInPolygon, resolveFurnitureVerticalRange } from "./model.js?v=97";
+import { buildKitchenComponentRects, buildRoomWalls, featureSupportRange, getElectricalPlanPosition, pointInPolygon, resolveFurnitureVerticalRange } from "./model.js?v=98";
 
 const NS = "http://www.w3.org/2000/svg";
 
@@ -57,6 +57,10 @@ export function threeSelectionStyle(tone = "normal") {
   if (tone === "danger") return { emissive: 0xb42318, outline: 0xe05248, intensity: .7 };
   if (tone === "warning") return { emissive: 0xc46613, outline: 0xe59a3a, intensity: .68 };
   return { emissive: 0x0f9b78, outline: 0x08795f, intensity: .75 };
+}
+
+export function threeRelatedSelectionStyle() {
+  return { emissive: 0xd78b32, outline: 0xf0b765, intensity: .28 };
 }
 
 function pointsValue(points) { return points.map((point) => `${point.x},${point.y}`).join(" "); }

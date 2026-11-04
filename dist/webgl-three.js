@@ -1,6 +1,6 @@
 import * as THREE from "./vendor/three/three.module.js";
-import { buildKitchenCabinetLayout, buildKitchenComponentRects, inferFurnitureKind, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=97";
-import { cabinetDoorPanelCount, cabinetThreePlacement, clampWebGLPan, closetThreePlacement, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRoomBounds, threeSelectionKey, threeSelectionStyle, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=97";
+import { buildKitchenCabinetLayout, buildKitchenComponentRects, inferFurnitureKind, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=98";
+import { cabinetDoorPanelCount, cabinetThreePlacement, clampWebGLPan, closetThreePlacement, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRelatedSelectionStyle, threeRoomBounds, threeSelectionKey, threeSelectionStyle, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=98";
 
 const WALL_THICKNESS = 6;
 const DEFAULT_WALL_HEIGHT = 220;
@@ -895,7 +895,8 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null) {
   let builtCutawayTurn = 0;
   let selectedKey = null;
   let selectedTone = "normal";
-  let selectionOutline = null;
+  let relatedKeys = new Set();
+  let selectionOutlines = [];
   const contextMessage = canvas.parentElement?.querySelector("[data-webgl-status]");
 
   function requestRender() {
@@ -995,12 +996,12 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null) {
   }
 
   function restoreSelectionMaterials() {
-    if (selectionOutline) {
-      selectionOutline.parent?.remove(selectionOutline);
-      selectionOutline.geometry?.dispose();
-      selectionOutline.material?.dispose();
-      selectionOutline = null;
+    for (const outline of selectionOutlines) {
+      outline.parent?.remove(outline);
+      outline.geometry?.dispose();
+      outline.material?.dispose();
     }
+    selectionOutlines = [];
     root.traverse((object) => {
       for (const meshMaterial of materialList(object)) {
         const original = meshMaterial.userData?.selectionOriginal;
@@ -1016,51 +1017,63 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null) {
     restoreSelectionMaterials();
     if (!selectedKey) return;
     let selectedObject = null;
+    const relatedObjects = [];
     root.traverse((object) => {
       const selection = object.userData.selection;
-      if (!selectedObject && threeSelectionKey(selection?.type, selection?.item) === selectedKey) selectedObject = object;
+      const key = threeSelectionKey(selection?.type, selection?.item);
+      if (!selectedObject && key === selectedKey) selectedObject = object;
+      else if (relatedKeys.has(key)) relatedObjects.push(object);
     });
+    const highlightObject = (target, style) => {
+      target?.traverse((object) => {
+        if (object.userData.selectionHitTarget) return;
+        for (const meshMaterial of materialList(object)) {
+          if (!meshMaterial.emissive) continue;
+          if (!meshMaterial.userData.selectionOriginal) {
+            meshMaterial.userData.selectionOriginal = {
+              emissive: meshMaterial.emissive.clone(),
+              emissiveIntensity: meshMaterial.emissiveIntensity,
+            };
+          }
+          meshMaterial.emissive.set(style.emissive);
+          meshMaterial.emissiveIntensity = style.intensity;
+        }
+      });
+      if (!target) return;
+      const outline = new THREE.Box3Helper(new THREE.Box3().setFromObject(target), style.outline);
+      outline.renderOrder = 20;
+      outline.material.depthTest = false;
+      selectionOutlines.push(outline);
+      root.add(outline);
+    };
     const selectionStyle = threeSelectionStyle(selectedTone);
-    selectedObject?.traverse((object) => {
-      if (object.userData.selectionHitTarget) return;
-      for (const meshMaterial of materialList(object)) {
-        if (!meshMaterial.emissive) continue;
-        meshMaterial.userData.selectionOriginal = {
-          emissive: meshMaterial.emissive.clone(),
-          emissiveIntensity: meshMaterial.emissiveIntensity,
-        };
-        meshMaterial.emissive.set(selectionStyle.emissive);
-        meshMaterial.emissiveIntensity = selectionStyle.intensity;
-      }
-    });
+    const relatedStyle = threeRelatedSelectionStyle();
+    relatedObjects.forEach((object) => highlightObject(object, relatedStyle));
+    highlightObject(selectedObject, selectionStyle);
     if (selectedObject) {
       const bounds = new THREE.Box3().setFromObject(selectedObject);
       if (focus) {
         const center = bounds.getCenter(new THREE.Vector3());
         view.focus = { x: center.x, y: center.y, z: center.z };
       }
-      selectionOutline = new THREE.Box3Helper(bounds, selectionStyle.outline);
-      selectionOutline.renderOrder = 20;
-      selectionOutline.material.depthTest = false;
-      root.add(selectionOutline);
     }
   }
 
   function clearSelection() {
     view.focus = null;
-    if (!selectedKey) {
-      requestRender();
-      return;
-    }
     selectedKey = null;
     selectedTone = "normal";
+    relatedKeys = new Set();
     restoreSelectionMaterials();
     requestRender();
   }
 
-  function setSelection(type, item, { tone = "normal", focus = true } = {}) {
+  function setSelection(type, item, { tone = "normal", focus = true, related = [] } = {}) {
     selectedKey = threeSelectionKey(type, item);
     selectedTone = ["danger", "warning"].includes(tone) ? tone : "normal";
+    relatedKeys = new Set(related
+      .map((entry) => threeSelectionKey(entry.type, entry.item ?? entry))
+      .filter((key) => key && key !== selectedKey));
     if (focus) {
       view.focus = null;
       view.panX = 0;
@@ -1094,6 +1107,8 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null) {
     const selected = offsets.map(([x, y]) => selectionAt(clientX + x, clientY + y)).find(Boolean);
     if (selected) {
       selectedKey = threeSelectionKey(selected.type, selected.item);
+      selectedTone = "normal";
+      relatedKeys = new Set();
       applySelectionHighlight();
       requestRender();
       onSelect?.(selected.type, selected.item);

@@ -31,10 +31,10 @@ test("the redundant current-plan summary stays out of the 2D layout", () => {
   assert.match(html, /<section class="summary-card"[^>]*\bhidden\b/);
 });
 
-test("furniture details use one 2D action for both location and wall clearances", () => {
+test("furniture details use one concise 2D action for both location and wall clearances", () => {
   const html = readFileSync(new URL("../dist/index.html", import.meta.url), "utf8");
   const app = readFileSync(new URL("../dist/app.js", import.meta.url), "utf8");
-  assert.match(html, /2Dで位置・距離を表示/);
+  assert.match(html, /2Dで位置を表示/);
   assert.doesNotMatch(html, /showFurnitureClearanceButton|2Dで壁までの距離を見る/);
   assert.doesNotMatch(app, /showFurnitureClearanceButton/);
 });
@@ -67,4 +67,5 @@ test("the WebGL prototype stays local-first and isolated from the stable databas
   assert.doesNotMatch(webgl, /new THREE\.Fog/);
   assert.match(html, /data-webgl-status/);
   assert.match(webgl, /threeSelectionStyle\(selectedTone\)/);
+  assert.match(webgl, /relatedObjects\.forEach/);
 });
