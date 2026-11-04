@@ -1,6 +1,6 @@
 import * as THREE from "./vendor/three/three.module.js";
-import { buildKitchenCabinetLayout, buildKitchenComponentRects, inferFurnitureKind, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=109";
-import { bayWindowFootprint, cabinetDoorPanelCount, cabinetThreePlacement, clampWebGLPan, closetThreePlacement, cycleThreeSelectionCandidate, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRelatedSelectionStyle, threeRoomBounds, threeSelectionKey, threeSelectionStyle, threeSelectionXrayStyle, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=109";
+import { buildKitchenCabinetLayout, buildKitchenComponentRects, inferFurnitureKind, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=111";
+import { bayWindowFootprint, cabinetDoorPanelCount, cabinetThreePlacement, clampIndoorPitch, clampWebGLPan, closetThreePlacement, cycleThreeSelectionCandidate, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, roomInteriorViewpoint, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRelatedSelectionStyle, threeRoomBounds, threeSelectionKey, threeSelectionStyle, threeSelectionXrayStyle, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=111";
 
 const WALL_THICKNESS = 6;
 const DEFAULT_WALL_HEIGHT = 220;
@@ -1063,7 +1063,8 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null) {
   const coarsePointer = window.matchMedia?.("(pointer: coarse)")?.matches;
   renderer.setPixelRatio(Math.min(coarsePointer ? 1.5 : 2, window.devicePixelRatio || 1));
   const scene = new THREE.Scene();
-  const camera = new THREE.OrthographicCamera(-500, 500, 350, -350, 1, 4000);
+  const overviewCamera = new THREE.OrthographicCamera(-500, 500, 350, -350, 1, 4000);
+  const indoorCamera = new THREE.PerspectiveCamera(62, 1, .5, 4000);
   const root = new THREE.Group();
   scene.add(root);
   scene.add(new THREE.HemisphereLight(0xffffff, 0xb6b1a7, 2.25));
@@ -1073,7 +1074,10 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null) {
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
   const pointers = new Map();
-  const view = { yaw: -Math.PI / 4, pitch: .72, zoom: 1, panX: 0, panY: 0, quarterTurn: 0, focus: null };
+  const view = {
+    mode: "overview", yaw: -Math.PI / 4, pitch: .72, zoom: 1, panX: 0, panY: 0, quarterTurn: 0, focus: null,
+    indoorYaw: -Math.PI / 4, indoorPitch: 0, indoorRoomId: null, indoorPoint: null,
+  };
   let sceneInfo = { bounds: { x: 0, y: 0, width: 1, height: 1 }, wallHeight: DEFAULT_WALL_HEIGHT };
   let frameRequested = false;
   let pinchStart = null;
@@ -1094,7 +1098,7 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null) {
     requestAnimationFrame(() => {
       frameRequested = false;
       resize();
-      renderer.render(scene, camera);
+      renderer.render(scene, view.mode === "indoor" ? indoorCamera : overviewCamera);
     });
   }
 
@@ -1104,12 +1108,25 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null) {
     const pixelRatio = renderer.getPixelRatio();
     if (canvas.width !== Math.round(width * pixelRatio) || canvas.height !== Math.round(height * pixelRatio)) renderer.setSize(width, height, false);
     const aspect = width / height;
+    if (view.mode === "indoor" && view.indoorPoint) {
+      indoorCamera.aspect = aspect;
+      indoorCamera.updateProjectionMatrix();
+      indoorCamera.position.set(view.indoorPoint.x, view.indoorPoint.y, view.indoorPoint.z);
+      const horizontal = Math.cos(view.indoorPitch);
+      indoorCamera.lookAt(new THREE.Vector3(
+        view.indoorPoint.x + Math.sin(view.indoorYaw) * horizontal,
+        view.indoorPoint.y + Math.sin(view.indoorPitch),
+        view.indoorPoint.z + Math.cos(view.indoorYaw) * horizontal,
+      ));
+      indoorCamera.updateMatrixWorld();
+      return;
+    }
     const span = Math.max(sceneInfo.bounds.width, sceneInfo.bounds.height, sceneInfo.wallHeight * 2.2) * 1.28 / view.zoom;
-    camera.left = -span * aspect / 2;
-    camera.right = span * aspect / 2;
-    camera.top = span / 2;
-    camera.bottom = -span / 2;
-    camera.updateProjectionMatrix();
+    overviewCamera.left = -span * aspect / 2;
+    overviewCamera.right = span * aspect / 2;
+    overviewCamera.top = span / 2;
+    overviewCamera.bottom = -span / 2;
+    overviewCamera.updateProjectionMatrix();
     const center = view.focus
       ? new THREE.Vector3(view.focus.x, view.focus.y, view.focus.z)
       : new THREE.Vector3(
@@ -1119,25 +1136,25 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null) {
       );
     const distance = Math.max(sceneInfo.bounds.width, sceneInfo.bounds.height, 500) * 1.65;
     const horizontal = Math.cos(view.pitch) * distance;
-    camera.position.set(
+    overviewCamera.position.set(
       center.x + Math.sin(view.yaw) * horizontal,
       center.y + Math.sin(view.pitch) * distance,
       center.z + Math.cos(view.yaw) * horizontal,
     );
-    camera.lookAt(center);
-    camera.updateMatrixWorld();
+    overviewCamera.lookAt(center);
+    overviewCamera.updateMatrixWorld();
     const pan = clampWebGLPan(view.panX, view.panY, view.zoom, width, height);
     view.panX = pan.x;
     view.panY = pan.y;
     const worldPerPixelY = span / height;
     const worldPerPixelX = span * aspect / width;
-    const cameraRight = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
-    const cameraUp = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
+    const cameraRight = new THREE.Vector3(1, 0, 0).applyQuaternion(overviewCamera.quaternion);
+    const cameraUp = new THREE.Vector3(0, 1, 0).applyQuaternion(overviewCamera.quaternion);
     const shift = cameraRight.multiplyScalar(-view.panX * worldPerPixelX)
       .add(cameraUp.multiplyScalar(view.panY * worldPerPixelY));
-    camera.position.add(shift);
+    overviewCamera.position.add(shift);
     center.add(shift);
-    camera.lookAt(center);
+    overviewCamera.lookAt(center);
   }
 
   function setZoom(value) {
@@ -1165,6 +1182,47 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null) {
     rebuildScene();
   }
 
+  function resolveIndoorPoint(roomId = view.indoorRoomId) {
+    const rooms = currentDocument?.plan?.rooms ?? [];
+    const room = rooms.find((entry) => entry.id === roomId) ?? rooms[0];
+    const changedRoom = room?.id !== view.indoorRoomId || !view.indoorPoint;
+    view.indoorRoomId = room?.id ?? null;
+    const obstacles = [
+      ...(currentDocument?.plan?.features ?? []),
+      ...(currentDocument?.plan?.furniture ?? []),
+    ].filter((item) => item.roomId === room?.id);
+    view.indoorPoint = roomInteriorViewpoint(room, 160, obstacles);
+    if (changedRoom && room?.points?.length) {
+      const xs = room.points.map((point) => point.x);
+      const ys = room.points.map((point) => point.y);
+      const center = {
+        x: (Math.min(...xs) + Math.max(...xs)) / 2,
+        z: (Math.min(...ys) + Math.max(...ys)) / 2,
+      };
+      const towardCenter = view.indoorPoint ? { x: center.x - view.indoorPoint.x, z: center.z - view.indoorPoint.z } : { x: 0, z: 0 };
+      view.indoorYaw = Math.hypot(towardCenter.x, towardCenter.z) > 25
+        ? Math.atan2(towardCenter.x, towardCenter.z)
+        : Math.max(...xs) - Math.min(...xs) >= Math.max(...ys) - Math.min(...ys) ? Math.PI / 2 : 0;
+      view.indoorPitch = -.24;
+    }
+    return view.indoorPoint;
+  }
+
+  function setViewMode(mode, roomId = view.indoorRoomId) {
+    const nextMode = mode === "indoor" ? "indoor" : "overview";
+    view.mode = nextMode;
+    if (nextMode === "indoor") resolveIndoorPoint(roomId);
+    rebuildScene();
+    return view.mode;
+  }
+
+  function setIndoorViewpoint(roomId) {
+    view.indoorRoomId = null;
+    resolveIndoorPoint(roomId);
+    requestRender();
+    return view.indoorPoint ? { ...view.indoorPoint } : null;
+  }
+
   function rebuildScene() {
     if (!currentDocument) {
       requestRender();
@@ -1173,7 +1231,8 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null) {
     disposeObject(root);
     root.clear();
     builtCutawayTurn = yawToQuarterTurn(view.yaw);
-    sceneInfo = buildScene(root, currentDocument, { ...currentOptions, quarterTurn: builtCutawayTurn });
+    const effectiveOptions = view.mode === "indoor" ? { ...currentOptions, cutaway: false } : currentOptions;
+    sceneInfo = buildScene(root, currentDocument, { ...effectiveOptions, quarterTurn: builtCutawayTurn });
     const selectionVisible = applySelectionHighlight();
     sceneInfo.selectionVisible = selectedKey ? selectionVisible : null;
     requestRender();
@@ -1305,7 +1364,7 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null) {
   function selectionsAt(clientX, clientY) {
     const rect = canvas.getBoundingClientRect();
     pointer.set(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
-    raycaster.setFromCamera(pointer, camera);
+    raycaster.setFromCamera(pointer, view.mode === "indoor" ? indoorCamera : overviewCamera);
     const hits = raycaster.intersectObjects(root.children, true);
     const selections = [];
     for (const hit of hits) {
@@ -1380,10 +1439,15 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null) {
       lastPick = null;
     }
     if (pointers.size === 1 && !usedMultiplePointers) {
-      view.yaw -= dx * .009;
-      view.pitch = Math.max(.25, Math.min(1.3, view.pitch + dy * .006));
+      if (view.mode === "indoor") {
+        view.indoorYaw -= dx * .007;
+        view.indoorPitch = clampIndoorPitch(view.indoorPitch + dy * .0055);
+      } else {
+        view.yaw -= dx * .009;
+        view.pitch = Math.max(.25, Math.min(1.3, view.pitch + dy * .006));
+      }
       requestRender();
-    } else if (pointers.size === 2 && pinchStart) {
+    } else if (view.mode !== "indoor" && pointers.size === 2 && pinchStart) {
       const values = [...pointers.values()];
       const distance = Math.hypot(values[0].x - values[1].x, values[0].y - values[1].y);
       if (pinchStart.distance > 0) setZoom(pinchStart.zoom * distance / pinchStart.distance);
@@ -1412,7 +1476,7 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null) {
       pinchStart = null;
       usedMultiplePointers = false;
     }
-    if (current?.moved && currentOptions.cutaway !== false) {
+    if (view.mode !== "indoor" && current?.moved && currentOptions.cutaway !== false) {
       const nextCutawayTurn = yawToQuarterTurn(view.yaw);
       if (nextCutawayTurn !== builtCutawayTurn) rebuildScene();
     }
@@ -1422,7 +1486,7 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null) {
   canvas.addEventListener("pointerup", endPointer);
   canvas.addEventListener("pointercancel", endPointer);
   canvas.addEventListener("wheel", (event) => {
-    setZoom(view.zoom + (event.deltaY < 0 ? .15 : -.15));
+    if (view.mode !== "indoor") setZoom(view.zoom + (event.deltaY < 0 ? .15 : -.15));
     event.preventDefault();
   }, { passive: false });
   canvas.addEventListener("webglcontextlost", (event) => {
@@ -1448,12 +1512,18 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null) {
       }
       currentDocument = documentData;
       currentOptions = { ...options };
+      view.mode = options.cameraMode === "indoor" ? "indoor" : "overview";
+      if (view.mode === "indoor" && (options.viewpointRoomId !== view.indoorRoomId || !view.indoorPoint)) resolveIndoorPoint(options.viewpointRoomId);
       return rebuildScene();
     },
     getZoom: () => view.zoom,
     getPan: () => ({ x: view.panX, y: view.panY }),
     getFocus: () => view.focus ? { ...view.focus } : null,
+    getViewMode: () => view.mode,
+    getIndoorViewpoint: () => view.indoorPoint ? { ...view.indoorPoint } : null,
     setZoom,
+    setViewMode,
+    setIndoorViewpoint,
     resetView,
     clearSelection,
     setSelection,

@@ -122,6 +122,11 @@ test("the 3D tab opens with a compact viewport-first layout", () => {
   assert.match(html, /<summary>表示設定<\/summary>/);
   assert.doesNotMatch(html, /WEBGL PROTOTYPE|<p class="three-intro"|id="threeRotateLeft"|id="threeRotateRight"|id="threeReset"/);
   assert.doesNotMatch(app, /threeRotateLeft|threeRotateRight|threeReset/);
+  assert.match(html, /id="threeOverviewMode"/);
+  assert.match(html, /id="threeIndoorMode"/);
+  assert.match(html, /id="threeIndoorViewpoint"/);
+  assert.match(app, /cameraMode: threeCameraMode/);
+  assert.match(app, /viewpointRoomId: threeViewpointRoomId/);
 });
 
 test("2D selection uses an in-plan summary, wall clearances and origin-aware detail actions", () => {

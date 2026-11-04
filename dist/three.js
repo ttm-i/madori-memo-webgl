@@ -1,4 +1,4 @@
-import { buildKitchenComponentRects, buildRoomWalls, featureSupportRange, getElectricalPlanPosition, pointInPolygon, resolveFurnitureVerticalRange } from "./model.js?v=109";
+import { buildKitchenComponentRects, buildRoomWalls, featureSupportRange, getElectricalPlanPosition, pointInPolygon, resolveFurnitureVerticalRange } from "./model.js?v=111";
 
 const NS = "http://www.w3.org/2000/svg";
 
@@ -51,6 +51,57 @@ export function clampWebGLPan(panX, panY, zoom, width, height) {
     x: limitX > 0 ? Math.max(-limitX, Math.min(limitX, requestedX)) : 0,
     y: limitY > 0 ? Math.max(-limitY, Math.min(limitY, requestedY)) : 0,
   };
+}
+
+function distanceToRoomEdge(point, points) {
+  let nearest = Infinity;
+  for (let index = 0; index < points.length; index += 1) {
+    nearest = Math.min(nearest, pointToSegmentDistance(point, points[index], points[(index + 1) % points.length]));
+  }
+  return nearest;
+}
+
+export function roomInteriorViewpoint(room, eyeHeightCm = 160, obstacles = []) {
+  const points = room?.points?.filter((point) => Number.isFinite(point?.x) && Number.isFinite(point?.y)) ?? [];
+  if (points.length < 3) return null;
+  const bounds = points.reduce((result, point) => ({
+    minX: Math.min(result.minX, point.x),
+    maxX: Math.max(result.maxX, point.x),
+    minY: Math.min(result.minY, point.y),
+    maxY: Math.max(result.maxY, point.y),
+  }), { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity });
+  const candidates = [];
+  const average = points.reduce((sum, point) => ({ x: sum.x + point.x, y: sum.y + point.y }), { x: 0, y: 0 });
+  average.x /= points.length;
+  average.y /= points.length;
+  candidates.push(average, { x: (bounds.minX + bounds.maxX) / 2, y: (bounds.minY + bounds.maxY) / 2 });
+  for (let row = 1; row < 8; row += 1) {
+    for (let column = 1; column < 8; column += 1) {
+      candidates.push({
+        x: bounds.minX + (bounds.maxX - bounds.minX) * column / 8,
+        y: bounds.minY + (bounds.maxY - bounds.minY) * row / 8,
+      });
+    }
+  }
+  const blocksViewpoint = (point) => obstacles.some((item) => {
+    const width = item?.widthCm ?? item?.width;
+    const depth = item?.depthCm ?? item?.height;
+    if (![item?.x, item?.y, width, depth].every(Number.isFinite)) return false;
+    const padding = 12;
+    return point.x >= item.x - padding && point.x <= item.x + width + padding
+      && point.y >= item.y - padding && point.y <= item.y + depth + padding;
+  });
+  const interior = candidates.filter((point) => pointInPolygon(point, points));
+  if (!interior.length) return null;
+  const unobstructed = interior.filter((point) => !blocksViewpoint(point));
+  const safest = (unobstructed.length ? unobstructed : interior)
+    .sort((first, second) => distanceToRoomEdge(second, points) - distanceToRoomEdge(first, points))[0];
+  return { x: safest.x, y: Math.max(80, Number.isFinite(eyeHeightCm) ? eyeHeightCm : 160), z: safest.y };
+}
+
+export function clampIndoorPitch(value) {
+  const safe = Number.isFinite(value) ? value : 0;
+  return Math.max(-Math.PI * .42, Math.min(Math.PI * .42, safe));
 }
 
 export function threeSelectionStyle(tone = "normal") {

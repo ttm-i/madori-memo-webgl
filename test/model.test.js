@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildElevationItems, buildFurnitureHierarchy, buildKitchenCabinetLayout, buildKitchenComponentRects, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, duplicateFurniture, duplicateFurnitureStack, findDeliveryDoorPath, fitsRectangle, FORMAT, furnitureDescendantIds, furniturePriceSummary, FURNITURE_PRESETS, furnitureDisplayHeight, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, kitchenComponentVerticalRange, moveDimensionGuide, pointInPolygon, rectangleIntersectsPolygon, rectanglesOverlap, removeFurnitureStack, resolveFurnitureElevationPlacement, resolveFurnitureVerticalRange, rotateFurniture, rotateFurnitureStack, snapToGrid, translateFurnitureDescendants, updateFurniture, validatePlan, wallDisplayWidth } from "../dist/model.js";
 import { detailMarkup, gestureExceedsTapThreshold, measurementMetrics, PlanRenderer, snapMeasurementPoint, zoomTransformAround } from "../dist/renderer.js";
-import { bayWindowFootprint, cabinetDoorPanelCount, cabinetThreePlacement, clampWebGLPan, closetDoorPanelCount, closetThreePlacement, cycleThreeSelectionCandidate, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, projectThreeDepth, projectThreePoint, roomEdgeWallHeight, splitWallFace, subdivideVerticalRange, subdivideWallRectangle, subdivideWallRectangleTiles, subdivideWallSegment, threeItemBelongsToRoom, threeItemFootprint, threeLayerEnabled, threeRelatedSelectionStyle, threeRoomBounds, threeSelectableType, threeSelectionKey, threeSelectionStyle, threeSelectionXrayStyle, threeViewportBox, threeWallBelongsToRoom, visibleBoxSideIndexes, wallFeatureThreePlacement, yawToQuarterTurn } from "../dist/three.js";
+import { bayWindowFootprint, cabinetDoorPanelCount, cabinetThreePlacement, clampIndoorPitch, clampWebGLPan, closetDoorPanelCount, closetThreePlacement, cycleThreeSelectionCandidate, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, projectThreeDepth, projectThreePoint, roomEdgeWallHeight, roomInteriorViewpoint, splitWallFace, subdivideVerticalRange, subdivideWallRectangle, subdivideWallRectangleTiles, subdivideWallSegment, threeItemBelongsToRoom, threeItemFootprint, threeLayerEnabled, threeRelatedSelectionStyle, threeRoomBounds, threeSelectableType, threeSelectionKey, threeSelectionStyle, threeSelectionXrayStyle, threeViewportBox, threeWallBelongsToRoom, visibleBoxSideIndexes, wallFeatureThreePlacement, yawToQuarterTurn } from "../dist/three.js";
 
 test("3D selection keys distinguish element kinds and reject anonymous data", () => {
   assert.equal(threeSelectionKey("outlet", { id: "outlet-3" }), "outlet:outlet-3");
@@ -581,6 +581,20 @@ test("WebGL pan is disabled at 100% and clamped to the zoomed scene", () => {
   assert.deepEqual(clampWebGLPan(120, -80, 1, 400, 300), { x: 0, y: 0 });
   assert.deepEqual(clampWebGLPan(500, -500, 2, 400, 300), { x: 200, y: -150 });
   assert.deepEqual(clampWebGLPan(75, 40, 2, 400, 300), { x: 75, y: 40 });
+});
+
+test("indoor viewpoints stay safely inside concave rooms at eye height", () => {
+  const room = { points: [{ x: 0, y: 0 }, { x: 300, y: 0 }, { x: 300, y: 100 }, { x: 120, y: 100 }, { x: 120, y: 260 }, { x: 0, y: 260 }] };
+  const viewpoint = roomInteriorViewpoint(room);
+  assert.equal(viewpoint.y, 160);
+  assert.ok(viewpoint.x >= 0 && viewpoint.x <= 300);
+  assert.ok(viewpoint.z >= 0 && viewpoint.z <= 260);
+  assert.ok(viewpoint.x <= 120 || viewpoint.z <= 100);
+  assert.equal(clampIndoorPitch(Math.PI), Math.PI * .42);
+  assert.equal(clampIndoorPitch(-Math.PI), -Math.PI * .42);
+  const obstacle = { x: viewpoint.x - 20, y: viewpoint.z - 20, widthCm: 40, depthCm: 40 };
+  const moved = roomInteriorViewpoint(room, 160, [obstacle]);
+  assert.ok(Math.hypot(moved.x - viewpoint.x, moved.z - viewpoint.z) > 20);
 });
 
 test("3D layers default to visible and can be independently hidden", () => {
