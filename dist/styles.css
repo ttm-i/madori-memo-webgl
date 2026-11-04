@@ -326,6 +326,9 @@ dialog::backdrop { background: rgba(32,36,31,.42); backdrop-filter: blur(2px); }
 .furniture-list-toolbar label { display: grid; gap: 5px; color: var(--muted); font-size: .72rem; font-weight: 750; }
 .furniture-list-toolbar select { width: 100%; min-height: 44px; padding: 0 34px 0 11px; border: 1px solid var(--line); border-radius: 11px; background: white; color: var(--ink); font: inherit; font-size: 16px; }
 .furniture-list-toolbar .secondary-button { grid-column: 1 / -1; }
+.furniture-price-summary { display: grid; gap: 3px; margin: 0 0 12px; padding: 12px 14px; border: 1px solid rgba(49,112,94,.26); border-radius: 13px; background: var(--accent-soft); }
+.furniture-price-summary strong { color: var(--accent); font-size: .92rem; }
+.furniture-price-summary span { color: var(--muted); font-size: .72rem; }
 .furniture-list { display: grid; gap: 8px; }
 .furniture-list-empty { margin: 24px 0; color: var(--muted); text-align: center; }
 .furniture-list-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 7px; padding-left: var(--tree-indent, 0px); }
@@ -336,7 +339,9 @@ dialog::backdrop { background: rgba(32,36,31,.42); backdrop-filter: blur(2px); }
 .furniture-list-item span { color: var(--muted); font-size: .75rem; }
 .furniture-list-item .furniture-list-issues { color: #9a5a20; font-weight: 750; line-height: 1.45; }
 .furniture-list-item .furniture-list-height { color: #52645e; font-weight: 700; }
-.furniture-list-item .furniture-list-size { align-self: center; grid-row: 1 / span 4; grid-column: 2; color: var(--ink); font-weight: 750; }
+.furniture-list-item .furniture-list-price { color: var(--muted); font-weight: 700; }
+.furniture-list-item .furniture-list-price.registered { color: var(--accent); }
+.furniture-list-item .furniture-list-size { align-self: center; grid-row: 1 / span 5; grid-column: 2; color: var(--ink); font-weight: 750; }
 .furniture-list-item.warning { border-color: #d89a5f; background: #fff8ed; }
 .furniture-list-item.danger { border-color: #d68b84; background: #fff3f1; }
 .quality-tag { display: inline-flex; margin-top: 14px; padding: 5px 9px; border-radius: 99px; background: var(--accent-soft); color: var(--accent); font-size: .72rem; font-weight: 750; }

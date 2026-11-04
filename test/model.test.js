@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildElevationItems, buildFurnitureHierarchy, buildKitchenCabinetLayout, buildKitchenComponentRects, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, duplicateFurniture, duplicateFurnitureStack, findDeliveryDoorPath, fitsRectangle, FORMAT, furnitureDescendantIds, FURNITURE_PRESETS, furnitureDisplayHeight, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, kitchenComponentVerticalRange, moveDimensionGuide, pointInPolygon, rectangleIntersectsPolygon, rectanglesOverlap, removeFurnitureStack, resolveFurnitureElevationPlacement, resolveFurnitureVerticalRange, rotateFurniture, rotateFurnitureStack, snapToGrid, translateFurnitureDescendants, updateFurniture, validatePlan, wallDisplayWidth } from "../dist/model.js";
+import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildElevationItems, buildFurnitureHierarchy, buildKitchenCabinetLayout, buildKitchenComponentRects, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, duplicateFurniture, duplicateFurnitureStack, findDeliveryDoorPath, fitsRectangle, FORMAT, furnitureDescendantIds, furniturePriceSummary, FURNITURE_PRESETS, furnitureDisplayHeight, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, kitchenComponentVerticalRange, moveDimensionGuide, pointInPolygon, rectangleIntersectsPolygon, rectanglesOverlap, removeFurnitureStack, resolveFurnitureElevationPlacement, resolveFurnitureVerticalRange, rotateFurniture, rotateFurnitureStack, snapToGrid, translateFurnitureDescendants, updateFurniture, validatePlan, wallDisplayWidth } from "../dist/model.js";
 import { detailMarkup, gestureExceedsTapThreshold, measurementMetrics, PlanRenderer, snapMeasurementPoint, zoomTransformAround } from "../dist/renderer.js";
 import { cabinetDoorPanelCount, cabinetThreePlacement, clampWebGLPan, closetDoorPanelCount, closetThreePlacement, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, projectThreeDepth, projectThreePoint, roomEdgeWallHeight, splitWallFace, subdivideVerticalRange, subdivideWallRectangle, subdivideWallRectangleTiles, subdivideWallSegment, threeItemBelongsToRoom, threeItemFootprint, threeLayerEnabled, threeRelatedSelectionStyle, threeRoomBounds, threeSelectableType, threeSelectionKey, threeSelectionStyle, threeViewportBox, threeWallBelongsToRoom, visibleBoxSideIndexes, wallFeatureThreePlacement, yawToQuarterTurn } from "../dist/three.js";
 
@@ -268,6 +268,22 @@ test("furniture duplication preserves size and offsets position", () => {
   const copy = duplicateFurniture(original, "f2");
   assert.deepEqual(copy, { id: "f2", name: "ソファ コピー", x: 35, y: 45, widthCm: 180, depthCm: 85 });
   assert.equal(original.name, "ソファ");
+});
+
+test("furniture prices remain optional, total only registered values and survive duplication", () => {
+  const furniture = { id: "priced", name: "ソファ", x: 0, y: 0, widthCm: 180, depthCm: 85, priceYen: 128000 };
+  const copy = duplicateFurniture(furniture, "copy");
+  assert.equal(copy.priceYen, 128000);
+  assert.deepEqual(furniturePriceSummary([furniture, { id: "missing" }, { id: "free", priceYen: 0 }]), {
+    totalYen: 128000,
+    registeredCount: 2,
+    missingCount: 1,
+  });
+  updateFurniture(furniture, { name: "ソファ", roomId: "room", widthCm: 180, depthCm: 85, heightCm: null, priceYen: null, supportId: null, furnitureKind: null });
+  assert.equal(Object.hasOwn(furniture, "priceYen"), false);
+  const invalidPlan = createSamplePlan();
+  invalidPlan.plan.furniture[0].priceYen = 12.5;
+  assert.throws(() => validatePlan(invalidPlan), /価格が不正/);
 });
 
 test("furniture stack duplication preserves nested support relationships", () => {

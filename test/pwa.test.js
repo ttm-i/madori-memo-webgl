@@ -39,6 +39,16 @@ test("furniture details use one concise 2D action for both location and wall cle
   assert.doesNotMatch(app, /showFurnitureClearanceButton/);
 });
 
+test("furniture prices are optional and summarized in the furniture list", () => {
+  const html = readFileSync(new URL("../dist/index.html", import.meta.url), "utf8");
+  const app = readFileSync(new URL("../dist/app.js", import.meta.url), "utf8");
+  assert.match(html, /id="furniturePrice"/);
+  assert.match(html, /id="furnitureListPriceSummary"/);
+  assert.match(app, /登録済み合計/);
+  assert.match(app, /価格登録済み/);
+  assert.match(app, /価格未登録/);
+});
+
 test("the furniture list can filter inspection findings without losing stack context", () => {
   const html = readFileSync(new URL("../dist/index.html", import.meta.url), "utf8");
   const app = readFileSync(new URL("../dist/app.js", import.meta.url), "utf8");

@@ -38,6 +38,11 @@ export function validatePlan(input) {
   input.plan.features ??= [];
   input.plan.features = input.plan.features.filter((feature) => feature.kind !== "column");
   input.plan.furniture ??= [];
+  for (const furniture of input.plan.furniture) {
+    if (furniture.priceYen != null && (!Number.isInteger(furniture.priceYen) || furniture.priceYen < 0 || furniture.priceYen > 999999999)) {
+      throw new Error(`${furniture.name ?? "家具"}の価格が不正です`);
+    }
+  }
   for (const room of input.plan.rooms) {
     if (!room.id || !room.name || !Array.isArray(room.points) || room.points.length < 3) {
       throw new Error("部屋データに必須項目がありません");
@@ -604,6 +609,15 @@ export function buildFurnitureHierarchy(plan) {
   return rows;
 }
 
+export function furniturePriceSummary(furnitureItems = []) {
+  const registered = furnitureItems.filter((item) => Number.isInteger(item?.priceYen) && item.priceYen >= 0);
+  return {
+    totalYen: registered.reduce((total, item) => total + item.priceYen, 0),
+    registeredCount: registered.length,
+    missingCount: furnitureItems.length - registered.length,
+  };
+}
+
 export function duplicateFurnitureStack(plan, furniture, createId) {
   if (!furniture) return [];
   const furnitureItems = plan?.furniture ?? [];
@@ -643,6 +657,8 @@ export function updateFurniture(furniture, values) {
   furniture.depthCm = values.depthCm;
   if (Number.isFinite(values.heightCm)) furniture.heightCm = values.heightCm;
   else delete furniture.heightCm;
+  if (Number.isInteger(values.priceYen) && values.priceYen >= 0) furniture.priceYen = values.priceYen;
+  else delete furniture.priceYen;
   if (values.furnitureKind && Object.hasOwn(FURNITURE_PRESETS, values.furnitureKind)) furniture.furnitureKind = values.furnitureKind;
   else delete furniture.furnitureKind;
   const supportChanged = furniture.supportId !== values.supportId;

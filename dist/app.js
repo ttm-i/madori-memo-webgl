@@ -1,7 +1,7 @@
-import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=99";
-import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildElevationItems, buildFurnitureHierarchy, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurnitureStack, findSupportItem, furnitureDescendantIds as modelFurnitureDescendantIds, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, removeFurnitureStack, resolveFurnitureVerticalRange, rotateFurnitureStack, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=99";
-import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=99";
-import { createWebGLThreeView } from "./webgl-three.js?v=99";
+import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=100";
+import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildElevationItems, buildFurnitureHierarchy, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurnitureStack, findSupportItem, furnitureDescendantIds as modelFurnitureDescendantIds, furniturePriceSummary, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, removeFurnitureStack, resolveFurnitureVerticalRange, rotateFurnitureStack, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=100";
+import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=100";
+import { createWebGLThreeView } from "./webgl-three.js?v=100";
 
 const elements = Object.fromEntries([
   "menuButton", "dataMenu", "detailDialog", "detailType", "detailTitle", "detailBody", "fileInput",
@@ -14,11 +14,11 @@ const elements = Object.fromEntries([
   "furnitureMenuButton", "furnitureMenu", "snapToggle",
   "summaryTitle", "roomCount", "measuredCount", "uncertainCount", "connectionBadge", "saveStatus", "toast",
   "furnitureButton", "furnitureDialog", "furnitureForm", "cancelFurnitureButton",
-  "furnitureName", "furnitureWidth", "furnitureDepth", "furnitureHeight", "furnitureRoom", "furniturePreset", "furnitureSupport", "furnitureSupportHelp",
+  "furnitureName", "furnitureWidth", "furnitureDepth", "furnitureHeight", "furniturePrice", "furnitureRoom", "furniturePreset", "furnitureSupport", "furnitureSupportHelp",
   "furnitureViewActions", "showFurnitureInPlanButton", "showFurnitureInThreeButton", "furnitureActions", "rotateFurnitureButton", "duplicateFurnitureButton", "deleteFurnitureButton",
   "furnitureRoomEditGroup", "furnitureRoomEdit",
   "editFurnitureButton", "furnitureDialogTitle", "furnitureSubmitButton",
-  "furnitureListButton", "furnitureListDialog", "furnitureList", "furnitureListCount", "furnitureListRoomFilter", "furnitureListIssueFilter", "furnitureListExpandAll",
+  "furnitureListButton", "furnitureListDialog", "furnitureList", "furnitureListCount", "furnitureListRoomFilter", "furnitureListIssueFilter", "furnitureListExpandAll", "furnitureListPriceSummary",
   "wallDiagramModeButton", "wallHeightModeButton", "wallRoomList", "wallEmpty",
   "wallDiagramPanel", "wallPlanTitle", "wallPlanSvg", "wallList", "wallDiagramTitle", "wallDiagramMeta", "wallDiagramSvg", "wallDiagramDetails",
   "wallScrollViewButton", "wallOverviewButton", "wallSvgScroll",
@@ -912,6 +912,12 @@ function renderFurnitureList() {
   const roomHierarchy = furnitureListRoomId
     ? hierarchy.filter(({ furniture }) => furniture.roomId === furnitureListRoomId)
     : hierarchy;
+  const priceSummary = furniturePriceSummary(roomHierarchy.map(({ furniture }) => furniture));
+  const priceTotal = document.createElement("strong");
+  priceTotal.textContent = `登録済み合計 ${priceSummary.totalYen.toLocaleString("ja-JP")}円`;
+  const priceMeta = document.createElement("span");
+  priceMeta.textContent = `価格登録済み ${priceSummary.registeredCount}点・未登録 ${priceSummary.missingCount}点`;
+  elements.furnitureListPriceSummary.replaceChildren(priceTotal, priceMeta);
   const issueById = new Map(roomHierarchy.map(({ furniture }) => {
     const room = activePlan.plan.rooms.find((candidate) => candidate.id === furniture.roomId);
     const outside = !analyzeFurniturePlacement(furniture, room).inside;
@@ -1000,6 +1006,9 @@ function renderFurnitureList() {
     heightLabel.className = "furniture-list-height";
     const topLabel = vertical.schematic ? `最上部 約${vertical.topCm} cm（模式）` : `最上部 ${vertical.topCm} cm`;
     heightLabel.textContent = vertical.bottomCm > 0 ? `底面 ${vertical.bottomCm} cm・${topLabel}` : topLabel;
+    const priceLabel = document.createElement("span");
+    priceLabel.className = `furniture-list-price ${Number.isInteger(furniture.priceYen) ? "registered" : ""}`;
+    priceLabel.textContent = Number.isInteger(furniture.priceYen) ? `税込 ${furniture.priceYen.toLocaleString("ja-JP")}円` : "価格未登録";
     const size = document.createElement("span");
     size.className = "furniture-list-size";
     size.textContent = Number.isFinite(furniture.heightCm)
@@ -1016,7 +1025,7 @@ function renderFurnitureList() {
       issueLabel.textContent = issueDetails.join(" / ");
       row.append(issueLabel);
     }
-    row.append(heightLabel, size);
+    row.append(heightLabel, priceLabel, size);
     row.addEventListener("click", () => {
       elements.furnitureListDialog.close();
       setFurnitureVisible(true);
@@ -1180,6 +1189,7 @@ elements.furnitureButton.addEventListener("click", () => {
   elements.furnitureWidth.value = "100";
   elements.furnitureDepth.value = "50";
   elements.furnitureHeight.value = "";
+  elements.furniturePrice.value = "";
   elements.furnitureName.value = "家具";
   elements.furniturePreset.value = "custom";
   updateFurnitureSupportOptions();
@@ -1253,8 +1263,11 @@ elements.furnitureForm.addEventListener("submit", async (event) => {
   const depthCm = Number(elements.furnitureDepth.value);
   const heightText = elements.furnitureHeight.value.trim();
   const heightCm = heightText === "" ? null : Number(heightText);
+  const priceText = elements.furniturePrice.value.trim();
+  const priceYen = priceText === "" ? null : Number(priceText);
   if (!Number.isFinite(widthCm) || !Number.isFinite(depthCm) || widthCm <= 0 || depthCm <= 0) return showToast("家具寸法を確認してください");
   if (heightCm !== null && (!Number.isFinite(heightCm) || heightCm <= 0)) return showToast("家具の高さを確認してください");
+  if (priceYen !== null && (!Number.isInteger(priceYen) || priceYen < 0 || priceYen > 999999999)) return showToast("家具の税込価格を1円単位で確認してください");
   const name = elements.furnitureName.value.trim() || "家具";
   const supportId = elements.furnitureSupport.value || null;
   if (editingFurnitureId) {
@@ -1262,7 +1275,7 @@ elements.furnitureForm.addEventListener("submit", async (event) => {
     if (!furniture) return showToast("編集する家具が見つかりません");
     pushHistory();
     const furnitureKind = elements.furniturePreset.value === "custom" ? null : elements.furniturePreset.value;
-    updateFurniture(furniture, { name, roomId: room.id, widthCm, depthCm, heightCm, supportId, furnitureKind });
+    updateFurniture(furniture, { name, roomId: room.id, widthCm, depthCm, heightCm, priceYen, supportId, furnitureKind });
     alignFurnitureToSupport(activePlan.plan, furniture);
     alignSupportedFurniture(activePlan.plan);
     renderer.render(activePlan);
@@ -1288,6 +1301,7 @@ elements.furnitureForm.addEventListener("submit", async (event) => {
   };
   if (elements.furniturePreset.value !== "custom") furniture.furnitureKind = elements.furniturePreset.value;
   if (heightCm !== null) furniture.heightCm = heightCm;
+  if (priceYen !== null) furniture.priceYen = priceYen;
   if (supportId) furniture.supportId = supportId;
   alignFurnitureToSupport(activePlan.plan, furniture);
   activePlan.plan.furniture.push(furniture);
@@ -1307,6 +1321,7 @@ elements.editFurnitureButton.addEventListener("click", () => {
   elements.furnitureWidth.value = String(furniture.widthCm);
   elements.furnitureDepth.value = String(furniture.depthCm);
   elements.furnitureHeight.value = Number.isFinite(furniture.heightCm) ? String(furniture.heightCm) : "";
+  elements.furniturePrice.value = Number.isInteger(furniture.priceYen) ? String(furniture.priceYen) : "";
   elements.furnitureRoom.replaceChildren(...activePlan.plan.rooms.map((room) => new Option(room.name, room.id, false, room.id === furniture.roomId)));
   updateFurnitureSupportOptions(furniture.supportId ?? "");
   elements.furnitureSupport.dispatchEvent(new Event("change"));
