@@ -101,10 +101,20 @@ test("3D selection stays in the scene and summarizes every selectable element ty
   for (const presentation of ["featureSelectionPresentation", "openingSelectionPresentation", "electricalSelectionPresentation"]) {
     assert.match(app, new RegExp(`function ${presentation}`));
   }
-  assert.match(html, /家具・設備などをタップすると、3D内で選択情報を確認できます/);
+  assert.match(html, /id="threeSelectionStatus" class="three-selection-status selection-status-card"/);
+  assert.match(app, /className = `three-selection-status selection-status-card \$\{presentation\.tone\}`/);
   assert.match(app, /threeSelectionDetailsButton\.addEventListener/);
   assert.match(app, /showDetail\(threeSelectedType, threeSelectedItem, \{ origin: "three" \}\)/);
   assert.doesNotMatch(app, /setThreeSelectionPresentation\(type, item\);\s*showDetail\(type, item\)/);
+});
+
+test("the 3D tab opens with a compact viewport-first layout", () => {
+  const html = readFileSync(new URL("../dist/index.html", import.meta.url), "utf8");
+  const app = readFileSync(new URL("../dist/app.js", import.meta.url), "utf8");
+  assert.match(html, /<details class="three-display-settings">/);
+  assert.match(html, /<summary>表示設定<\/summary>/);
+  assert.doesNotMatch(html, /WEBGL PROTOTYPE|<p class="three-intro"|id="threeRotateLeft"|id="threeRotateRight"|id="threeReset"/);
+  assert.doesNotMatch(app, /threeRotateLeft|threeRotateRight|threeReset/);
 });
 
 test("2D selection uses an in-plan summary, wall clearances and origin-aware detail actions", () => {

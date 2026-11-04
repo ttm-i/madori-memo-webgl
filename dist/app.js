@@ -1,7 +1,7 @@
-import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=103";
-import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildElevationItems, buildFurnitureHierarchy, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurnitureStack, featureSupportRange, findSupportItem, furnitureDescendantIds as modelFurnitureDescendantIds, furniturePriceSummary, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, QUALITY_LABELS, removeFurnitureStack, resolveFurnitureVerticalRange, rotateFurnitureStack, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=103";
-import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=103";
-import { createWebGLThreeView } from "./webgl-three.js?v=103";
+import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=104";
+import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildElevationItems, buildFurnitureHierarchy, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurnitureStack, featureSupportRange, findSupportItem, furnitureDescendantIds as modelFurnitureDescendantIds, furniturePriceSummary, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, QUALITY_LABELS, removeFurnitureStack, resolveFurnitureVerticalRange, rotateFurnitureStack, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=104";
+import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=104";
+import { createWebGLThreeView } from "./webgl-three.js?v=104";
 
 const elements = Object.fromEntries([
   "menuButton", "dataMenu", "detailDialog", "detailType", "detailTitle", "detailBody", "fileInput",
@@ -27,7 +27,7 @@ const elements = Object.fromEntries([
   "deliveryEmpty", "deliveryContent", "deliveryRouteGrid", "deliveryDoorGrid", "deliveryFurnitureList", "deliveryLimitations",
   "deliveryDialog", "deliveryForm", "deliveryDialogTitle", "cancelDeliveryButton", "deliveryBasis",
   "deliverySideA", "deliverySideB", "deliverySideC",
-  "threeCanvas", "threeEmpty", "threeRotateLeft", "threeRotateRight", "threeReset", "threeHeightNote", "threeSelectionStatus", "threeSelectionSummary", "threeSelectionDetailsButton", "threeCutawayToggle", "threeLabelsToggle",
+  "threeCanvas", "threeEmpty", "threeHeightNote", "threeSelectionStatus", "threeSelectionSummary", "threeSelectionDetailsButton", "threeCutawayToggle", "threeLabelsToggle",
   "threeRoomFilter", "threeWallsToggle", "threeOpeningsToggle", "threeFeaturesToggle", "threeFurnitureToggle", "threeElectricalToggle",
   "threeZoomOut", "threeZoomReset", "threeZoomIn", "threeZoomValue", "threeZoomHint",
 ].map((id) => [id, document.getElementById(id)]));
@@ -1009,7 +1009,7 @@ function setThreeSelectionPresentation(type, item, { focus = false } = {}) {
   threeSelectedType = type;
   threeSelectedItem = item;
   elements.threeSelectionStatus.hidden = !presentation.summary;
-  elements.threeSelectionStatus.className = `three-selection-status ${presentation.tone}`;
+  elements.threeSelectionStatus.className = `three-selection-status selection-status-card ${presentation.tone}`;
   elements.threeSelectionSummary.textContent = [
     presentation.summary,
     presentation.label ? `${presentation.tone === "danger" ? "要修正" : "要確認"}｜${presentation.label}` : "",
@@ -1052,7 +1052,7 @@ function clearThreeSelection() {
   threeSelectedItem = null;
   elements.threeSelectionStatus.hidden = true;
   elements.threeSelectionSummary.textContent = "";
-  elements.threeSelectionStatus.className = "three-selection-status";
+  elements.threeSelectionStatus.className = "three-selection-status selection-status-card";
   webglThreeView?.clearSelection();
 }
 
@@ -1282,9 +1282,6 @@ document.querySelectorAll(".tab").forEach((tab) => tab.addEventListener("click",
   if (tab.dataset.view === "three") updateThreeView();
 }));
 
-elements.threeRotateLeft.addEventListener("click", () => { threeQuarterTurn = (threeQuarterTurn + 3) % 4; updateThreeView(); });
-elements.threeRotateRight.addEventListener("click", () => { threeQuarterTurn = (threeQuarterTurn + 1) % 4; updateThreeView(); });
-elements.threeReset.addEventListener("click", () => { threeQuarterTurn = 0; resetThreeViewport(); updateThreeView(); });
 elements.threeCutawayToggle.addEventListener("change", () => { threeCutaway = elements.threeCutawayToggle.checked; updateThreeView(); });
 elements.threeLabelsToggle.addEventListener("change", () => { threeShowLabels = elements.threeLabelsToggle.checked; updateThreeView(); });
 elements.threeRoomFilter.addEventListener("change", () => { threeRoomId = elements.threeRoomFilter.value; resetThreeViewport(); updateThreeView(); });
