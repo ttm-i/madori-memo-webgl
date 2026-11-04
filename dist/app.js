@@ -1,7 +1,7 @@
-import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=98";
-import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildElevationItems, buildFurnitureHierarchy, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurnitureStack, findSupportItem, furnitureDescendantIds as modelFurnitureDescendantIds, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, removeFurnitureStack, resolveFurnitureVerticalRange, rotateFurnitureStack, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=98";
-import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=98";
-import { createWebGLThreeView } from "./webgl-three.js?v=98";
+import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=99";
+import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildElevationItems, buildFurnitureHierarchy, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurnitureStack, findSupportItem, furnitureDescendantIds as modelFurnitureDescendantIds, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, removeFurnitureStack, resolveFurnitureVerticalRange, rotateFurnitureStack, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=99";
+import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=99";
+import { createWebGLThreeView } from "./webgl-three.js?v=99";
 
 const elements = Object.fromEntries([
   "menuButton", "dataMenu", "detailDialog", "detailType", "detailTitle", "detailBody", "fileInput",
@@ -856,6 +856,17 @@ function furnitureInspectionPresentation(furniture) {
   const placement = room ? analyzeFurniturePlacement(furniture, room) : null;
   const supportFit = analyzeFurnitureSupportFit(furniture, activePlan.plan);
   const conflicts = analyzeFurnitureConflicts(furniture, activePlan.plan);
+  const support = findSupportItem(activePlan.plan, furniture.supportId);
+  const vertical = resolveFurnitureVerticalRange(activePlan.plan, furniture);
+  const formatCm = (value) => Math.round(value * 10) / 10;
+  const heightLabel = Number.isFinite(furniture.heightCm)
+    ? `${formatCm(furniture.heightCm)} cm`
+    : `約${formatCm(vertical.topCm - vertical.bottomCm)} cm（模式）`;
+  const installationLabel = support
+    ? `${support.name}の上・床から ${formatCm(vertical.bottomCm)} cm`
+    : vertical.bottomCm > .001
+      ? `床から ${formatCm(vertical.bottomCm)} cm`
+      : "床置き";
   const issues = [];
   if (placement && !placement.inside) issues.push(`部屋外: ${placementOverflowSummary(placement)}`);
   if (supportFit?.fits === false) issues.push(`設置面超過: ${supportOverflowSummary(supportFit)}`);
@@ -863,6 +874,7 @@ function furnitureInspectionPresentation(furniture) {
   return {
     tone: placement && !placement.inside ? "danger" : issues.length ? "warning" : "normal",
     label: issues.join(" / "),
+    summary: `${furniture.name}\n幅 ${formatCm(furniture.widthCm)} cm × 奥行 ${formatCm(furniture.depthCm)} cm × 高さ ${heightLabel}｜${installationLabel}`,
     related: conflicts.filter((conflict) => conflict.type === "furniture" || conflict.type === "feature"),
   };
 }
@@ -870,12 +882,13 @@ function furnitureInspectionPresentation(furniture) {
 function setThreeSelectionPresentation(type, item, { focus = false } = {}) {
   const presentation = type === "furniture"
     ? furnitureInspectionPresentation(item)
-    : { tone: "normal", label: "", related: [] };
-  elements.threeSelectionStatus.hidden = !presentation.label;
+    : { tone: "normal", label: "", summary: "", related: [] };
+  elements.threeSelectionStatus.hidden = !presentation.summary;
   elements.threeSelectionStatus.className = `three-selection-status ${presentation.tone}`;
-  elements.threeSelectionStatus.textContent = presentation.label
-    ? `${presentation.tone === "danger" ? "要修正" : "要確認"}｜${presentation.label}`
-    : "";
+  elements.threeSelectionStatus.textContent = [
+    presentation.summary,
+    presentation.label ? `${presentation.tone === "danger" ? "要修正" : "要確認"}｜${presentation.label}` : "",
+  ].filter(Boolean).join("\n");
   webglThreeView?.setSelection(type, item, { tone: presentation.tone, focus, related: presentation.related });
   return presentation;
 }

@@ -55,6 +55,7 @@ test("the furniture list can filter inspection findings without losing stack con
 
 test("the WebGL prototype stays local-first and isolated from the stable database", () => {
   const html = readFileSync(new URL("../dist/index.html", import.meta.url), "utf8");
+  const app = readFileSync(new URL("../dist/app.js", import.meta.url), "utf8");
   const webgl = readFileSync(new URL("../dist/webgl-three.js", import.meta.url), "utf8");
   const database = readFileSync(new URL("../dist/db.js", import.meta.url), "utf8");
 
@@ -68,4 +69,7 @@ test("the WebGL prototype stays local-first and isolated from the stable databas
   assert.match(html, /data-webgl-status/);
   assert.match(webgl, /threeSelectionStyle\(selectedTone\)/);
   assert.match(webgl, /relatedObjects\.forEach/);
+  assert.match(app, /幅 .*奥行 .*高さ/);
+  assert.match(app, /床置き/);
+  assert.match(app, /support\.name.*床から/s);
 });
