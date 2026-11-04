@@ -1,7 +1,7 @@
-import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=96";
-import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildElevationItems, buildFurnitureHierarchy, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurnitureStack, findSupportItem, furnitureDescendantIds as modelFurnitureDescendantIds, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, removeFurnitureStack, resolveFurnitureVerticalRange, rotateFurnitureStack, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=96";
-import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=96";
-import { createWebGLThreeView } from "./webgl-three.js?v=96";
+import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=97";
+import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildElevationItems, buildFurnitureHierarchy, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurnitureStack, findSupportItem, furnitureDescendantIds as modelFurnitureDescendantIds, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, removeFurnitureStack, resolveFurnitureVerticalRange, rotateFurnitureStack, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=97";
+import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=97";
+import { createWebGLThreeView } from "./webgl-three.js?v=97";
 
 const elements = Object.fromEntries([
   "menuButton", "dataMenu", "detailDialog", "detailType", "detailTitle", "detailBody", "fileInput",
@@ -15,7 +15,7 @@ const elements = Object.fromEntries([
   "summaryTitle", "roomCount", "measuredCount", "uncertainCount", "connectionBadge", "saveStatus", "toast",
   "furnitureButton", "furnitureDialog", "furnitureForm", "cancelFurnitureButton",
   "furnitureName", "furnitureWidth", "furnitureDepth", "furnitureHeight", "furnitureRoom", "furniturePreset", "furnitureSupport", "furnitureSupportHelp",
-  "furnitureViewActions", "showFurnitureInPlanButton", "showFurnitureInThreeButton", "showFurnitureClearanceButton", "furnitureActions", "rotateFurnitureButton", "duplicateFurnitureButton", "deleteFurnitureButton",
+  "furnitureViewActions", "showFurnitureInPlanButton", "showFurnitureInThreeButton", "furnitureActions", "rotateFurnitureButton", "duplicateFurnitureButton", "deleteFurnitureButton",
   "furnitureRoomEditGroup", "furnitureRoomEdit",
   "editFurnitureButton", "furnitureDialogTitle", "furnitureSubmitButton",
   "furnitureListButton", "furnitureListDialog", "furnitureList", "furnitureListCount", "furnitureListRoomFilter", "furnitureListIssueFilter", "furnitureListExpandAll",
@@ -808,7 +808,7 @@ elements.showFurnitureInPlanButton.addEventListener("click", () => {
   renderer.setSelectedFurniture(furniture.id);
   renderer.focusFurniture(furniture.id);
   elements.detailDialog.close();
-  showToast(`「${furniture.name}」を2D中央に表示しました`);
+  showToast(`「${furniture.name}」を2D中央に表示しました。空白部分をタップすると距離表示を終了します`);
 });
 elements.showFurnitureInThreeButton.addEventListener("click", () => {
   const furniture = selectedFurniture();
@@ -826,19 +826,6 @@ elements.showFurnitureInThreeButton.addEventListener("click", () => {
     ? `「${furniture.name}」を3Dで強調しました（${presentation.tone === "danger" ? "要修正" : "要確認"}）`
     : `「${furniture.name}」を3Dで強調しました`);
 });
-elements.showFurnitureClearanceButton.addEventListener("click", () => {
-  const furniture = selectedFurniture();
-  if (!furniture) return;
-  preserveFurnitureSelectionOnClose = true;
-  clearThreeSelection();
-  setFurnitureVisible(true);
-  document.querySelector('.tab[data-view="plan"]').click();
-  renderer.setSelectedFurniture(furniture.id);
-  renderer.focusFurniture(furniture.id);
-  elements.detailDialog.close();
-  showToast("空白部分をタップすると距離表示を終了します");
-});
-
 function selectedFurniture() {
   return activePlan?.plan.furniture.find((item) => item.id === selectedFurnitureId);
 }
