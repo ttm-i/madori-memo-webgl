@@ -1,4 +1,4 @@
-import { buildKitchenComponentRects, buildRoomWalls, featureSupportRange, getElectricalPlanPosition, pointInPolygon, resolveFurnitureVerticalRange } from "./model.js?v=113";
+import { buildKitchenComponentRects, buildRoomWalls, featureSupportRange, getElectricalPlanPosition, pointInPolygon, resolveFurnitureVerticalRange } from "./model.js?v=114";
 
 const NS = "http://www.w3.org/2000/svg";
 
@@ -61,7 +61,7 @@ function distanceToRoomEdge(point, points) {
   return nearest;
 }
 
-export function roomInteriorViewpoint(room, eyeHeightCm = 160, obstacles = []) {
+export function roomInteriorViewpoint(room, eyeHeightCm = 160, obstacles = [], preferredPoint = null) {
   const points = room?.points?.filter((point) => Number.isFinite(point?.x) && Number.isFinite(point?.y)) ?? [];
   if (points.length < 3) return null;
   const bounds = points.reduce((result, point) => ({
@@ -75,6 +75,11 @@ export function roomInteriorViewpoint(room, eyeHeightCm = 160, obstacles = []) {
   average.x /= points.length;
   average.y /= points.length;
   candidates.push(average, { x: (bounds.minX + bounds.maxX) / 2, y: (bounds.minY + bounds.maxY) / 2 });
+  if (Number.isFinite(preferredPoint?.x) && Number.isFinite(preferredPoint?.y)) {
+    for (const offsetX of [0, -20, 20, -40, 40]) {
+      for (const offsetY of [0, -20, 20, -40, 40]) candidates.push({ x: preferredPoint.x + offsetX, y: preferredPoint.y + offsetY });
+    }
+  }
   for (let row = 1; row < 8; row += 1) {
     for (let column = 1; column < 8; column += 1) {
       candidates.push({
@@ -94,8 +99,14 @@ export function roomInteriorViewpoint(room, eyeHeightCm = 160, obstacles = []) {
   const interior = candidates.filter((point) => pointInPolygon(point, points));
   if (!interior.length) return null;
   const unobstructed = interior.filter((point) => !blocksViewpoint(point));
-  const safest = (unobstructed.length ? unobstructed : interior)
-    .sort((first, second) => distanceToRoomEdge(second, points) - distanceToRoomEdge(first, points))[0];
+  const available = unobstructed.length ? unobstructed : interior;
+  const preferredCandidates = preferredPoint
+    ? available.filter((point) => distanceToRoomEdge(point, points) >= 25)
+    : [];
+  const safest = (preferredCandidates.length ? preferredCandidates : available)
+    .sort((first, second) => preferredCandidates.length
+      ? Math.hypot(first.x - preferredPoint.x, first.y - preferredPoint.y) - Math.hypot(second.x - preferredPoint.x, second.y - preferredPoint.y)
+      : distanceToRoomEdge(second, points) - distanceToRoomEdge(first, points))[0];
   return { x: safest.x, y: Math.max(80, Number.isFinite(eyeHeightCm) ? eyeHeightCm : 160), z: safest.y };
 }
 

@@ -1,7 +1,7 @@
-import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=113";
-import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildElevationItems, buildFurnitureHierarchy, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurnitureStack, featureSupportRange, findSupportItem, furnitureDescendantIds as modelFurnitureDescendantIds, furniturePriceSummary, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, QUALITY_LABELS, removeFurnitureStack, resolveFurnitureVerticalRange, rotateFurnitureStack, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=113";
-import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=113";
-import { createWebGLThreeView } from "./webgl-three.js?v=113";
+import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=114";
+import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildElevationItems, buildFurnitureHierarchy, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurnitureStack, featureSupportRange, findSupportItem, furnitureDescendantIds as modelFurnitureDescendantIds, furniturePriceSummary, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, QUALITY_LABELS, removeFurnitureStack, resolveFurnitureVerticalRange, rotateFurnitureStack, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=114";
+import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=114";
+import { createWebGLThreeView } from "./webgl-three.js?v=114";
 
 const elements = Object.fromEntries([
   "menuButton", "dataMenu", "detailDialog", "detailType", "detailTitle", "detailBody", "fileInput",
@@ -139,13 +139,30 @@ function resetThreeViewport() {
 
 function updateThreeRoomFilter() {
   const rooms = activePlan?.plan?.rooms ?? [];
+  const openings = activePlan?.plan?.openings ?? [];
   if (threeRoomId && !rooms.some((room) => room.id === threeRoomId)) threeRoomId = "";
   const options = [new Option("全体", ""), ...rooms.map((room) => new Option(room.name, room.id))];
   elements.threeRoomFilter.replaceChildren(...options);
   elements.threeRoomFilter.value = threeRoomId;
-  if (threeViewpointRoomId && !rooms.some((room) => room.id === threeViewpointRoomId)) threeViewpointRoomId = "";
-  threeViewpointRoomId ||= rooms.find((room) => /LDK|リビング/.test(room.name))?.id ?? rooms[0]?.id ?? "";
-  elements.threeIndoorViewpoint.replaceChildren(...rooms.map((room) => new Option(`${room.name}中央`, room.id)));
+  const viewpointOptions = rooms.flatMap((room) => {
+    const roomOpenings = openings.filter((opening) => (opening.roomId === room.id || opening.roomIds?.includes(room.id))
+      && opening.from && opening.to);
+    const largest = (kind) => roomOpenings.filter((opening) => String(opening.kind ?? "").includes(kind))
+      .sort((first, second) => (second.widthCm ?? 0) - (first.widthCm ?? 0))[0];
+    const door = largest("door");
+    const windowOpening = largest("window");
+    return [
+      new Option(`${room.name}中央`, `${room.id}::center`),
+      door ? new Option(`${room.name}入口側`, `${room.id}::door::${door.id}`) : null,
+      windowOpening ? new Option(`${room.name}窓側`, `${room.id}::window::${windowOpening.id}`) : null,
+    ].filter(Boolean);
+  });
+  const validViewpoints = new Set(viewpointOptions.map((option) => option.value));
+  if (!validViewpoints.has(threeViewpointRoomId)) {
+    const preferredRoom = rooms.find((room) => /LDK|リビング/.test(room.name)) ?? rooms[0];
+    threeViewpointRoomId = preferredRoom ? `${preferredRoom.id}::center` : "";
+  }
+  elements.threeIndoorViewpoint.replaceChildren(...viewpointOptions);
   elements.threeIndoorViewpoint.value = threeViewpointRoomId;
 }
 

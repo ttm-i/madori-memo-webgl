@@ -595,6 +595,8 @@ test("indoor viewpoints stay safely inside concave rooms at eye height", () => {
   const obstacle = { x: viewpoint.x - 20, y: viewpoint.z - 20, widthCm: 40, depthCm: 40 };
   const moved = roomInteriorViewpoint(room, 160, [obstacle]);
   assert.ok(Math.hypot(moved.x - viewpoint.x, moved.z - viewpoint.z) > 20);
+  const preferred = roomInteriorViewpoint(room, 160, [], { x: 40, y: 40 });
+  assert.ok(Math.hypot(preferred.x - 40, preferred.z - 40) < Math.hypot(viewpoint.x - 40, viewpoint.z - 40));
 });
 
 test("3D layers default to visible and can be independently hidden", () => {

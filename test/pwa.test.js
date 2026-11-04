@@ -129,6 +129,8 @@ test("the 3D tab opens with a compact viewport-first layout", () => {
   assert.match(app, /cameraMode: threeCameraMode/);
   assert.match(app, /viewpointRoomId: threeViewpointRoomId/);
   assert.match(app, /threeIndoorResetDirection[\s\S]*resetIndoorDirection\(\)/);
+  assert.match(app, /room\.name}入口側/);
+  assert.match(app, /room\.name}窓側/);
   const webgl = readFileSync(new URL("../dist/webgl-three.js", import.meta.url), "utf8");
   assert.match(webgl, /view\.indoorYaw \+= dx/);
   assert.match(webgl, /view\.indoorYaw = view\.indoorDefaultYaw/);

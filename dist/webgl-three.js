@@ -1,6 +1,6 @@
 import * as THREE from "./vendor/three/three.module.js";
-import { buildKitchenCabinetLayout, buildKitchenComponentRects, inferFurnitureKind, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=113";
-import { bayWindowFootprint, cabinetDoorPanelCount, cabinetThreePlacement, clampIndoorPitch, clampWebGLPan, closetThreePlacement, cycleThreeSelectionCandidate, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, roomInteriorViewpoint, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRelatedSelectionStyle, threeRoomBounds, threeSelectionKey, threeSelectionStyle, threeSelectionXrayStyle, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=113";
+import { buildKitchenCabinetLayout, buildKitchenComponentRects, inferFurnitureKind, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=114";
+import { bayWindowFootprint, cabinetDoorPanelCount, cabinetThreePlacement, clampIndoorPitch, clampWebGLPan, closetThreePlacement, cycleThreeSelectionCandidate, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, roomInteriorViewpoint, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRelatedSelectionStyle, threeRoomBounds, threeSelectionKey, threeSelectionStyle, threeSelectionXrayStyle, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=114";
 
 const WALL_THICKNESS = 6;
 const DEFAULT_WALL_HEIGHT = 220;
@@ -1076,7 +1076,7 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null) {
   const pointers = new Map();
   const view = {
     mode: "overview", yaw: -Math.PI / 4, pitch: .72, zoom: 1, panX: 0, panY: 0, quarterTurn: 0, focus: null,
-    indoorYaw: -Math.PI / 4, indoorPitch: 0, indoorDefaultYaw: -Math.PI / 4, indoorDefaultPitch: -.24, indoorRoomId: null, indoorPoint: null,
+    indoorYaw: -Math.PI / 4, indoorPitch: 0, indoorDefaultYaw: -Math.PI / 4, indoorDefaultPitch: -.24, indoorRoomId: null, indoorViewpointKey: null, indoorPoint: null,
   };
   let sceneInfo = { bounds: { x: 0, y: 0, width: 1, height: 1 }, wallHeight: DEFAULT_WALL_HEIGHT };
   let frameRequested = false;
@@ -1182,26 +1182,45 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null) {
     rebuildScene();
   }
 
-  function resolveIndoorPoint(roomId = view.indoorRoomId) {
+  function resolveIndoorPoint(viewpointKey = view.indoorViewpointKey ?? view.indoorRoomId) {
     const rooms = currentDocument?.plan?.rooms ?? [];
+    const [requestedRoomId, viewpointType = "center", ...openingIdParts] = String(viewpointKey ?? "").split("::");
+    const openingId = openingIdParts.join("::");
+    const roomId = requestedRoomId || rooms[0]?.id;
     const room = rooms.find((entry) => entry.id === roomId) ?? rooms[0];
-    const changedRoom = room?.id !== view.indoorRoomId || !view.indoorPoint;
+    const normalizedKey = room ? (viewpointType === "center" ? `${room.id}::center` : `${room.id}::${viewpointType}::${openingId}`) : null;
+    const changedViewpoint = normalizedKey !== view.indoorViewpointKey || !view.indoorPoint;
     view.indoorRoomId = room?.id ?? null;
+    view.indoorViewpointKey = normalizedKey;
     const obstacles = [
       ...(currentDocument?.plan?.features ?? []),
       ...(currentDocument?.plan?.furniture ?? []),
     ].filter((item) => item.roomId === room?.id);
-    view.indoorPoint = roomInteriorViewpoint(room, 160, obstacles);
-    if (changedRoom && room?.points?.length) {
+    const centerPoint = roomInteriorViewpoint(room, 160, obstacles);
+    const opening = viewpointType === "center" ? null : (currentDocument?.plan?.openings ?? []).find((entry) => entry.id === openingId);
+    const openingMidpoint = opening?.from && opening?.to ? {
+      x: (opening.from.x + opening.to.x) / 2,
+      y: (opening.from.y + opening.to.y) / 2,
+    } : null;
+    const towardCenter = centerPoint && openingMidpoint ? { x: centerPoint.x - openingMidpoint.x, y: centerPoint.z - openingMidpoint.y } : null;
+    const towardLength = towardCenter ? Math.hypot(towardCenter.x, towardCenter.y) : 0;
+    const preferredPoint = towardLength > 0 ? {
+      x: openingMidpoint.x + towardCenter.x / towardLength * 70,
+      y: openingMidpoint.y + towardCenter.y / towardLength * 70,
+    } : null;
+    view.indoorPoint = preferredPoint ? roomInteriorViewpoint(room, 160, obstacles, preferredPoint) : centerPoint;
+    if (changedViewpoint && room?.points?.length) {
       const xs = room.points.map((point) => point.x);
       const ys = room.points.map((point) => point.y);
       const center = {
         x: (Math.min(...xs) + Math.max(...xs)) / 2,
         z: (Math.min(...ys) + Math.max(...ys)) / 2,
       };
-      const towardCenter = view.indoorPoint ? { x: center.x - view.indoorPoint.x, z: center.z - view.indoorPoint.z } : { x: 0, z: 0 };
-      view.indoorYaw = Math.hypot(towardCenter.x, towardCenter.z) > 25
-        ? Math.atan2(towardCenter.x, towardCenter.z)
+      const initialDirection = centerPoint && view.indoorPoint
+        ? { x: centerPoint.x - view.indoorPoint.x, z: centerPoint.z - view.indoorPoint.z }
+        : { x: center.x - view.indoorPoint.x, z: center.z - view.indoorPoint.z };
+      view.indoorYaw = Math.hypot(initialDirection.x, initialDirection.z) > 25
+        ? Math.atan2(initialDirection.x, initialDirection.z)
         : Math.max(...xs) - Math.min(...xs) >= Math.max(...ys) - Math.min(...ys) ? Math.PI / 2 : 0;
       view.indoorPitch = -.24;
       view.indoorDefaultYaw = view.indoorYaw;
@@ -1219,7 +1238,7 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null) {
   }
 
   function setIndoorViewpoint(roomId) {
-    view.indoorRoomId = null;
+    view.indoorViewpointKey = null;
     resolveIndoorPoint(roomId);
     requestRender();
     return view.indoorPoint ? { ...view.indoorPoint } : null;
@@ -1522,7 +1541,7 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null) {
       currentDocument = documentData;
       currentOptions = { ...options };
       view.mode = options.cameraMode === "indoor" ? "indoor" : "overview";
-      if (view.mode === "indoor" && (options.viewpointRoomId !== view.indoorRoomId || !view.indoorPoint)) resolveIndoorPoint(options.viewpointRoomId);
+      if (view.mode === "indoor" && (options.viewpointRoomId !== view.indoorViewpointKey || !view.indoorPoint)) resolveIndoorPoint(options.viewpointRoomId);
       return rebuildScene();
     },
     getZoom: () => view.zoom,
