@@ -79,6 +79,7 @@ button { color: inherit; touch-action: manipulation; }
 .text-button { min-height: 42px; border: 0; background: transparent; color: var(--accent); font-size: .8rem; font-weight: 700; }
 .scale-indicator { position: absolute; right: 16px; bottom: 14px; display: none; align-items: end; gap: 7px; color: var(--muted); font-size: .65rem; pointer-events: none; }
 .scale-indicator.visible { display: flex; }
+.plan-selection-status { position: absolute; z-index: 6; left: 11px; bottom: 48px; }
 #scaleBar { width: 64px; height: 8px; border: solid var(--ink); border-width: 0 2px 2px; }
 .summary-card { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 12px; padding: 18px; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); }
 .summary-grid { display: grid; grid-template-columns: repeat(3, auto); gap: 15px; margin: 0; text-align: center; }
@@ -226,10 +227,11 @@ button { color: inherit; touch-action: manipulation; }
 #threeCanvas { display: block; width: 100%; height: min(68vh, 620px); min-height: 430px; touch-action: none; cursor: grab; }
 #threeCanvas:active { cursor: grabbing; }
 .three-webgl-status { position: absolute; z-index: 3; left: 50%; top: 50%; transform: translate(-50%,-50%); padding: 10px 14px; border-radius: 12px; background: rgba(50,61,57,.9); color: white; font-size: .72rem; box-shadow: 0 8px 24px rgba(41,49,46,.2); }
-.three-selection-status { position: absolute; z-index: 3; left: 11px; bottom: 11px; display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 9px; align-items: center; max-width: min(460px, calc(100% - 22px)); padding: 8px 9px 8px 11px; border: 1px solid rgba(49,112,94,.35); border-radius: 11px; background: rgba(241,249,246,.96); color: #276b58; font-size: .65rem; font-weight: 800; line-height: 1.45; white-space: pre-line; box-shadow: 0 4px 14px rgba(55,51,43,.14); }
-.three-selection-status.warning { border-color: rgba(165,91,25,.45); background: rgba(255,247,232,.94); color: #8d4f18; }
-.three-selection-status.danger { border-color: rgba(180,35,24,.42); background: rgba(255,241,239,.95); color: #a12c23; }
-.three-selection-status button { min-height: 34px; padding: 0 10px; border: 1px solid currentColor; border-radius: 9px; background: rgba(255,255,255,.78); color: inherit; font: inherit; white-space: nowrap; }
+.selection-status-card { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 9px; align-items: center; max-width: min(460px, calc(100% - 22px)); padding: 8px 9px 8px 11px; border: 1px solid rgba(49,112,94,.35); border-radius: 11px; background: rgba(241,249,246,.96); color: #276b58; font-size: .65rem; font-weight: 800; line-height: 1.45; white-space: pre-line; box-shadow: 0 4px 14px rgba(55,51,43,.14); }
+.selection-status-card.warning { border-color: rgba(165,91,25,.45); background: rgba(255,247,232,.94); color: #8d4f18; }
+.selection-status-card.danger { border-color: rgba(180,35,24,.42); background: rgba(255,241,239,.95); color: #a12c23; }
+.selection-status-card button { min-height: 34px; padding: 0 10px; border: 1px solid currentColor; border-radius: 9px; background: rgba(255,255,255,.78); color: inherit; font: inherit; white-space: nowrap; }
+.three-selection-status { position: absolute; z-index: 3; left: 11px; bottom: 11px; }
 .three-viewport-controls { position: absolute; z-index: 3; top: 10px; right: 10px; display: grid; grid-template-columns: 34px 54px 34px; overflow: hidden; border: 1px solid var(--line); border-radius: 11px; background: rgba(255,255,255,.9); box-shadow: 0 3px 12px rgba(55,51,43,.12); }
 .three-viewport-controls button { min-height: 34px; padding: 0; border: 0; border-right: 1px solid var(--line); background: transparent; color: var(--accent); font-size: 1rem; font-weight: 800; }
 .three-viewport-controls button:last-child { border-right: 0; }
@@ -318,6 +320,7 @@ dialog::backdrop { background: rgba(32,36,31,.42); backdrop-filter: blur(2px); }
 .detail-list dd { margin: 0; color: var(--ink); font-weight: 700; }
 .detail-actions { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 18px; }
 .detail-view-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 16px; }
+.detail-view-actions.single-action { grid-template-columns: 1fr; }
 .detail-view-actions button { width: 100%; }
 .detail-room-field { margin-top: 18px; }
 .secondary-button { min-height: 44px; padding: 0 10px; border: 1px solid var(--line); border-radius: 12px; background: white; color: var(--accent); font-weight: 750; }

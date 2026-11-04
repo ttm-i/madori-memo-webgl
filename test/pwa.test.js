@@ -103,6 +103,20 @@ test("3D selection stays in the scene and summarizes every selectable element ty
   }
   assert.match(html, /家具・設備などをタップすると、3D内で選択情報を確認できます/);
   assert.match(app, /threeSelectionDetailsButton\.addEventListener/);
-  assert.match(app, /showDetail\(threeSelectedType, threeSelectedItem\)/);
+  assert.match(app, /showDetail\(threeSelectedType, threeSelectedItem, \{ origin: "three" \}\)/);
   assert.doesNotMatch(app, /setThreeSelectionPresentation\(type, item\);\s*showDetail\(type, item\)/);
+});
+
+test("2D selection uses an in-plan summary, wall clearances and origin-aware detail actions", () => {
+  const html = readFileSync(new URL("../dist/index.html", import.meta.url), "utf8");
+  const app = readFileSync(new URL("../dist/app.js", import.meta.url), "utf8");
+  assert.match(html, /id="planSelectionStatus"/);
+  assert.match(html, /id="planSelectionSummary"/);
+  assert.match(html, /id="planSelectionDetailsButton"/);
+  assert.match(app, /new PlanRenderer\([^;]+handlePlanSelection/s);
+  assert.match(app, /renderer\.setSelectedFurniture\(type === "furniture" \? item\.id : null\)/);
+  assert.match(app, /showDetail\(planSelectedType, planSelectedItem, \{ origin: "plan" \}\)/);
+  assert.match(app, /showDetail\("furniture", furniture, \{ origin: "list" \}\)/);
+  assert.match(app, /origin === "three" \? "3Dで近寄る" : "3Dで位置を表示"/);
+  assert.match(app, /const showPlanAction = origin !== "plan"/);
 });
