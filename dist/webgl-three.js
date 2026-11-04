@@ -1,6 +1,6 @@
 import * as THREE from "./vendor/three/three.module.js";
-import { buildKitchenCabinetLayout, buildKitchenComponentRects, inferFurnitureKind, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=107";
-import { cabinetDoorPanelCount, cabinetThreePlacement, clampWebGLPan, closetThreePlacement, cycleThreeSelectionCandidate, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRelatedSelectionStyle, threeRoomBounds, threeSelectionKey, threeSelectionStyle, threeSelectionXrayStyle, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=107";
+import { buildKitchenCabinetLayout, buildKitchenComponentRects, inferFurnitureKind, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=108";
+import { cabinetDoorPanelCount, cabinetThreePlacement, clampWebGLPan, closetThreePlacement, cycleThreeSelectionCandidate, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRelatedSelectionStyle, threeRoomBounds, threeSelectionKey, threeSelectionStyle, threeSelectionXrayStyle, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=108";
 
 const WALL_THICKNESS = 6;
 const DEFAULT_WALL_HEIGHT = 220;
@@ -561,10 +561,123 @@ function washerPanAssembly(item) {
   return group;
 }
 
+function bathtubAssembly(item, vertical) {
+  if (![item.x, item.y, item.width, item.height].every(Number.isFinite)) return null;
+  const group = markSelectable(new THREE.Group(), "feature", item);
+  const width = item.width;
+  const depth = item.height;
+  const rimHeight = Math.max(35, vertical?.topCm ?? 55);
+  const rim = Math.max(5, Math.min(9, Math.min(width, depth) * .1));
+  const ceramic = () => material(0xf1f3ef, { roughness: .38 });
+  const outline = 0x778681;
+
+  const floor = new THREE.Mesh(new THREE.BoxGeometry(width, 5, depth), ceramic());
+  floor.position.set(item.x + width / 2, 2.5, item.y + depth / 2);
+  floor.receiveShadow = true;
+  addOutline(floor, outline, .45);
+  group.add(floor);
+
+  const sidePanels = [
+    new THREE.Mesh(new THREE.BoxGeometry(width, rimHeight - 5, rim), ceramic()),
+    new THREE.Mesh(new THREE.BoxGeometry(width, rimHeight - 5, rim), ceramic()),
+    new THREE.Mesh(new THREE.BoxGeometry(rim, rimHeight - 5, Math.max(4, depth - rim * 2)), ceramic()),
+    new THREE.Mesh(new THREE.BoxGeometry(rim, rimHeight - 5, Math.max(4, depth - rim * 2)), ceramic()),
+  ];
+  sidePanels[0].position.set(item.x + width / 2, (rimHeight + 5) / 2, item.y + rim / 2);
+  sidePanels[1].position.set(item.x + width / 2, (rimHeight + 5) / 2, item.y + depth - rim / 2);
+  sidePanels[2].position.set(item.x + rim / 2, (rimHeight + 5) / 2, item.y + depth / 2);
+  sidePanels[3].position.set(item.x + width - rim / 2, (rimHeight + 5) / 2, item.y + depth / 2);
+  sidePanels.forEach((panel) => { panel.castShadow = true; panel.receiveShadow = true; addOutline(panel, outline, .45); group.add(panel); });
+
+  const water = new THREE.Mesh(
+    new THREE.BoxGeometry(Math.max(7, width - rim * 2.6), 1.2, Math.max(7, depth - rim * 2.6)),
+    material(0x72bfd1, { opacity: .78, roughness: .2 }),
+  );
+  water.position.set(item.x + width / 2, rimHeight - 8, item.y + depth / 2);
+  group.add(water);
+
+  const rails = [
+    new THREE.Mesh(new THREE.BoxGeometry(width, 5, rim), ceramic()),
+    new THREE.Mesh(new THREE.BoxGeometry(width, 5, rim), ceramic()),
+    new THREE.Mesh(new THREE.BoxGeometry(rim, 5, Math.max(4, depth - rim * 2)), ceramic()),
+    new THREE.Mesh(new THREE.BoxGeometry(rim, 5, Math.max(4, depth - rim * 2)), ceramic()),
+  ];
+  rails[0].position.set(item.x + width / 2, rimHeight, item.y + rim / 2);
+  rails[1].position.set(item.x + width / 2, rimHeight, item.y + depth - rim / 2);
+  rails[2].position.set(item.x + rim / 2, rimHeight, item.y + depth / 2);
+  rails[3].position.set(item.x + width - rim / 2, rimHeight, item.y + depth / 2);
+  rails.forEach((rail) => { rail.castShadow = true; addOutline(rail, outline, .62); group.add(rail); });
+
+  const metalMaterial = () => material(0xa9afad, { roughness: .22, metalness: .72 });
+  const faucetSide = item.faucetSide ?? "top";
+  let faucetX = item.x + width / 2;
+  let faucetY = item.y + rim * .72;
+  let spoutX = faucetX;
+  let spoutY = item.y + rim * 2.2;
+  if (faucetSide === "bottom") { faucetY = item.y + depth - rim * .72; spoutY = item.y + depth - rim * 2.2; }
+  if (faucetSide === "left") { faucetX = item.x + rim * .72; faucetY = item.y + depth / 2; spoutX = item.x + rim * 2.2; spoutY = faucetY; }
+  if (faucetSide === "right") { faucetX = item.x + width - rim * .72; faucetY = item.y + depth / 2; spoutX = item.x + width - rim * 2.2; spoutY = faucetY; }
+  const faucet = new THREE.Mesh(new THREE.CylinderGeometry(1.35, 1.35, 13, 14), metalMaterial());
+  faucet.position.set(faucetX, rimHeight + 7.5, faucetY);
+  group.add(faucet);
+  group.add(segmentBox({ x: faucetX, y: faucetY }, { x: spoutX, y: spoutY }, rimHeight + 12, rimHeight + 14.5, 2.7, metalMaterial()));
+
+  group.userData.labelPosition = new THREE.Vector3(item.x + width / 2, rimHeight + 25, item.y + depth / 2);
+  return group;
+}
+
+function toiletAssembly(item, vertical) {
+  if (![item.x, item.y, item.width, item.height].every(Number.isFinite)) return null;
+  const group = markSelectable(new THREE.Group(), "feature", item);
+  const facing = item.facing ?? "right";
+  const horizontal = facing === "right" || facing === "left";
+  const length = horizontal ? item.width : item.height;
+  const breadth = horizontal ? item.height : item.width;
+  const tankHeight = Math.max(60, vertical?.topCm ?? 75);
+  const bowlHeight = Math.min(43, tankHeight * .58);
+  const ceramic = () => material(0xf4f3ee, { roughness: .34 });
+  const local = new THREE.Group();
+  const tankLength = Math.max(16, Math.min(23, length * .28));
+  const tank = new THREE.Mesh(new THREE.BoxGeometry(tankLength, tankHeight, breadth * .9), ceramic());
+  tank.position.set(-length / 2 + tankLength / 2, tankHeight / 2, 0);
+  tank.castShadow = true;
+  addOutline(tank, 0x7c827f, .58);
+  local.add(tank);
+
+  const baseLength = Math.max(24, length - tankLength * .72);
+  const pedestal = new THREE.Mesh(new THREE.SphereGeometry(1, 28, 18), ceramic());
+  pedestal.scale.set(baseLength * .42, bowlHeight * .56, breadth * .35);
+  pedestal.position.set(-length / 2 + tankLength + baseLength * .42, bowlHeight * .46, 0);
+  pedestal.castShadow = true;
+  addOutline(pedestal, 0x7c827f, .55);
+  local.add(pedestal);
+
+  const seatLength = Math.max(28, length - tankLength - 5);
+  const seat = new THREE.Mesh(new THREE.TorusGeometry(1, .16, 12, 34), material(0xf8f7f2, { roughness: .3 }));
+  seat.rotation.x = Math.PI / 2;
+  seat.scale.set(seatLength * .42, breadth * .38, 1.8);
+  seat.position.set(-length / 2 + tankLength + seatLength * .48, bowlHeight + 2.5, 0);
+  local.add(seat);
+  const water = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1.2, 28), material(0x83bdca, { roughness: .22 }));
+  water.scale.set(seatLength * .25, 1, breadth * .22);
+  water.position.set(seat.position.x + seatLength * .04, bowlHeight + 1.8, 0);
+  local.add(water);
+
+  local.position.set(item.x + item.width / 2, 0, item.y + item.height / 2);
+  if (facing === "left") local.rotation.y = Math.PI;
+  else if (facing === "up") local.rotation.y = Math.PI / 2;
+  else if (facing === "down") local.rotation.y = -Math.PI / 2;
+  group.add(local);
+  group.userData.labelPosition = new THREE.Vector3(item.x + item.width / 2, tankHeight + 22, item.y + item.height / 2);
+  return group;
+}
+
 function featureAssembly(documentData, item, vertical) {
   if (item.kind === "closet") return closetAssembly(documentData, item, vertical);
   if (item.kind === "washer-pan") return washerPanAssembly(item);
   if (item.kind === "washbasin") return washbasinAssembly(documentData, item, vertical);
+  if (item.kind === "bathtub") return bathtubAssembly(item, vertical);
+  if (item.kind === "toilet") return toiletAssembly(item, vertical);
   if (item.kind === "cabinet") return cabinetAssembly(documentData, item, vertical);
   if (item.kind === "kitchen") return kitchenAssembly(item, vertical);
   return boxObject(item, vertical, 0x5fa38f, "feature");

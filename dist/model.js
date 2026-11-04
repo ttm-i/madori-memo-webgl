@@ -105,6 +105,8 @@ export function analyzeFurnitureSupportFit(furniture, plan) {
 
 export function featureSupportRange(feature) {
   if (feature?.kind === "washer-pan") return { bottomCm: 0, topCm: 4, schematic: true };
+  if (feature?.kind === "bathtub") return { bottomCm: 0, topCm: feature.rimHeightCm ?? 55, schematic: !Number.isFinite(feature.rimHeightCm) };
+  if (feature?.kind === "toilet") return { bottomCm: 0, topCm: feature.tankHeightCm ?? 75, schematic: !Number.isFinite(feature.tankHeightCm) };
   if (Number.isFinite(feature?.bottomHeightCm) && Number.isFinite(feature?.topHeightCm)) {
     return { bottomCm: feature.bottomHeightCm, topCm: feature.topHeightCm, schematic: false };
   }

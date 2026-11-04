@@ -1,7 +1,7 @@
-import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=107";
-import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildElevationItems, buildFurnitureHierarchy, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurnitureStack, featureSupportRange, findSupportItem, furnitureDescendantIds as modelFurnitureDescendantIds, furniturePriceSummary, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, QUALITY_LABELS, removeFurnitureStack, resolveFurnitureVerticalRange, rotateFurnitureStack, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=107";
-import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=107";
-import { createWebGLThreeView } from "./webgl-three.js?v=107";
+import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=108";
+import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildElevationItems, buildFurnitureHierarchy, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurnitureStack, featureSupportRange, findSupportItem, furnitureDescendantIds as modelFurnitureDescendantIds, furniturePriceSummary, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, QUALITY_LABELS, removeFurnitureStack, resolveFurnitureVerticalRange, rotateFurnitureStack, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=108";
+import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=108";
+import { createWebGLThreeView } from "./webgl-three.js?v=108";
 
 const elements = Object.fromEntries([
   "menuButton", "dataMenu", "detailDialog", "detailType", "detailTitle", "detailBody", "fileInput",
@@ -922,7 +922,7 @@ function threeSelectionRoomLabel(item) {
 }
 
 function featureSelectionPresentation(feature) {
-  const kindLabels = { closet: "クローゼット", cabinet: "収納", kitchen: "キッチン", washbasin: "洗面台", "washer-pan": "洗濯機パン" };
+  const kindLabels = { closet: "クローゼット", cabinet: "収納", kitchen: "キッチン", washbasin: "洗面台", "washer-pan": "洗濯機パン", bathtub: "浴槽", toilet: "便器" };
   const vertical = featureSupportRange(feature);
   const widthCm = feature.overallWidthCm ?? feature.elevationWidthCm ?? feature.widthCm ?? feature.width;
   const depthCm = feature.overallDepthCm ?? feature.depthCm ?? feature.height;
