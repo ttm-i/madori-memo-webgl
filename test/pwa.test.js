@@ -98,6 +98,7 @@ test("the WebGL prototype stays local-first and isolated from the stable databas
 test("3D selection stays in the scene and summarizes every selectable element type", () => {
   const html = readFileSync(new URL("../dist/index.html", import.meta.url), "utf8");
   const app = readFileSync(new URL("../dist/app.js", import.meta.url), "utf8");
+  const webgl = readFileSync(new URL("../dist/webgl-three.js", import.meta.url), "utf8");
   for (const presentation of ["featureSelectionPresentation", "openingSelectionPresentation", "electricalSelectionPresentation"]) {
     assert.match(app, new RegExp(`function ${presentation}`));
   }
@@ -106,6 +107,9 @@ test("3D selection stays in the scene and summarizes every selectable element ty
   assert.match(app, /threeSelectionDetailsButton\.addEventListener/);
   assert.match(app, /showDetail\(threeSelectedType, threeSelectedItem, \{ origin: "three" \}\)/);
   assert.doesNotMatch(app, /setThreeSelectionPresentation\(type, item\);\s*showDetail\(type, item\)/);
+  assert.match(webgl, /offsets = \[\[0, 0\].*\[-8, -8\].*\[8, 8\]/);
+  assert.match(webgl, /cycleThreeSelectionCandidate\(candidates, repeatedLocation \? selectedKey : null\)/);
+  assert.match(app, /同じ場所をもう一度タップして切り替え/);
 });
 
 test("the 3D tab opens with a compact viewport-first layout", () => {

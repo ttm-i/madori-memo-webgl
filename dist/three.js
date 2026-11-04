@@ -1,4 +1,4 @@
-import { buildKitchenComponentRects, buildRoomWalls, featureSupportRange, getElectricalPlanPosition, pointInPolygon, resolveFurnitureVerticalRange } from "./model.js?v=104";
+import { buildKitchenComponentRects, buildRoomWalls, featureSupportRange, getElectricalPlanPosition, pointInPolygon, resolveFurnitureVerticalRange } from "./model.js?v=105";
 
 const NS = "http://www.w3.org/2000/svg";
 
@@ -82,6 +82,19 @@ export function threeLayerEnabled(layer, options = {}) { return options[layer] !
 export function threeSelectionKey(type, item) {
   if (!type || !item?.id) return null;
   return `${type}:${item.id}`;
+}
+
+export function cycleThreeSelectionCandidate(candidates, currentKey = null) {
+  const seen = new Set();
+  const unique = (candidates ?? []).filter((candidate) => {
+    const key = threeSelectionKey(candidate?.type, candidate?.item);
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  if (!unique.length) return null;
+  const currentIndex = unique.findIndex((candidate) => threeSelectionKey(candidate.type, candidate.item) === currentKey);
+  return unique[currentIndex >= 0 ? (currentIndex + 1) % unique.length : 0];
 }
 
 export function closetDoorPanelCount(feature) {

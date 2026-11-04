@@ -1,6 +1,6 @@
 import * as THREE from "./vendor/three/three.module.js";
-import { buildKitchenCabinetLayout, buildKitchenComponentRects, inferFurnitureKind, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=104";
-import { cabinetDoorPanelCount, cabinetThreePlacement, clampWebGLPan, closetThreePlacement, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRelatedSelectionStyle, threeRoomBounds, threeSelectionKey, threeSelectionStyle, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=104";
+import { buildKitchenCabinetLayout, buildKitchenComponentRects, inferFurnitureKind, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=105";
+import { cabinetDoorPanelCount, cabinetThreePlacement, clampWebGLPan, closetThreePlacement, cycleThreeSelectionCandidate, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRelatedSelectionStyle, threeRoomBounds, threeSelectionKey, threeSelectionStyle, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=105";
 
 const WALL_THICKNESS = 6;
 const DEFAULT_WALL_HEIGHT = 220;
@@ -897,6 +897,7 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null) {
   let selectedTone = "normal";
   let relatedKeys = new Set();
   let selectionOutlines = [];
+  let lastPick = null;
   const contextMessage = canvas.parentElement?.querySelector("[data-webgl-status]");
 
   function requestRender() {
@@ -1084,36 +1085,51 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null) {
     return Boolean(selectedKey);
   }
 
-  function selectionAt(clientX, clientY) {
+  function selectionsAt(clientX, clientY) {
     const rect = canvas.getBoundingClientRect();
     pointer.set(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
     raycaster.setFromCamera(pointer, camera);
     const hits = raycaster.intersectObjects(root.children, true);
+    const selections = [];
     for (const hit of hits) {
       let object = hit.object;
       let blocked = false;
+      let selection = null;
       while (object) {
-        if (object.userData.selection) return object.userData.selection;
+        if (object.userData.selection) {
+          selection = object.userData.selection;
+          break;
+        }
         if (object.userData.blocksSelection) blocked = true;
         object = object.parent;
       }
-      if (blocked) return null;
+      if (selection) selections.push(selection);
+      else if (blocked) break;
     }
-    return null;
+    return selections;
   }
 
   function pick(clientX, clientY) {
-    const offsets = [[0, 0], [-8, 0], [8, 0], [0, -8], [0, 8]];
-    const selected = offsets.map(([x, y]) => selectionAt(clientX + x, clientY + y)).find(Boolean);
+    const offsets = [[0, 0], [-10, 0], [10, 0], [0, -10], [0, 10], [-8, -8], [8, -8], [-8, 8], [8, 8]];
+    const candidates = offsets.flatMap(([x, y]) => selectionsAt(clientX + x, clientY + y));
+    const now = performance.now();
+    const repeatedLocation = lastPick
+      && now - lastPick.time < 1400
+      && Math.hypot(clientX - lastPick.x, clientY - lastPick.y) <= 18;
+    const selected = cycleThreeSelectionCandidate(candidates, repeatedLocation ? selectedKey : null);
     if (selected) {
       selectedKey = threeSelectionKey(selected.type, selected.item);
       selectedTone = "normal";
       relatedKeys = new Set();
+      const uniqueKeys = [...new Set(candidates.map((candidate) => threeSelectionKey(candidate.type, candidate.item)).filter(Boolean))];
+      const candidateIndex = Math.max(0, uniqueKeys.indexOf(selectedKey));
+      lastPick = { x: clientX, y: clientY, time: now };
       applySelectionHighlight();
       requestRender();
-      onSelect?.(selected.type, selected.item);
+      onSelect?.(selected.type, selected.item, { candidateCount: uniqueKeys.length, candidateIndex });
       return;
     }
+    lastPick = null;
     clearSelection();
     onClear?.();
   }
@@ -1142,7 +1158,10 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null) {
     const dy = event.clientY - current.y;
     current.x = event.clientX;
     current.y = event.clientY;
-    if (Math.hypot(event.clientX - current.startX, event.clientY - current.startY) > 5) current.moved = true;
+    if (Math.hypot(event.clientX - current.startX, event.clientY - current.startY) > 5) {
+      current.moved = true;
+      lastPick = null;
+    }
     if (pointers.size === 1 && !usedMultiplePointers) {
       view.yaw -= dx * .009;
       view.pitch = Math.max(.25, Math.min(1.3, view.pitch + dy * .006));

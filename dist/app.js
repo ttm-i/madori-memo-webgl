@@ -1,7 +1,7 @@
-import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=104";
-import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildElevationItems, buildFurnitureHierarchy, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurnitureStack, featureSupportRange, findSupportItem, furnitureDescendantIds as modelFurnitureDescendantIds, furniturePriceSummary, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, QUALITY_LABELS, removeFurnitureStack, resolveFurnitureVerticalRange, rotateFurnitureStack, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=104";
-import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=104";
-import { createWebGLThreeView } from "./webgl-three.js?v=104";
+import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=105";
+import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildElevationItems, buildFurnitureHierarchy, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurnitureStack, featureSupportRange, findSupportItem, furnitureDescendantIds as modelFurnitureDescendantIds, furniturePriceSummary, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, QUALITY_LABELS, removeFurnitureStack, resolveFurnitureVerticalRange, rotateFurnitureStack, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=105";
+import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=105";
+import { createWebGLThreeView } from "./webgl-three.js?v=105";
 
 const elements = Object.fromEntries([
   "menuButton", "dataMenu", "detailDialog", "detailType", "detailTitle", "detailBody", "fileInput",
@@ -83,8 +83,8 @@ function updateThreeView() {
   }
   webglThreeView ??= createWebGLThreeView(
     elements.threeCanvas,
-    (type, item) => {
-      setThreeSelectionPresentation(type, item);
+    (type, item, selectionMeta) => {
+      setThreeSelectionPresentation(type, item, { selectionMeta });
     },
     () => {
       clearThreeSelection();
@@ -1004,8 +1004,11 @@ function selectionPresentation(type, item) {
   return { tone: "normal", label: "", summary: item?.name ?? "", related: [] };
 }
 
-function setThreeSelectionPresentation(type, item, { focus = false } = {}) {
+function setThreeSelectionPresentation(type, item, { focus = false, selectionMeta = null } = {}) {
   const presentation = selectionPresentation(type, item);
+  const candidateHint = selectionMeta?.candidateCount > 1
+    ? `候補 ${selectionMeta.candidateIndex + 1}/${selectionMeta.candidateCount}｜同じ場所をもう一度タップして切り替え`
+    : "";
   threeSelectedType = type;
   threeSelectedItem = item;
   elements.threeSelectionStatus.hidden = !presentation.summary;
@@ -1013,6 +1016,7 @@ function setThreeSelectionPresentation(type, item, { focus = false } = {}) {
   elements.threeSelectionSummary.textContent = [
     presentation.summary,
     presentation.label ? `${presentation.tone === "danger" ? "要修正" : "要確認"}｜${presentation.label}` : "",
+    candidateHint,
   ].filter(Boolean).join("\n");
   webglThreeView?.setSelection(type, item, { tone: presentation.tone, focus, related: presentation.related });
   return presentation;
