@@ -110,6 +110,8 @@ test("3D selection stays in the scene and summarizes every selectable element ty
   assert.match(webgl, /offsets = \[\[0, 0\].*\[-8, -8\].*\[8, 8\]/);
   assert.match(webgl, /cycleThreeSelectionCandidate\(candidates, repeatedLocation \? selectedKey : null\)/);
   assert.match(webgl, /depthTest: false,[\s\S]*depthWrite: false,[\s\S]*selectionEffect = true/);
+  assert.match(webgl, /sceneInfo\.selectionVisible = selectedKey \? selectionVisible : null/);
+  assert.match(app, /result\.selectionVisible === false[\s\S]*clearThreeSelection\(\)/);
   assert.match(app, /同じ場所をもう一度タップして切り替え/);
 });
 

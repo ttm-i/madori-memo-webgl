@@ -1,6 +1,6 @@
 import * as THREE from "./vendor/three/three.module.js";
-import { buildKitchenCabinetLayout, buildKitchenComponentRects, inferFurnitureKind, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=106";
-import { cabinetDoorPanelCount, cabinetThreePlacement, clampWebGLPan, closetThreePlacement, cycleThreeSelectionCandidate, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRelatedSelectionStyle, threeRoomBounds, threeSelectionKey, threeSelectionStyle, threeSelectionXrayStyle, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=106";
+import { buildKitchenCabinetLayout, buildKitchenComponentRects, inferFurnitureKind, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=107";
+import { cabinetDoorPanelCount, cabinetThreePlacement, clampWebGLPan, closetThreePlacement, cycleThreeSelectionCandidate, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRelatedSelectionStyle, threeRoomBounds, threeSelectionKey, threeSelectionStyle, threeSelectionXrayStyle, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=107";
 
 const WALL_THICKNESS = 6;
 const DEFAULT_WALL_HEIGHT = 220;
@@ -986,7 +986,8 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null) {
     root.clear();
     builtCutawayTurn = yawToQuarterTurn(view.yaw);
     sceneInfo = buildScene(root, currentDocument, { ...currentOptions, quarterTurn: builtCutawayTurn });
-    applySelectionHighlight();
+    const selectionVisible = applySelectionHighlight();
+    sceneInfo.selectionVisible = selectedKey ? selectionVisible : null;
     requestRender();
     return sceneInfo;
   }
@@ -1016,7 +1017,7 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null) {
 
   function applySelectionHighlight({ focus = false } = {}) {
     restoreSelectionMaterials();
-    if (!selectedKey) return;
+    if (!selectedKey) return false;
     let selectedObject = null;
     const relatedObjects = [];
     root.traverse((object) => {
@@ -1085,6 +1086,7 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null) {
         view.focus = { x: center.x, y: center.y, z: center.z };
       }
     }
+    return Boolean(selectedObject);
   }
 
   function clearSelection() {
