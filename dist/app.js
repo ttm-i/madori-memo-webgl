@@ -1,7 +1,7 @@
-import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=114";
-import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildElevationItems, buildFurnitureHierarchy, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurnitureStack, featureSupportRange, findSupportItem, furnitureDescendantIds as modelFurnitureDescendantIds, furniturePriceSummary, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, QUALITY_LABELS, removeFurnitureStack, resolveFurnitureVerticalRange, rotateFurnitureStack, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=114";
-import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=114";
-import { createWebGLThreeView } from "./webgl-three.js?v=114";
+import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=115";
+import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildElevationItems, buildFurnitureHierarchy, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurnitureStack, featureSupportRange, findSupportItem, furnitureDescendantIds as modelFurnitureDescendantIds, furniturePriceSummary, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, QUALITY_LABELS, removeFurnitureStack, resolveFurnitureVerticalRange, rotateFurnitureStack, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=115";
+import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=115";
+import { createWebGLThreeView } from "./webgl-three.js?v=115";
 
 const elements = Object.fromEntries([
   "menuButton", "dataMenu", "detailDialog", "detailType", "detailTitle", "detailBody", "fileInput",
@@ -147,10 +147,30 @@ function updateThreeRoomFilter() {
   const viewpointOptions = rooms.flatMap((room) => {
     const roomOpenings = openings.filter((opening) => (opening.roomId === room.id || opening.roomIds?.includes(room.id))
       && opening.from && opening.to);
-    const largest = (kind) => roomOpenings.filter((opening) => String(opening.kind ?? "").includes(kind))
+    const matching = (kind) => roomOpenings.filter((opening) => String(opening.kind ?? "").includes(kind))
       .sort((first, second) => (second.widthCm ?? 0) - (first.widthCm ?? 0))[0];
-    const door = largest("door");
-    const windowOpening = largest("window");
+    if (/^(浴室|洗面室|トイレ|バルコニー)$/.test(room.name)) return [new Option(room.name, `${room.id}::center`)];
+    const windowOpening = matching("window");
+    if (/LDK|リビング/.test(room.name)) {
+      const doorOptions = roomOpenings
+        .filter((opening) => String(opening.kind ?? "").includes("door"))
+        .map((opening) => {
+          const adjacentRoom = (opening.roomIds ?? [])
+            .map((roomId) => rooms.find((candidate) => candidate.id === roomId))
+            .find((candidate) => candidate && candidate.id !== room.id);
+          const label = /洋室/.test(adjacentRoom?.name ?? "") ? `${room.name}洋室側` : `${room.name}入口側`;
+          const priority = /玄関|廊下/.test(adjacentRoom?.name ?? "") ? 0 : /洋室/.test(adjacentRoom?.name ?? "") ? 1 : 2;
+          return { option: new Option(label, `${room.id}::door::${opening.id}`), priority };
+        })
+        .sort((first, second) => first.priority - second.priority)
+        .map(({ option }) => option);
+      return [
+        new Option("キッチン", `${room.id}::kitchen`),
+        ...doorOptions,
+        windowOpening ? new Option(`${room.name}窓側`, `${room.id}::window::${windowOpening.id}`) : null,
+      ].filter(Boolean);
+    }
+    const door = matching("door");
     return [
       new Option(`${room.name}中央`, `${room.id}::center`),
       door ? new Option(`${room.name}入口側`, `${room.id}::door::${door.id}`) : null,
@@ -160,7 +180,7 @@ function updateThreeRoomFilter() {
   const validViewpoints = new Set(viewpointOptions.map((option) => option.value));
   if (!validViewpoints.has(threeViewpointRoomId)) {
     const preferredRoom = rooms.find((room) => /LDK|リビング/.test(room.name)) ?? rooms[0];
-    threeViewpointRoomId = preferredRoom ? `${preferredRoom.id}::center` : "";
+    threeViewpointRoomId = viewpointOptions.find((option) => option.value.startsWith(`${preferredRoom?.id}::`))?.value ?? "";
   }
   elements.threeIndoorViewpoint.replaceChildren(...viewpointOptions);
   elements.threeIndoorViewpoint.value = threeViewpointRoomId;
@@ -1337,6 +1357,7 @@ elements.threeOverviewMode.addEventListener("click", () => setThreeCameraMode("o
 elements.threeIndoorMode.addEventListener("click", () => setThreeCameraMode("indoor"));
 elements.threeIndoorViewpoint.addEventListener("change", () => {
   threeViewpointRoomId = elements.threeIndoorViewpoint.value;
+  clearThreeSelection();
   webglThreeView?.setIndoorViewpoint(threeViewpointRoomId);
   updateThreeView();
 });

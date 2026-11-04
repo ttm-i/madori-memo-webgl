@@ -1,6 +1,6 @@
 import * as THREE from "./vendor/three/three.module.js";
-import { buildKitchenCabinetLayout, buildKitchenComponentRects, inferFurnitureKind, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=114";
-import { bayWindowFootprint, cabinetDoorPanelCount, cabinetThreePlacement, clampIndoorPitch, clampWebGLPan, closetThreePlacement, cycleThreeSelectionCandidate, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, roomInteriorViewpoint, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRelatedSelectionStyle, threeRoomBounds, threeSelectionKey, threeSelectionStyle, threeSelectionXrayStyle, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=114";
+import { buildKitchenCabinetLayout, buildKitchenComponentRects, inferFurnitureKind, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=115";
+import { bayWindowFootprint, cabinetDoorPanelCount, cabinetThreePlacement, clampIndoorPitch, clampWebGLPan, closetThreePlacement, cycleThreeSelectionCandidate, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, roomInteriorViewpoint, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRelatedSelectionStyle, threeRoomBounds, threeSelectionKey, threeSelectionStyle, threeSelectionXrayStyle, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=115";
 
 const WALL_THICKNESS = 6;
 const DEFAULT_WALL_HEIGHT = 220;
@@ -1204,10 +1204,14 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null) {
     } : null;
     const towardCenter = centerPoint && openingMidpoint ? { x: centerPoint.x - openingMidpoint.x, y: centerPoint.z - openingMidpoint.y } : null;
     const towardLength = towardCenter ? Math.hypot(towardCenter.x, towardCenter.y) : 0;
-    const preferredPoint = towardLength > 0 ? {
+    let preferredPoint = towardLength > 0 ? {
       x: openingMidpoint.x + towardCenter.x / towardLength * 70,
       y: openingMidpoint.y + towardCenter.y / towardLength * 70,
     } : null;
+    if (viewpointType === "kitchen" && centerPoint && room?.points?.length) {
+      const leftEdge = Math.min(...room.points.map((point) => point.x));
+      preferredPoint = { x: Math.max(leftEdge + 45, centerPoint.x - 70), y: centerPoint.z };
+    }
     view.indoorPoint = preferredPoint ? roomInteriorViewpoint(room, 160, obstacles, preferredPoint) : centerPoint;
     if (changedViewpoint && room?.points?.length) {
       const xs = room.points.map((point) => point.x);

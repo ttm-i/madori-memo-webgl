@@ -131,6 +131,9 @@ test("the 3D tab opens with a compact viewport-first layout", () => {
   assert.match(app, /threeIndoorResetDirection[\s\S]*resetIndoorDirection\(\)/);
   assert.match(app, /room\.name}入口側/);
   assert.match(app, /room\.name}窓側/);
+  assert.match(app, /new Option\("キッチン", `\$\{room\.id}::kitchen`\)/);
+  assert.match(app, /\^\(浴室\|洗面室\|トイレ\|バルコニー\)\$/);
+  assert.match(app, /threeViewpointRoomId = elements\.threeIndoorViewpoint\.value;\s+clearThreeSelection\(\)/);
   const webgl = readFileSync(new URL("../dist/webgl-three.js", import.meta.url), "utf8");
   assert.match(webgl, /view\.indoorYaw \+= dx/);
   assert.match(webgl, /view\.indoorYaw = view\.indoorDefaultYaw/);
