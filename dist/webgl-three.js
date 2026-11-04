@@ -1,6 +1,6 @@
 import * as THREE from "./vendor/three/three.module.js";
-import { buildKitchenCabinetLayout, buildKitchenComponentRects, inferFurnitureKind, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=108";
-import { cabinetDoorPanelCount, cabinetThreePlacement, clampWebGLPan, closetThreePlacement, cycleThreeSelectionCandidate, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRelatedSelectionStyle, threeRoomBounds, threeSelectionKey, threeSelectionStyle, threeSelectionXrayStyle, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=108";
+import { buildKitchenCabinetLayout, buildKitchenComponentRects, inferFurnitureKind, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=109";
+import { bayWindowFootprint, cabinetDoorPanelCount, cabinetThreePlacement, clampWebGLPan, closetThreePlacement, cycleThreeSelectionCandidate, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRelatedSelectionStyle, threeRoomBounds, threeSelectionKey, threeSelectionStyle, threeSelectionXrayStyle, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=109";
 
 const WALL_THICKNESS = 6;
 const DEFAULT_WALL_HEIGHT = 220;
@@ -710,7 +710,80 @@ function textSprite(text, position) {
   return sprite;
 }
 
-function openingAssembly(opening, range) {
+function bayWindowAssembly(opening, range, room) {
+  const footprint = bayWindowFootprint(opening, room);
+  if (!footprint) return null;
+  const group = markSelectable(new THREE.Group(), "opening", opening);
+  const frameColor = 0x5d4638;
+  const frameOutline = 0x392a22;
+  const frameWidth = 4;
+  const panelBottom = range.bottomCm + frameWidth;
+  const panelTop = Math.max(panelBottom + 1, range.topCm - frameWidth);
+  const glassMaterial = () => material(0x79bdd2, { opacity: .42, roughness: .2 });
+  const frameMaterial = () => material(frameColor, { roughness: .56 });
+  const segments = [
+    [footprint.innerFrom, footprint.outerFrom],
+    [footprint.outerFrom, footprint.outerTo],
+    [footprint.outerTo, footprint.innerTo],
+  ];
+
+  for (const [from, to] of segments) {
+    const pane = segmentBox(from, to, panelBottom, panelTop, 1.8, glassMaterial());
+    pane.renderOrder = 3;
+    addOutline(pane, 0x2b718a, .8);
+    group.add(pane);
+    for (const [bottom, top] of [[range.bottomCm, range.bottomCm + frameWidth], [range.topCm - frameWidth, range.topCm]]) {
+      const rail = segmentBox(from, to, bottom, top, 3.8, frameMaterial());
+      addOutline(rail, frameOutline, .82);
+      group.add(rail);
+    }
+  }
+
+  const postAt = (point) => {
+    const height = range.topCm - range.bottomCm;
+    const post = new THREE.Mesh(new THREE.BoxGeometry(frameWidth, height, frameWidth), frameMaterial());
+    post.position.set(point.x, range.bottomCm + height / 2, point.y);
+    post.castShadow = true;
+    addOutline(post, frameOutline, .9);
+    group.add(post);
+  };
+  [footprint.innerFrom, footprint.outerFrom, footprint.outerTo, footprint.innerTo].forEach(postAt);
+  postAt({
+    x: (footprint.outerFrom.x + footprint.outerTo.x) / 2,
+    y: (footprint.outerFrom.y + footprint.outerTo.y) / 2,
+  });
+
+  const ledgeShape = new THREE.Shape();
+  ledgeShape.moveTo(footprint.innerFrom.x, footprint.innerFrom.y);
+  ledgeShape.lineTo(footprint.innerTo.x, footprint.innerTo.y);
+  ledgeShape.lineTo(footprint.outerTo.x, footprint.outerTo.y);
+  ledgeShape.lineTo(footprint.outerFrom.x, footprint.outerFrom.y);
+  ledgeShape.closePath();
+  const ledge = new THREE.Mesh(
+    new THREE.ShapeGeometry(ledgeShape),
+    material(0xf2f1ec, { roughness: .4 }),
+  );
+  ledge.rotation.x = Math.PI / 2;
+  ledge.position.y = range.bottomCm - 2.2;
+  ledge.receiveShadow = true;
+  addOutline(ledge, 0x8e8d86, .72);
+  group.add(ledge);
+  for (const [from, to] of segments) {
+    const apron = segmentBox(from, to, range.bottomCm - 5, range.bottomCm, 3.5, material(0xe7e5df, { roughness: .52 }));
+    addOutline(apron, 0x8e8d86, .6);
+    group.add(apron);
+  }
+
+  group.userData.labelPosition = new THREE.Vector3(
+    (footprint.outerFrom.x + footprint.outerTo.x) / 2,
+    range.topCm + 22,
+    (footprint.outerFrom.y + footprint.outerTo.y) / 2,
+  );
+  return group;
+}
+
+function openingAssembly(opening, range, room) {
+  if (opening.kind === "trapezoid-bay-window") return bayWindowAssembly(opening, range, room);
   const length = Math.hypot(opening.to.x - opening.from.x, opening.to.y - opening.from.y);
   if (length < 8) return null;
   const group = markSelectable(new THREE.Group(), "opening", opening);
@@ -914,7 +987,9 @@ function buildScene(root, documentData, options) {
   if (layerEnabled("openings", options)) {
     for (const { opening, range } of openings) {
       if (hiddenOpeningIds.has(opening.id)) continue;
-      const assembly = openingAssembly(opening, range);
+      const openingRoomId = opening.roomId ?? opening.roomIds?.[0];
+      const openingRoom = (plan.rooms ?? []).find((room) => room.id === openingRoomId) ?? selectedRoom ?? null;
+      const assembly = openingAssembly(opening, range, openingRoom);
       if (assembly) root.add(assembly);
     }
   }

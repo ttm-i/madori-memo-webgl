@@ -1,4 +1,4 @@
-import { buildKitchenComponentRects, buildRoomWalls, featureSupportRange, getElectricalPlanPosition, pointInPolygon, resolveFurnitureVerticalRange } from "./model.js?v=108";
+import { buildKitchenComponentRects, buildRoomWalls, featureSupportRange, getElectricalPlanPosition, pointInPolygon, resolveFurnitureVerticalRange } from "./model.js?v=109";
 
 const NS = "http://www.w3.org/2000/svg";
 
@@ -284,6 +284,51 @@ export function openingPanelCount(opening, isWindow = String(opening?.kind ?? ""
   if (kind.includes("three-panel") || kind.includes("trapezoid-bay")) return 3;
   if (isWindow) return 2;
   return 1;
+}
+
+export function bayWindowFootprint(opening, room, defaultFrontWidthRatio = .72) {
+  if (opening?.kind !== "trapezoid-bay-window" || !opening.from || !opening.to || !Number.isFinite(opening.depthCm)) return null;
+  const length = Math.hypot(opening.to.x - opening.from.x, opening.to.y - opening.from.y);
+  if (length <= 0 || opening.depthCm <= 0) return null;
+  const tangent = {
+    x: (opening.to.x - opening.from.x) / length,
+    y: (opening.to.y - opening.from.y) / length,
+  };
+  const midpoint = {
+    x: (opening.from.x + opening.to.x) / 2,
+    y: (opening.from.y + opening.to.y) / 2,
+  };
+  const outward = { x: -tangent.y, y: tangent.x };
+  if (room?.points?.length) {
+    const center = room.points.reduce((sum, point) => ({ x: sum.x + point.x, y: sum.y + point.y }), { x: 0, y: 0 });
+    center.x /= room.points.length;
+    center.y /= room.points.length;
+    if ((center.x - midpoint.x) * outward.x + (center.y - midpoint.y) * outward.y > 0) {
+      outward.x *= -1;
+      outward.y *= -1;
+    }
+  }
+  const requestedFrontWidth = opening.frontWidthCm ?? length * (opening.frontWidthRatio ?? defaultFrontWidthRatio);
+  const frontWidth = Math.max(Math.min(length, 30), Math.min(length, requestedFrontWidth));
+  const sideInset = (length - frontWidth) / 2;
+  return {
+    innerFrom: { ...opening.from },
+    innerTo: { ...opening.to },
+    outerFrom: {
+      x: opening.from.x + tangent.x * sideInset + outward.x * opening.depthCm,
+      y: opening.from.y + tangent.y * sideInset + outward.y * opening.depthCm,
+    },
+    outerTo: {
+      x: opening.to.x - tangent.x * sideInset + outward.x * opening.depthCm,
+      y: opening.to.y - tangent.y * sideInset + outward.y * opening.depthCm,
+    },
+    tangent,
+    outward,
+    length,
+    frontWidth,
+    sideInset,
+    depthCm: opening.depthCm,
+  };
 }
 
 export function roomEdgeWallHeight(room, hasOpening, defaultHeight, balconyHeight = 110) {

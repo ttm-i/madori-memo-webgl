@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildElevationItems, buildFurnitureHierarchy, buildKitchenCabinetLayout, buildKitchenComponentRects, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, duplicateFurniture, duplicateFurnitureStack, findDeliveryDoorPath, fitsRectangle, FORMAT, furnitureDescendantIds, furniturePriceSummary, FURNITURE_PRESETS, furnitureDisplayHeight, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, kitchenComponentVerticalRange, moveDimensionGuide, pointInPolygon, rectangleIntersectsPolygon, rectanglesOverlap, removeFurnitureStack, resolveFurnitureElevationPlacement, resolveFurnitureVerticalRange, rotateFurniture, rotateFurnitureStack, snapToGrid, translateFurnitureDescendants, updateFurniture, validatePlan, wallDisplayWidth } from "../dist/model.js";
 import { detailMarkup, gestureExceedsTapThreshold, measurementMetrics, PlanRenderer, snapMeasurementPoint, zoomTransformAround } from "../dist/renderer.js";
-import { cabinetDoorPanelCount, cabinetThreePlacement, clampWebGLPan, closetDoorPanelCount, closetThreePlacement, cycleThreeSelectionCandidate, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, projectThreeDepth, projectThreePoint, roomEdgeWallHeight, splitWallFace, subdivideVerticalRange, subdivideWallRectangle, subdivideWallRectangleTiles, subdivideWallSegment, threeItemBelongsToRoom, threeItemFootprint, threeLayerEnabled, threeRelatedSelectionStyle, threeRoomBounds, threeSelectableType, threeSelectionKey, threeSelectionStyle, threeSelectionXrayStyle, threeViewportBox, threeWallBelongsToRoom, visibleBoxSideIndexes, wallFeatureThreePlacement, yawToQuarterTurn } from "../dist/three.js";
+import { bayWindowFootprint, cabinetDoorPanelCount, cabinetThreePlacement, clampWebGLPan, closetDoorPanelCount, closetThreePlacement, cycleThreeSelectionCandidate, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, projectThreeDepth, projectThreePoint, roomEdgeWallHeight, splitWallFace, subdivideVerticalRange, subdivideWallRectangle, subdivideWallRectangleTiles, subdivideWallSegment, threeItemBelongsToRoom, threeItemFootprint, threeLayerEnabled, threeRelatedSelectionStyle, threeRoomBounds, threeSelectableType, threeSelectionKey, threeSelectionStyle, threeSelectionXrayStyle, threeViewportBox, threeWallBelongsToRoom, visibleBoxSideIndexes, wallFeatureThreePlacement, yawToQuarterTurn } from "../dist/three.js";
 
 test("3D selection keys distinguish element kinds and reject anonymous data", () => {
   assert.equal(threeSelectionKey("outlet", { id: "outlet-3" }), "outlet:outlet-3");
@@ -659,6 +659,19 @@ test("WebGL opening assemblies use the expected number of panels", () => {
   assert.equal(openingPanelCount({ kind: "window" }), 2);
   assert.equal(openingPanelCount({ kind: "floor-sliding-window" }), 2);
   assert.equal(openingPanelCount({ kind: "trapezoid-bay-window" }), 3);
+});
+
+test("trapezoid bay windows project outward from the room and retain measured depth", () => {
+  const room = { points: [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 200 }, { x: 0, y: 200 }] };
+  const opening = { kind: "trapezoid-bay-window", from: { x: 100, y: 20 }, to: { x: 100, y: 185 }, depthCm: 35.5 };
+  const footprint = bayWindowFootprint(opening, room);
+  assert.equal(footprint.length, 165);
+  assert.equal(footprint.frontWidth, 118.8);
+  assert.equal(footprint.depthCm, 35.5);
+  assert.equal(footprint.outerFrom.x, 135.5);
+  assert.equal(footprint.outerTo.x, 135.5);
+  assert.equal(footprint.outerFrom.y, 43.1);
+  assert.equal(footprint.outerTo.y, 161.9);
 });
 
 test("balcony exterior edges use a low schematic wall except at an opening", () => {
