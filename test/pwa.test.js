@@ -80,6 +80,8 @@ test("the WebGL prototype stays local-first and isolated from the stable databas
 
   assert.match(html, /<canvas[^>]+id="threeCanvas"/);
   assert.match(html, /id="threeSelectionStatus"/);
+  assert.match(html, /id="threeSelectionSummary"/);
+  assert.match(html, /id="threeSelectionDetailsButton"/);
   assert.match(webgl, /from "\.\/vendor\/three\/three\.module\.js"/);
   assert.doesNotMatch(webgl, /https?:\/\//);
   assert.match(database, /floor-plan-webgl-private/);
@@ -91,4 +93,16 @@ test("the WebGL prototype stays local-first and isolated from the stable databas
   assert.match(app, /幅 .*奥行 .*高さ/);
   assert.match(app, /床置き/);
   assert.match(app, /support\.name.*床から/s);
+});
+
+test("3D selection stays in the scene and summarizes every selectable element type", () => {
+  const html = readFileSync(new URL("../dist/index.html", import.meta.url), "utf8");
+  const app = readFileSync(new URL("../dist/app.js", import.meta.url), "utf8");
+  for (const presentation of ["featureSelectionPresentation", "openingSelectionPresentation", "electricalSelectionPresentation"]) {
+    assert.match(app, new RegExp(`function ${presentation}`));
+  }
+  assert.match(html, /家具・設備などをタップすると、3D内で選択情報を確認できます/);
+  assert.match(app, /threeSelectionDetailsButton\.addEventListener/);
+  assert.match(app, /showDetail\(threeSelectedType, threeSelectedItem\)/);
+  assert.doesNotMatch(app, /setThreeSelectionPresentation\(type, item\);\s*showDetail\(type, item\)/);
 });

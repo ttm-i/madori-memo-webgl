@@ -226,9 +226,10 @@ button { color: inherit; touch-action: manipulation; }
 #threeCanvas { display: block; width: 100%; height: min(68vh, 620px); min-height: 430px; touch-action: none; cursor: grab; }
 #threeCanvas:active { cursor: grabbing; }
 .three-webgl-status { position: absolute; z-index: 3; left: 50%; top: 50%; transform: translate(-50%,-50%); padding: 10px 14px; border-radius: 12px; background: rgba(50,61,57,.9); color: white; font-size: .72rem; box-shadow: 0 8px 24px rgba(41,49,46,.2); }
-.three-selection-status { position: absolute; z-index: 3; left: 11px; bottom: 11px; max-width: min(430px, calc(100% - 22px)); padding: 7px 10px; border: 1px solid rgba(49,112,94,.35); border-radius: 9px; background: rgba(241,249,246,.95); color: #276b58; font-size: .65rem; font-weight: 800; line-height: 1.45; white-space: pre-line; box-shadow: 0 4px 14px rgba(55,51,43,.14); pointer-events: none; }
+.three-selection-status { position: absolute; z-index: 3; left: 11px; bottom: 11px; display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 9px; align-items: center; max-width: min(460px, calc(100% - 22px)); padding: 8px 9px 8px 11px; border: 1px solid rgba(49,112,94,.35); border-radius: 11px; background: rgba(241,249,246,.96); color: #276b58; font-size: .65rem; font-weight: 800; line-height: 1.45; white-space: pre-line; box-shadow: 0 4px 14px rgba(55,51,43,.14); }
 .three-selection-status.warning { border-color: rgba(165,91,25,.45); background: rgba(255,247,232,.94); color: #8d4f18; }
 .three-selection-status.danger { border-color: rgba(180,35,24,.42); background: rgba(255,241,239,.95); color: #a12c23; }
+.three-selection-status button { min-height: 34px; padding: 0 10px; border: 1px solid currentColor; border-radius: 9px; background: rgba(255,255,255,.78); color: inherit; font: inherit; white-space: nowrap; }
 .three-viewport-controls { position: absolute; z-index: 3; top: 10px; right: 10px; display: grid; grid-template-columns: 34px 54px 34px; overflow: hidden; border: 1px solid var(--line); border-radius: 11px; background: rgba(255,255,255,.9); box-shadow: 0 3px 12px rgba(55,51,43,.12); }
 .three-viewport-controls button { min-height: 34px; padding: 0; border: 0; border-right: 1px solid var(--line); background: transparent; color: var(--accent); font-size: 1rem; font-weight: 800; }
 .three-viewport-controls button:last-child { border-right: 0; }

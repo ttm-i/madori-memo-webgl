@@ -1,7 +1,7 @@
-import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=101";
-import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildElevationItems, buildFurnitureHierarchy, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurnitureStack, findSupportItem, furnitureDescendantIds as modelFurnitureDescendantIds, furniturePriceSummary, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, removeFurnitureStack, resolveFurnitureVerticalRange, rotateFurnitureStack, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=101";
-import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=101";
-import { createWebGLThreeView } from "./webgl-three.js?v=101";
+import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=102";
+import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildElevationItems, buildFurnitureHierarchy, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurnitureStack, featureSupportRange, findSupportItem, furnitureDescendantIds as modelFurnitureDescendantIds, furniturePriceSummary, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, QUALITY_LABELS, removeFurnitureStack, resolveFurnitureVerticalRange, rotateFurnitureStack, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=102";
+import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=102";
+import { createWebGLThreeView } from "./webgl-three.js?v=102";
 
 const elements = Object.fromEntries([
   "menuButton", "dataMenu", "detailDialog", "detailType", "detailTitle", "detailBody", "fileInput",
@@ -26,7 +26,7 @@ const elements = Object.fromEntries([
   "deliveryEmpty", "deliveryContent", "deliveryRouteGrid", "deliveryDoorGrid", "deliveryFurnitureList", "deliveryLimitations",
   "deliveryDialog", "deliveryForm", "deliveryDialogTitle", "cancelDeliveryButton", "deliveryBasis",
   "deliverySideA", "deliverySideB", "deliverySideC",
-  "threeCanvas", "threeEmpty", "threeRotateLeft", "threeRotateRight", "threeReset", "threeHeightNote", "threeSelectionStatus", "threeCutawayToggle", "threeLabelsToggle",
+  "threeCanvas", "threeEmpty", "threeRotateLeft", "threeRotateRight", "threeReset", "threeHeightNote", "threeSelectionStatus", "threeSelectionSummary", "threeSelectionDetailsButton", "threeCutawayToggle", "threeLabelsToggle",
   "threeRoomFilter", "threeWallsToggle", "threeOpeningsToggle", "threeFeaturesToggle", "threeFurnitureToggle", "threeElectricalToggle",
   "threeZoomOut", "threeZoomReset", "threeZoomIn", "threeZoomValue", "threeZoomHint",
 ].map((id) => [id, document.getElementById(id)]));
@@ -36,6 +36,9 @@ let toastTimer = null;
 let selectedFurnitureId = null;
 let editingFurnitureId = null;
 let preserveFurnitureSelectionOnClose = false;
+let preserveThreeSelectionOnClose = false;
+let threeSelectedType = null;
+let threeSelectedItem = null;
 let furnitureListRoomId = "";
 let furnitureListIssue = "";
 let furnitureListPrice = "";
@@ -77,11 +80,9 @@ function updateThreeView() {
     elements.threeCanvas,
     (type, item) => {
       setThreeSelectionPresentation(type, item);
-      showDetail(type, item);
     },
     () => {
       clearThreeSelection();
-      showDetail(null, null);
     },
   );
   const result = webglThreeView.render(activePlan, {
@@ -791,13 +792,18 @@ elements.detailDialog.addEventListener("click", (event) => {
   if (event.target === elements.detailDialog) elements.detailDialog.close();
 });
 elements.detailDialog.addEventListener("close", () => {
-  if (preserveFurnitureSelectionOnClose) {
-    preserveFurnitureSelectionOnClose = false;
-    return;
-  }
+  const preserveSelection = preserveFurnitureSelectionOnClose || preserveThreeSelectionOnClose;
+  preserveFurnitureSelectionOnClose = false;
+  preserveThreeSelectionOnClose = false;
+  if (preserveSelection) return;
   clearThreeSelection();
   selectedFurnitureId = null;
   renderer.setSelectedFurniture(null);
+});
+elements.threeSelectionDetailsButton.addEventListener("click", () => {
+  if (!threeSelectedType || !threeSelectedItem) return;
+  preserveThreeSelectionOnClose = true;
+  showDetail(threeSelectedType, threeSelectedItem);
 });
 elements.showFurnitureInPlanButton.addEventListener("click", () => {
   const furniture = selectedFurniture();
@@ -880,13 +886,85 @@ function furnitureInspectionPresentation(furniture) {
   };
 }
 
+function threeSelectionRoomLabel(item) {
+  const roomIds = item.roomIds ?? (item.roomId ? [item.roomId] : []);
+  return roomIds
+    .map((roomId) => activePlan.plan.rooms.find((room) => room.id === roomId)?.name)
+    .filter(Boolean)
+    .join("・");
+}
+
+function featureSelectionPresentation(feature) {
+  const kindLabels = { closet: "クローゼット", cabinet: "収納", kitchen: "キッチン", washbasin: "洗面台", "washer-pan": "洗濯機パン" };
+  const vertical = featureSupportRange(feature);
+  const widthCm = feature.overallWidthCm ?? feature.elevationWidthCm ?? feature.widthCm ?? feature.width;
+  const depthCm = feature.overallDepthCm ?? feature.depthCm ?? feature.height;
+  const heightCm = vertical.topCm - vertical.bottomCm;
+  const dimensions = [
+    Number.isFinite(widthCm) ? `幅 ${Math.round(widthCm * 10) / 10} cm` : null,
+    Number.isFinite(depthCm) ? `奥行 ${Math.round(depthCm * 10) / 10} cm` : null,
+    Number.isFinite(heightCm) ? `${vertical.schematic ? "模式高さ 約" : "高さ "}${Math.round(heightCm * 10) / 10} cm` : null,
+  ].filter(Boolean).join(" × ");
+  const roomLabel = threeSelectionRoomLabel(feature);
+  const quality = QUALITY_LABELS[feature.quality ?? (feature.uncertain ? "unmeasured" : "measured")] ?? "";
+  return {
+    tone: "normal",
+    label: "",
+    summary: [feature.name, [kindLabels[feature.kind] ?? "設備", roomLabel, quality].filter(Boolean).join("｜"), dimensions].filter(Boolean).join("\n"),
+    related: [],
+  };
+}
+
+function openingSelectionPresentation(opening) {
+  const isWindow = String(opening.kind ?? "").includes("window");
+  const widthCm = opening.widthCm ?? (opening.from && opening.to ? Math.hypot(opening.to.x - opening.from.x, opening.to.y - opening.from.y) : null);
+  const dimensions = [
+    Number.isFinite(widthCm) ? `幅 ${Math.round(widthCm * 10) / 10} cm` : null,
+    Number.isFinite(opening.heightCm) ? `開口高さ ${Math.round(opening.heightCm * 10) / 10} cm` : null,
+    isWindow && Number.isFinite(opening.sillHeightCm) ? `床から窓下 ${Math.round(opening.sillHeightCm * 10) / 10} cm` : null,
+  ].filter(Boolean).join("｜");
+  const roomLabel = threeSelectionRoomLabel(opening);
+  const quality = QUALITY_LABELS[opening.quality ?? (opening.uncertain ? "unmeasured" : "measured")] ?? "";
+  return {
+    tone: "normal",
+    label: "",
+    summary: [opening.name, [isWindow ? "窓" : "ドア", roomLabel, quality].filter(Boolean).join("｜"), dimensions].filter(Boolean).join("\n"),
+    related: [],
+  };
+}
+
+function electricalSelectionPresentation(type, item) {
+  const centerHeight = item.verticalPosition?.centerHeightCm ?? item.verticalPosition?.derivedCenterHeightCm;
+  const roomLabel = threeSelectionRoomLabel(item);
+  const kindLabel = type === "outlet" ? `コンセント${Number.isFinite(item.receptacleCount) ? ` ${item.receptacleCount}口` : ""}` : "スイッチ";
+  const position = [
+    Number.isFinite(centerHeight) ? `中心高さ 床から ${Math.round(centerHeight * 10) / 10} cm` : null,
+    Number.isFinite(item.horizontalPosition?.offsetCm) ? `水平基準から ${Math.round(item.horizontalPosition.offsetCm * 10) / 10} cm` : null,
+  ].filter(Boolean).join("｜");
+  const quality = QUALITY_LABELS[item.quality ?? (item.uncertain ? "unmeasured" : "measured")] ?? "";
+  return {
+    tone: "normal",
+    label: "",
+    summary: [item.name, [kindLabel, roomLabel, quality].filter(Boolean).join("｜"), position].filter(Boolean).join("\n"),
+    related: [],
+  };
+}
+
+function threeSelectionPresentation(type, item) {
+  if (type === "furniture") return furnitureInspectionPresentation(item);
+  if (type === "feature") return featureSelectionPresentation(item);
+  if (type === "opening") return openingSelectionPresentation(item);
+  if (type === "outlet" || type === "switch") return electricalSelectionPresentation(type, item);
+  return { tone: "normal", label: "", summary: item?.name ?? "", related: [] };
+}
+
 function setThreeSelectionPresentation(type, item, { focus = false } = {}) {
-  const presentation = type === "furniture"
-    ? furnitureInspectionPresentation(item)
-    : { tone: "normal", label: "", summary: "", related: [] };
+  const presentation = threeSelectionPresentation(type, item);
+  threeSelectedType = type;
+  threeSelectedItem = item;
   elements.threeSelectionStatus.hidden = !presentation.summary;
   elements.threeSelectionStatus.className = `three-selection-status ${presentation.tone}`;
-  elements.threeSelectionStatus.textContent = [
+  elements.threeSelectionSummary.textContent = [
     presentation.summary,
     presentation.label ? `${presentation.tone === "danger" ? "要修正" : "要確認"}｜${presentation.label}` : "",
   ].filter(Boolean).join("\n");
@@ -895,8 +973,10 @@ function setThreeSelectionPresentation(type, item, { focus = false } = {}) {
 }
 
 function clearThreeSelection() {
+  threeSelectedType = null;
+  threeSelectedItem = null;
   elements.threeSelectionStatus.hidden = true;
-  elements.threeSelectionStatus.textContent = "";
+  elements.threeSelectionSummary.textContent = "";
   elements.threeSelectionStatus.className = "three-selection-status";
   webglThreeView?.clearSelection();
 }
