@@ -384,6 +384,16 @@ test("furniture placement warns when a corner is outside the room", () => {
   const result = analyzeFurniturePlacement({ x: 250, y: 40, widthCm: 100, depthCm: 80 }, room);
   assert.equal(result.inside, false);
   assert.equal(result.clearances, null);
+  assert.deepEqual(result.overflow, { left: 0, right: 50, top: 0, bottom: 0 });
+  assert.equal(result.crossesIrregularBoundary, false);
+});
+
+test("furniture placement distinguishes a recessed room boundary from outer-bounds overflow", () => {
+  const room = { points: [{ x: 0, y: 0 }, { x: 300, y: 0 }, { x: 300, y: 200 }, { x: 180, y: 200 }, { x: 180, y: 100 }, { x: 0, y: 100 }] };
+  const result = analyzeFurniturePlacement({ x: 150, y: 80, widthCm: 60, depthCm: 40 }, room);
+  assert.equal(result.inside, false);
+  assert.deepEqual(result.overflow, { left: 0, right: 0, top: 0, bottom: 0 });
+  assert.equal(result.crossesIrregularBoundary, true);
 });
 
 test("furniture conflicts detect furniture, fixed features and partition walls", () => {

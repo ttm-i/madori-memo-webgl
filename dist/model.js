@@ -767,6 +767,19 @@ export function pointInPolygon(point, points) {
   return inside;
 }
 
+function isAxisAlignedRectangle(points) {
+  const normalized = points.length > 1
+    && Math.abs(points[0].x - points.at(-1).x) < .001
+    && Math.abs(points[0].y - points.at(-1).y) < .001
+    ? points.slice(0, -1)
+    : points;
+  if (normalized.length !== 4) return false;
+  const xs = [...new Set(normalized.map((point) => Math.round(point.x * 1000) / 1000))];
+  const ys = [...new Set(normalized.map((point) => Math.round(point.y * 1000) / 1000))];
+  if (xs.length !== 2 || ys.length !== 2) return false;
+  return new Set(normalized.map((point) => `${Math.round(point.x * 1000) / 1000},${Math.round(point.y * 1000) / 1000}`)).size === 4;
+}
+
 export function analyzeFurniturePlacement(furniture, room) {
   if (!room?.points?.length) return { inside: false, clearances: null, boundaries: null };
   const left = furniture.x;
@@ -777,6 +790,16 @@ export function analyzeFurniturePlacement(furniture, room) {
   const centerY = (top + bottom) / 2;
   const corners = [{ x: left, y: top }, { x: right, y: top }, { x: right, y: bottom }, { x: left, y: bottom }];
   const inside = corners.every((corner) => pointInPolygon(corner, room.points));
+  const roomXs = room.points.map((point) => point.x);
+  const roomYs = room.points.map((point) => point.y);
+  const roomBounds = { left: Math.min(...roomXs), right: Math.max(...roomXs), top: Math.min(...roomYs), bottom: Math.max(...roomYs) };
+  const overflow = inside ? null : {
+    left: Math.max(0, roomBounds.left - left),
+    right: Math.max(0, right - roomBounds.right),
+    top: Math.max(0, roomBounds.top - top),
+    bottom: Math.max(0, bottom - roomBounds.bottom),
+  };
+  const crossesIrregularBoundary = !inside && !isAxisAlignedRectangle(room.points);
   const xs = [];
   const ys = [];
   for (let index = 0; index < room.points.length; index += 1) {
@@ -797,7 +820,7 @@ export function analyzeFurniturePlacement(furniture, room) {
     top: boundaries.top == null ? null : top - boundaries.top,
     bottom: boundaries.bottom == null ? null : boundaries.bottom - bottom,
   } : null;
-  return { inside, clearances, boundaries };
+  return { inside, clearances, boundaries, ...(inside ? {} : { overflow, crossesIrregularBoundary }) };
 }
 
 export function rectanglesOverlap(first, second, epsilon = 0.001) {

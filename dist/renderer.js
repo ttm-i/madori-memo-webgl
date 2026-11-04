@@ -1,4 +1,4 @@
-import { analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildKitchenComponentRects, findSupportItem, furnitureDescendantIds, getDimensionGroup, getElectricalPlanPosition, moveDimensionGuide, QUALITY_LABELS, snapToGrid, translateFurnitureDescendants } from "./model.js?v=94";
+import { analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildKitchenComponentRects, findSupportItem, furnitureDescendantIds, getDimensionGroup, getElectricalPlanPosition, moveDimensionGuide, QUALITY_LABELS, snapToGrid, translateFurnitureDescendants } from "./model.js?v=95";
 
 const NS = "http://www.w3.org/2000/svg";
 
@@ -836,7 +836,16 @@ export function detailMarkup(type, item) {
   const safeQuality = escapeHTML(QUALITY_LABELS[quality] ?? quality);
   const list = values.length ? `<dl class="detail-list">${values.map(([key, value]) => `<dt>${escapeHTML(key)}</dt><dd>${escapeHTML(value)}</dd>`).join("")}</dl>` : "<p>詳細値はまだ登録されていません。</p>";
   const warnings = [];
-  if (type === "furniture" && item.placement && !item.placement.inside) warnings.push("指定した部屋から家具がはみ出しています。");
+  if (type === "furniture" && item.placement && !item.placement.inside) {
+    const edgeLabels = { left: "左", right: "右", top: "上", bottom: "下" };
+    const overflow = Object.entries(item.placement.overflow ?? {})
+      .filter(([, value]) => value > .001)
+      .map(([edge, value]) => `${edgeLabels[edge]} ${Math.round(value * 10) / 10} cm`);
+    if (item.placement.crossesIrregularBoundary) overflow.push("部屋形状の境界を通過");
+    warnings.push(overflow.length
+      ? `指定した部屋から家具がはみ出しています。超過: ${overflow.join("・")}`
+      : "指定した部屋から家具がはみ出しています。");
+  }
   if (type === "furniture" && item.supportFit?.fits === false) {
     const edgeLabels = { left: "左", right: "右", top: "上", bottom: "下" };
     const overflow = Object.entries(item.supportFit.overflowEdgesCm ?? {})
