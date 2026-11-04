@@ -1,6 +1,6 @@
 import * as THREE from "./vendor/three/three.module.js";
-import { buildKitchenCabinetLayout, buildKitchenComponentRects, inferFurnitureKind, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=116";
-import { bayWindowFootprint, cabinetDoorPanelCount, cabinetThreePlacement, clampIndoorPitch, clampWebGLPan, closetThreePlacement, cycleThreeSelectionCandidate, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, roomInteriorViewpoint, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRelatedSelectionStyle, threeRoomBounds, threeSelectionKey, threeSelectionStyle, threeSelectionXrayStyle, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=116";
+import { buildKitchenCabinetLayout, buildKitchenComponentRects, inferFurnitureKind, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=117";
+import { bayWindowFootprint, cabinetDoorPanelCount, cabinetThreePlacement, clampIndoorPitch, clampWebGLPan, closetThreePlacement, cycleThreeSelectionCandidate, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, roomInteriorViewpoint, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRelatedSelectionStyle, threeRoomBounds, threeSelectionKey, threeSelectionStyle, threeSelectionXrayStyle, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=117";
 
 const WALL_THICKNESS = 6;
 const DEFAULT_WALL_HEIGHT = 220;
@@ -1208,9 +1208,15 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null) {
       x: openingMidpoint.x + towardCenter.x / towardLength * 70,
       y: openingMidpoint.y + towardCenter.y / towardLength * 70,
     } : null;
-    if (viewpointType === "kitchen" && centerPoint && room?.points?.length) {
-      const rightEdge = Math.max(...room.points.map((point) => point.x));
-      preferredPoint = { x: Math.min(rightEdge - 45, centerPoint.x + 70), y: centerPoint.z };
+    if (viewpointType === "kitchen" && centerPoint) {
+      const kitchen = (currentDocument?.plan?.features ?? []).find((feature) => feature.roomId === room?.id && feature.kind === "kitchen");
+      const stove = buildKitchenComponentRects(kitchen).find((component) => component.kind === "stove");
+      const kitchenDepth = kitchen?.depthCm ?? kitchen?.height;
+      if (kitchen && stove && Number.isFinite(kitchenDepth)) {
+        const kitchenCenterY = kitchen.y + kitchenDepth / 2;
+        const frontY = centerPoint.z >= kitchenCenterY ? kitchen.y + kitchenDepth + 65 : kitchen.y - 65;
+        preferredPoint = { x: stove.x + stove.width / 2, y: frontY };
+      }
     }
     view.indoorPoint = preferredPoint ? roomInteriorViewpoint(room, 160, obstacles, preferredPoint) : centerPoint;
     if (changedViewpoint && room?.points?.length) {
