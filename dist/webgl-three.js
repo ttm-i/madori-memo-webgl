@@ -1,6 +1,6 @@
 import * as THREE from "./vendor/three/three.module.js";
-import { buildKitchenCabinetLayout, buildKitchenComponentRects, inferFurnitureKind, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=95";
-import { cabinetDoorPanelCount, cabinetThreePlacement, clampWebGLPan, closetThreePlacement, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRoomBounds, threeSelectionKey, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=95";
+import { buildKitchenCabinetLayout, buildKitchenComponentRects, inferFurnitureKind, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=96";
+import { cabinetDoorPanelCount, cabinetThreePlacement, clampWebGLPan, closetThreePlacement, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRoomBounds, threeSelectionKey, threeSelectionStyle, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=96";
 
 const WALL_THICKNESS = 6;
 const DEFAULT_WALL_HEIGHT = 220;
@@ -894,6 +894,7 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null) {
   let currentOptions = {};
   let builtCutawayTurn = 0;
   let selectedKey = null;
+  let selectedTone = "normal";
   let selectionOutline = null;
   const contextMessage = canvas.parentElement?.querySelector("[data-webgl-status]");
 
@@ -1019,6 +1020,7 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null) {
       const selection = object.userData.selection;
       if (!selectedObject && threeSelectionKey(selection?.type, selection?.item) === selectedKey) selectedObject = object;
     });
+    const selectionStyle = threeSelectionStyle(selectedTone);
     selectedObject?.traverse((object) => {
       if (object.userData.selectionHitTarget) return;
       for (const meshMaterial of materialList(object)) {
@@ -1027,8 +1029,8 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null) {
           emissive: meshMaterial.emissive.clone(),
           emissiveIntensity: meshMaterial.emissiveIntensity,
         };
-        meshMaterial.emissive.set(0x0f9b78);
-        meshMaterial.emissiveIntensity = .75;
+        meshMaterial.emissive.set(selectionStyle.emissive);
+        meshMaterial.emissiveIntensity = selectionStyle.intensity;
       }
     });
     if (selectedObject) {
@@ -1037,7 +1039,7 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null) {
         const center = bounds.getCenter(new THREE.Vector3());
         view.focus = { x: center.x, y: center.y, z: center.z };
       }
-      selectionOutline = new THREE.Box3Helper(bounds, 0x08795f);
+      selectionOutline = new THREE.Box3Helper(bounds, selectionStyle.outline);
       selectionOutline.renderOrder = 20;
       selectionOutline.material.depthTest = false;
       root.add(selectionOutline);
@@ -1051,16 +1053,20 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null) {
       return;
     }
     selectedKey = null;
+    selectedTone = "normal";
     restoreSelectionMaterials();
     requestRender();
   }
 
-  function setSelection(type, item) {
+  function setSelection(type, item, { tone = "normal", focus = true } = {}) {
     selectedKey = threeSelectionKey(type, item);
-    view.focus = null;
-    view.panX = 0;
-    view.panY = 0;
-    applySelectionHighlight({ focus: true });
+    selectedTone = ["danger", "warning"].includes(tone) ? tone : "normal";
+    if (focus) {
+      view.focus = null;
+      view.panX = 0;
+      view.panY = 0;
+    }
+    applySelectionHighlight({ focus });
     requestRender();
     return Boolean(selectedKey);
   }

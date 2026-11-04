@@ -51,10 +51,12 @@ test("the WebGL prototype stays local-first and isolated from the stable databas
   const database = readFileSync(new URL("../dist/db.js", import.meta.url), "utf8");
 
   assert.match(html, /<canvas[^>]+id="threeCanvas"/);
+  assert.match(html, /id="threeSelectionStatus"/);
   assert.match(webgl, /from "\.\/vendor\/three\/three\.module\.js"/);
   assert.doesNotMatch(webgl, /https?:\/\//);
   assert.match(database, /floor-plan-webgl-private/);
   assert.doesNotMatch(database, /const DB_NAME = "floor-plan-private"/);
   assert.doesNotMatch(webgl, /new THREE\.Fog/);
   assert.match(html, /data-webgl-status/);
+  assert.match(webgl, /threeSelectionStyle\(selectedTone\)/);
 });

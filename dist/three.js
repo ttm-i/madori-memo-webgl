@@ -1,4 +1,4 @@
-import { buildKitchenComponentRects, buildRoomWalls, featureSupportRange, getElectricalPlanPosition, pointInPolygon, resolveFurnitureVerticalRange } from "./model.js?v=95";
+import { buildKitchenComponentRects, buildRoomWalls, featureSupportRange, getElectricalPlanPosition, pointInPolygon, resolveFurnitureVerticalRange } from "./model.js?v=96";
 
 const NS = "http://www.w3.org/2000/svg";
 
@@ -51,6 +51,12 @@ export function clampWebGLPan(panX, panY, zoom, width, height) {
     x: limitX > 0 ? Math.max(-limitX, Math.min(limitX, requestedX)) : 0,
     y: limitY > 0 ? Math.max(-limitY, Math.min(limitY, requestedY)) : 0,
   };
+}
+
+export function threeSelectionStyle(tone = "normal") {
+  if (tone === "danger") return { emissive: 0xb42318, outline: 0xe05248, intensity: .7 };
+  if (tone === "warning") return { emissive: 0xc46613, outline: 0xe59a3a, intensity: .68 };
+  return { emissive: 0x0f9b78, outline: 0x08795f, intensity: .75 };
 }
 
 function pointsValue(points) { return points.map((point) => `${point.x},${point.y}`).join(" "); }

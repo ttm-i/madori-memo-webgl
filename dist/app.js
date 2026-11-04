@@ -1,7 +1,7 @@
-import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=95";
-import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildElevationItems, buildFurnitureHierarchy, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurnitureStack, findSupportItem, furnitureDescendantIds as modelFurnitureDescendantIds, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, removeFurnitureStack, resolveFurnitureVerticalRange, rotateFurnitureStack, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=95";
-import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=95";
-import { createWebGLThreeView } from "./webgl-three.js?v=95";
+import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=96";
+import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildElevationItems, buildFurnitureHierarchy, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurnitureStack, findSupportItem, furnitureDescendantIds as modelFurnitureDescendantIds, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, removeFurnitureStack, resolveFurnitureVerticalRange, rotateFurnitureStack, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=96";
+import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=96";
+import { createWebGLThreeView } from "./webgl-three.js?v=96";
 
 const elements = Object.fromEntries([
   "menuButton", "dataMenu", "detailDialog", "detailType", "detailTitle", "detailBody", "fileInput",
@@ -26,7 +26,7 @@ const elements = Object.fromEntries([
   "deliveryEmpty", "deliveryContent", "deliveryRouteGrid", "deliveryDoorGrid", "deliveryFurnitureList", "deliveryLimitations",
   "deliveryDialog", "deliveryForm", "deliveryDialogTitle", "cancelDeliveryButton", "deliveryBasis",
   "deliverySideA", "deliverySideB", "deliverySideC",
-  "threeCanvas", "threeEmpty", "threeRotateLeft", "threeRotateRight", "threeReset", "threeHeightNote", "threeCutawayToggle", "threeLabelsToggle",
+  "threeCanvas", "threeEmpty", "threeRotateLeft", "threeRotateRight", "threeReset", "threeHeightNote", "threeSelectionStatus", "threeCutawayToggle", "threeLabelsToggle",
   "threeRoomFilter", "threeWallsToggle", "threeOpeningsToggle", "threeFeaturesToggle", "threeFurnitureToggle", "threeElectricalToggle",
   "threeZoomOut", "threeZoomReset", "threeZoomIn", "threeZoomValue", "threeZoomHint",
 ].map((id) => [id, document.getElementById(id)]));
@@ -69,12 +69,19 @@ function updateThreeView() {
   if (!activePlan) elements.threeZoomHint.hidden = true;
   if (!activePlan) {
     elements.threeHeightNote.textContent = "";
+    elements.threeSelectionStatus.hidden = true;
     return;
   }
   webglThreeView ??= createWebGLThreeView(
     elements.threeCanvas,
-    (type, item) => showDetail(type, item),
-    () => showDetail(null, null),
+    (type, item) => {
+      setThreeSelectionPresentation(type, item);
+      showDetail(type, item);
+    },
+    () => {
+      clearThreeSelection();
+      showDetail(null, null);
+    },
   );
   const result = webglThreeView.render(activePlan, {
     quarterTurn: threeQuarterTurn,
@@ -787,7 +794,7 @@ elements.detailDialog.addEventListener("close", () => {
     preserveFurnitureSelectionOnClose = false;
     return;
   }
-  webglThreeView?.clearSelection();
+  clearThreeSelection();
   selectedFurnitureId = null;
   renderer.setSelectedFurniture(null);
 });
@@ -795,7 +802,7 @@ elements.showFurnitureInPlanButton.addEventListener("click", () => {
   const furniture = selectedFurniture();
   if (!furniture) return;
   preserveFurnitureSelectionOnClose = true;
-  webglThreeView?.clearSelection();
+  clearThreeSelection();
   setFurnitureVisible(true);
   document.querySelector('.tab[data-view="plan"]').click();
   renderer.setSelectedFurniture(furniture.id);
@@ -812,16 +819,18 @@ elements.showFurnitureInThreeButton.addEventListener("click", () => {
   threeRoomId = furniture.roomId ?? "";
   updateThreeRoomFilter();
   document.querySelector('.tab[data-view="three"]').click();
-  webglThreeView?.setSelection("furniture", furniture);
+  const presentation = setThreeSelectionPresentation("furniture", furniture, { focus: true });
   setThreeZoom(1.35);
   elements.detailDialog.close();
-  showToast(`「${furniture.name}」を3Dで強調しました`);
+  showToast(presentation.label
+    ? `「${furniture.name}」を3Dで強調しました（${presentation.tone === "danger" ? "要修正" : "要確認"}）`
+    : `「${furniture.name}」を3Dで強調しました`);
 });
 elements.showFurnitureClearanceButton.addEventListener("click", () => {
   const furniture = selectedFurniture();
   if (!furniture) return;
   preserveFurnitureSelectionOnClose = true;
-  webglThreeView?.clearSelection();
+  clearThreeSelection();
   setFurnitureVisible(true);
   document.querySelector('.tab[data-view="plan"]').click();
   renderer.setSelectedFurniture(furniture.id);
@@ -853,6 +862,41 @@ function placementOverflowSummary(placement) {
     .map(([edge, value]) => `${labels[edge]} ${Math.round(value * 10) / 10} cm`);
   if (placement?.crossesIrregularBoundary) parts.push("部屋形状の境界を通過");
   return parts.join("・") || "部屋形状の境界を通過";
+}
+
+function furnitureInspectionPresentation(furniture) {
+  const room = activePlan.plan.rooms.find((candidate) => candidate.id === furniture.roomId);
+  const placement = room ? analyzeFurniturePlacement(furniture, room) : null;
+  const supportFit = analyzeFurnitureSupportFit(furniture, activePlan.plan);
+  const conflicts = analyzeFurnitureConflicts(furniture, activePlan.plan);
+  const issues = [];
+  if (placement && !placement.inside) issues.push(`部屋外: ${placementOverflowSummary(placement)}`);
+  if (supportFit?.fits === false) issues.push(`設置面超過: ${supportOverflowSummary(supportFit)}`);
+  if (conflicts.length) issues.push(`重なり: ${conflicts.map((conflict) => conflict.name).join("、")}`);
+  return {
+    tone: placement && !placement.inside ? "danger" : issues.length ? "warning" : "normal",
+    label: issues.join(" / "),
+  };
+}
+
+function setThreeSelectionPresentation(type, item, { focus = false } = {}) {
+  const presentation = type === "furniture"
+    ? furnitureInspectionPresentation(item)
+    : { tone: "normal", label: "" };
+  elements.threeSelectionStatus.hidden = !presentation.label;
+  elements.threeSelectionStatus.className = `three-selection-status ${presentation.tone}`;
+  elements.threeSelectionStatus.textContent = presentation.label
+    ? `${presentation.tone === "danger" ? "要修正" : "要確認"}｜${presentation.label}`
+    : "";
+  webglThreeView?.setSelection(type, item, { tone: presentation.tone, focus });
+  return presentation;
+}
+
+function clearThreeSelection() {
+  elements.threeSelectionStatus.hidden = true;
+  elements.threeSelectionStatus.textContent = "";
+  elements.threeSelectionStatus.className = "three-selection-status";
+  webglThreeView?.clearSelection();
 }
 
 function renderFurnitureList() {
