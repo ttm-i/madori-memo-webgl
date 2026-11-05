@@ -1,6 +1,6 @@
 import * as THREE from "./vendor/three/three.module.js";
-import { buildKitchenCabinetLayout, buildKitchenComponentRects, inferFurnitureKind, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=122";
-import { bayWindowFootprint, cabinetDoorPanelCount, cabinetThreePlacement, clampIndoorPitch, clampWebGLPan, closetThreePlacement, cycleThreeSelectionCandidate, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, roomInteriorViewpoint, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRelatedSelectionStyle, threeRoomBounds, threeSelectionKey, threeSelectionStyle, threeSelectionXrayStyle, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=122";
+import { buildKitchenCabinetLayout, buildKitchenComponentRects, inferFurnitureKind, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=123";
+import { bayWindowFootprint, cabinetDoorPanelCount, cabinetThreePlacement, clampIndoorPitch, clampWebGLPan, closetThreePlacement, cycleThreeSelectionCandidate, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, roomInteriorViewpoint, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRelatedSelectionStyle, threeRoomBounds, threeSelectionKey, threeSelectionStyle, threeSelectionXrayStyle, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=123";
 
 const WALL_THICKNESS = 6;
 const DEFAULT_WALL_HEIGHT = 220;
@@ -1421,10 +1421,11 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null, on
       const distance = Math.hypot(dx, dz) || 1;
       const labelPosition = new THREE.Vector3(
         destination.midpoint.x + dx / distance * 18,
-        30,
+        22,
         destination.midpoint.y + dz / distance * 18,
       );
       const label = textSprite(`→ ${destination.roomName}`, labelPosition);
+      label.scale.multiplyScalar(.55);
       label.renderOrder = 25;
       marker.add(threshold, label);
       root.add(marker);
