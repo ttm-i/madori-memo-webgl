@@ -1,6 +1,6 @@
 import * as THREE from "./vendor/three/three.module.js";
-import { buildKitchenCabinetLayout, buildKitchenComponentRects, inferFurnitureKind, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=121";
-import { bayWindowFootprint, cabinetDoorPanelCount, cabinetThreePlacement, clampIndoorPitch, clampWebGLPan, closetThreePlacement, cycleThreeSelectionCandidate, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, roomInteriorViewpoint, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRelatedSelectionStyle, threeRoomBounds, threeSelectionKey, threeSelectionStyle, threeSelectionXrayStyle, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=121";
+import { buildKitchenCabinetLayout, buildKitchenComponentRects, inferFurnitureKind, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=122";
+import { bayWindowFootprint, cabinetDoorPanelCount, cabinetThreePlacement, clampIndoorPitch, clampWebGLPan, closetThreePlacement, cycleThreeSelectionCandidate, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, roomInteriorViewpoint, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRelatedSelectionStyle, threeRoomBounds, threeSelectionKey, threeSelectionStyle, threeSelectionXrayStyle, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=122";
 
 const WALL_THICKNESS = 6;
 const DEFAULT_WALL_HEIGHT = 220;
@@ -1360,6 +1360,77 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null, on
     return { yaw: view.indoorYaw, pitch: view.indoorPitch };
   }
 
+  function indoorDoorDestination(opening) {
+    const roomIds = opening?.roomIds ?? [];
+    if (!String(opening?.kind ?? "").includes("door") || roomIds.length !== 2 || !roomIds.includes(view.indoorRoomId)) return null;
+    const destinationRoomId = roomIds.find((roomId) => roomId !== view.indoorRoomId);
+    const destinationRoom = (currentDocument?.plan?.rooms ?? []).find((room) => room.id === destinationRoomId);
+    const midpoint = {
+      x: (opening.from.x + opening.to.x) / 2,
+      y: (opening.from.y + opening.to.y) / 2,
+    };
+    const candidates = (currentOptions.indoorViewpoints ?? [])
+      .filter((entry) => entry.roomId === destinationRoomId)
+      .map((entry) => ({ entry, target: calculateIndoorViewpoint(entry.value) }))
+      .filter(({ target }) => target?.point)
+      .sort((first, second) => {
+        const firstDistance = Math.hypot(first.target.point.x - midpoint.x, first.target.point.z - midpoint.y);
+        const secondDistance = Math.hypot(second.target.point.x - midpoint.x, second.target.point.z - midpoint.y);
+        return firstDistance - secondDistance;
+      });
+    if (!candidates[0]) return null;
+    return {
+      key: candidates[0].target.key,
+      label: candidates[0].entry.label,
+      roomName: destinationRoom?.name ?? candidates[0].entry.label,
+      midpoint,
+    };
+  }
+
+  function addIndoorDoorMarkers() {
+    if (view.mode !== "indoor" || !view.indoorRoomId || !view.indoorPoint) return;
+    for (const opening of currentDocument?.plan?.openings ?? []) {
+      const destination = indoorDoorDestination(opening);
+      if (!destination) continue;
+      const length = Math.hypot(opening.to.x - opening.from.x, opening.to.y - opening.from.y);
+      if (length < 8) continue;
+      const marker = new THREE.Group();
+      marker.name = `door-jump-${opening.id}`;
+      marker.userData.viewpointJump = { key: destination.key, label: destination.label };
+      const inset = Math.min(10, length * .12);
+      const from = pointAt(opening.from, opening.to, inset, length);
+      const to = pointAt(opening.from, opening.to, length - inset, length);
+      const threshold = segmentBox(
+        from,
+        to,
+        1.2,
+        4.2,
+        5.5,
+        new THREE.MeshStandardMaterial({
+          color: 0x72dfbd,
+          emissive: 0x176b55,
+          emissiveIntensity: .75,
+          opacity: .92,
+          transparent: true,
+          roughness: .32,
+        }),
+      );
+      threshold.renderOrder = 22;
+      const dx = view.indoorPoint.x - destination.midpoint.x;
+      const dz = view.indoorPoint.z - destination.midpoint.y;
+      const distance = Math.hypot(dx, dz) || 1;
+      const labelPosition = new THREE.Vector3(
+        destination.midpoint.x + dx / distance * 18,
+        30,
+        destination.midpoint.y + dz / distance * 18,
+      );
+      const label = textSprite(`→ ${destination.roomName}`, labelPosition);
+      label.renderOrder = 25;
+      marker.add(threshold, label);
+      root.add(marker);
+    }
+  }
+
   function addIndoorViewpointMarkers() {
     if (view.mode !== "indoor" || !view.indoorRoomId) return;
     const candidates = (currentOptions.indoorViewpoints ?? [])
@@ -1439,6 +1510,7 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null, on
     const effectiveOptions = view.mode === "indoor" ? { ...currentOptions, cutaway: false } : currentOptions;
     sceneInfo = buildScene(root, currentDocument, { ...effectiveOptions, quarterTurn: builtCutawayTurn });
     addIndoorViewpointMarkers();
+    addIndoorDoorMarkers();
     const selectionVisible = applySelectionHighlight();
     sceneInfo.selectionVisible = selectedKey ? selectionVisible : null;
     requestRender();
@@ -1594,24 +1666,8 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null, on
       while (object) {
         const selection = object.userData.selection;
         const opening = selection?.type === "opening" ? selection.item : null;
-        const roomIds = opening?.roomIds ?? [];
-        if (opening && String(opening.kind ?? "").includes("door") && roomIds.length === 2 && roomIds.includes(view.indoorRoomId)) {
-          const destinationRoomId = roomIds.find((roomId) => roomId !== view.indoorRoomId);
-          const midpoint = {
-            x: (opening.from.x + opening.to.x) / 2,
-            y: (opening.from.y + opening.to.y) / 2,
-          };
-          const candidates = (currentOptions.indoorViewpoints ?? [])
-            .filter((entry) => entry.roomId === destinationRoomId)
-            .map((entry) => ({ entry, target: calculateIndoorViewpoint(entry.value) }))
-            .filter(({ target }) => target?.point)
-            .sort((first, second) => {
-              const firstDistance = Math.hypot(first.target.point.x - midpoint.x, first.target.point.z - midpoint.y);
-              const secondDistance = Math.hypot(second.target.point.x - midpoint.x, second.target.point.z - midpoint.y);
-              return firstDistance - secondDistance;
-            });
-          if (candidates[0]) return { key: candidates[0].target.key, label: candidates[0].entry.label };
-        }
+        const destination = indoorDoorDestination(opening);
+        if (destination) return destination;
         object = object.parent;
       }
     }

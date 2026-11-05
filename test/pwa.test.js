@@ -154,7 +154,9 @@ test("the 3D tab opens with a compact viewport-first layout", () => {
   assert.match(webgl, /userData\.viewpointJump = \{ key: target\.key, label: candidate\.label \}/);
   assert.match(webgl, /function jumpToIndoorViewpoint\(viewpointKey\)[\s\S]*classList\.add\("is-visible"\)[\s\S]*resolveIndoorPoint\(viewpointKey\)[\s\S]*classList\.remove\("is-visible"\)/);
   assert.match(webgl, /const viewpointJump = viewpointJumpAt\(clientX, clientY\)[\s\S]*jumpToIndoorViewpoint\(viewpointJump\.key\)/);
-  assert.match(webgl, /function indoorDoorJumpAt\(clientX, clientY\)[\s\S]*roomIds\.length === 2[\s\S]*destinationRoomId[\s\S]*calculateIndoorViewpoint/);
+  assert.match(webgl, /function indoorDoorDestination\(opening\)[\s\S]*roomIds\.length !== 2[\s\S]*destinationRoomId[\s\S]*calculateIndoorViewpoint/);
+  assert.match(webgl, /function addIndoorDoorMarkers\(\)[\s\S]*door-jump-[\s\S]*userData\.viewpointJump[\s\S]*→ \$\{destination\.roomName}/);
+  assert.match(webgl, /addIndoorViewpointMarkers\(\);\s+addIndoorDoorMarkers\(\);/);
   assert.match(webgl, /const doorJump = indoorDoorJumpAt\(clientX, clientY\)[\s\S]*jumpToIndoorViewpoint\(doorJump\.key\)/);
   assert.match(app, /床の印／ドアで移動/);
 });
