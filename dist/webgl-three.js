@@ -1,6 +1,6 @@
 import * as THREE from "./vendor/three/three.module.js";
-import { buildKitchenCabinetLayout, buildKitchenComponentRects, inferFurnitureKind, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=124";
-import { bayWindowFootprint, cabinetDoorPanelCount, cabinetThreePlacement, clampIndoorPitch, clampWebGLPan, closetThreePlacement, cycleThreeSelectionCandidate, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, roomInteriorViewpoint, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRelatedSelectionStyle, threeRoomBounds, threeSelectionKey, threeSelectionStyle, threeSelectionXrayStyle, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=124";
+import { buildKitchenCabinetLayout, buildKitchenComponentRects, inferFurnitureKind, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=125";
+import { bayWindowFootprint, cabinetDoorPanelCount, cabinetThreePlacement, clampIndoorPitch, clampWebGLPan, closetThreePlacement, cycleThreeSelectionCandidate, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, roomInteriorViewpoint, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRelatedSelectionStyle, threeRoomBounds, threeSelectionKey, threeSelectionStyle, threeSelectionXrayStyle, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=125";
 
 const WALL_THICKNESS = 6;
 const DEFAULT_WALL_HEIGHT = 220;
@@ -193,18 +193,47 @@ function detailedFurnitureAssembly(item, vertical) {
     furniturePart(group, width * .9, height * .16, depth * .64, cx, seatTop, cy + depth * .12, 0xe0c2af);
     furniturePart(group, width, height * .62, depth * .18, cx, bottom + height * .69, itemY + depth * .09, fabric);
     for (const direction of [-1, 1]) furniturePart(group, Math.max(8, width * .08), height * .52, depth * .72, cx + direction * width * .46, bottom + height * .44, cy + depth * .1, fabric);
-  } else if (kind === "dining" || kind === "desk") {
+  } else if (kind === "dining") {
     const topThickness = Math.min(5, height * .1);
     furniturePart(group, width, topThickness, depth, cx, top - topThickness / 2, cy, wood);
     const leg = Math.max(4, Math.min(7, Math.min(width, depth) * .08));
     for (const dx of [-1, 1]) for (const dy of [-1, 1]) furniturePart(group, leg, height - topThickness, leg, cx + dx * (width / 2 - leg * 1.4), bottom + (height - topThickness) / 2, cy + dy * (depth / 2 - leg * 1.4), wood);
+  } else if (kind === "desk") {
+    const frameColor = 0xe7e8e4;
+    const frameOutline = 0x7e8581;
+    const topThickness = Math.min(4, height * .08);
+    furniturePart(group, width, topThickness, depth, cx, top - topThickness / 2, cy, 0xf1f0eb, frameOutline);
+    const tube = Math.max(2.6, Math.min(4, Math.min(width, depth) * .07));
+    const legTop = top - topThickness;
+    for (const x of [itemX + tube, itemX + width - tube]) {
+      for (const y of [itemY + tube, itemY + depth - tube]) {
+        furnitureBeam(group, { x, y, z: bottom }, { x, y, z: legTop }, tube, frameColor, frameOutline);
+      }
+      furnitureBeam(group, { x, y: itemY + tube, z: bottom + tube }, { x, y: itemY + depth - tube, z: bottom + tube }, tube, frameColor, frameOutline);
+    }
+    const backY = itemY + tube;
+    furnitureBeam(group, { x: itemX + tube, y: backY, z: bottom + 10 }, { x: itemX + width - tube, y: backY, z: legTop - 8 }, 1.6, frameColor, frameOutline);
+    furnitureBeam(group, { x: itemX + width - tube, y: backY, z: bottom + 10 }, { x: itemX + tube, y: backY, z: legTop - 8 }, 1.6, frameColor, frameOutline);
   } else if (kind === "chair") {
-    const seatTop = bottom + Math.min(45, height * .58);
-    const seatThickness = Math.max(4, height * .07);
-    furniturePart(group, width, seatThickness, depth * .82, cx, seatTop, cy + depth * .06, fabric);
-    const leg = Math.max(3, Math.min(5, Math.min(width, depth) * .1));
-    for (const dx of [-1, 1]) for (const dy of [-1, 1]) furniturePart(group, leg, seatTop - bottom, leg, cx + dx * (width / 2 - leg * 1.3), bottom + (seatTop - bottom) / 2, cy + dy * (depth * .38 - leg), wood);
-    furniturePart(group, width, Math.max(10, top - seatTop), Math.max(4, depth * .1), cx, seatTop + (top - seatTop) / 2, itemY + depth * .07, fabric);
+    const chairWhite = 0xe9e9e4;
+    const chairOutline = 0x777c79;
+    const seatTop = bottom + Math.min(45, height * .57);
+    const seatThickness = Math.max(4, height * .065);
+    furniturePart(group, width * .94, seatThickness, depth * .82, cx, seatTop, cy + depth * .04, chairWhite, chairOutline);
+    const leg = Math.max(3, Math.min(4.5, Math.min(width, depth) * .085));
+    for (const dx of [-1, 1]) for (const dy of [-1, 1]) {
+      const upper = { x: cx + dx * width * .38, y: cy + dy * depth * .32, z: seatTop - seatThickness / 2 };
+      const lower = { x: cx + dx * width * .46, y: cy + dy * depth * .42, z: bottom };
+      furnitureBeam(group, lower, upper, leg, chairWhite, chairOutline);
+    }
+    const rearY = itemY + depth * .11;
+    const postInset = width * .39;
+    for (const dx of [-1, 1]) furnitureBeam(group,
+      { x: cx + dx * postInset, y: rearY, z: seatTop },
+      { x: cx + dx * postInset, y: rearY, z: top - 3 },
+      leg, chairWhite, chairOutline);
+    furniturePart(group, width * .88, Math.max(9, height * .13), 4, cx, top - height * .09, rearY, chairWhite, chairOutline);
+    furniturePart(group, width * .72, Math.max(4, height * .055), 3.5, cx, seatTop + (top - seatTop) * .42, rearY, chairWhite, chairOutline);
   } else if (kind === "tv-board") {
     furniturePart(group, width, height, depth, cx, bottom + height / 2, cy, wood);
     const frontY = itemY + depth + 1.1;
@@ -285,6 +314,13 @@ function detailedFurnitureAssembly(item, vertical) {
       { x: itemX + insetX, y: itemY + depth * .88, z: shelfHeight - 3 },
       { x: itemX + width - insetX, y: itemY + depth * .88, z: shelfHeight - 3 },
       2.6, dark);
+  } else if (kind === "trash-bin") {
+    const bodyHeight = Math.max(10, height - 4);
+    furniturePart(group, width * .94, bodyHeight, depth * .92, cx, bottom + bodyHeight / 2, cy, 0xe9e9e6, 0x777b78);
+    furniturePart(group, width, 3.2, depth, cx, top - 1.6, cy, 0xf3f2ee, 0x777b78);
+    const frontY = itemY + depth + 1.4;
+    furniturePart(group, width * .34, 2.2, Math.max(4, depth * .24), cx, bottom + 2.2, frontY, 0xc6c8c5, 0x646966);
+    furniturePart(group, width * .55, 1.6, 2.2, cx, top - 5.5, itemY + depth + 1.2, 0xb8bbb8, 0x646966);
   }
   group.userData.labelPosition = new THREE.Vector3(worldCenterX, top + 22, worldCenterY);
   return group;

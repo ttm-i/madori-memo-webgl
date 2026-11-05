@@ -1,4 +1,4 @@
-import { analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildKitchenComponentRects, findSupportItem, furnitureDescendantIds, getDimensionGroup, getElectricalPlanPosition, moveDimensionGuide, QUALITY_LABELS, snapToGrid, translateFurnitureDescendants } from "./model.js?v=124";
+import { analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildKitchenComponentRects, findSupportItem, furnitureDescendantIds, furnitureWallMove, getDimensionGroup, getElectricalPlanPosition, moveDimensionGuide, QUALITY_LABELS, rotateFurnitureStack, snapToGrid, translateFurnitureDescendants } from "./model.js?v=125";
 
 const NS = "http://www.w3.org/2000/svg";
 
@@ -294,6 +294,47 @@ export class PlanRenderer {
         if (conflicts.length) reasons.push("重なり");
         const warning = `⚠ ${reasons.join("・")}`;
         group.append(svg("text", { class: "placement-warning", x: furniture.x + furniture.widthCm / 2, y: furniture.y - 10 }, warning));
+      }
+      if (selected && !this.locked) {
+        const controls = svg("g", { class: "furniture-direct-controls", "aria-label": `${furniture.name}の直接操作` });
+        const operate = (action) => {
+          const destination = action === "rotate" ? null : furnitureWallMove(furniture, room, action);
+          if (action !== "rotate" && (!destination || destination.distance < .05)) return;
+          this.onFurnitureEvent?.("start");
+          if (action === "rotate") rotateFurnitureStack(documentData.plan, furniture);
+          else {
+            const dx = destination.x - furniture.x;
+            const dy = destination.y - furniture.y;
+            furniture.x = destination.x;
+            furniture.y = destination.y;
+            translateFurnitureDescendants(documentData.plan, furniture.id, dx, dy);
+          }
+          this.onFurnitureEvent?.("commit");
+        };
+        const addControl = (action, glyph, x, y, labelText) => {
+          const control = svg("g", { class: `furniture-direct-control action-${action}`, role: "button", tabindex: 0, "aria-label": labelText });
+          control.append(
+            svg("circle", { class: "furniture-direct-control-bg", cx: x, cy: y, r: 15 }),
+            svg("text", { class: "furniture-direct-control-glyph", x, y }, glyph),
+          );
+          control.addEventListener("pointerdown", (event) => { event.preventDefault(); event.stopPropagation(); });
+          control.addEventListener("click", (event) => { event.preventDefault(); event.stopPropagation(); operate(action); });
+          control.addEventListener("keydown", (event) => {
+            if (event.key !== "Enter" && event.key !== " ") return;
+            event.preventDefault();
+            event.stopPropagation();
+            operate(action);
+          });
+          controls.append(control);
+        };
+        addControl("rotate", "↻", furniture.x + furniture.widthCm + 18, furniture.y - 18, "90度回転");
+        if (!furniture.supportId && placement.inside) {
+          addControl("left", "←", furniture.x - 20, furniture.y + furniture.depthCm / 2, "左の壁まで移動");
+          addControl("right", "→", furniture.x + furniture.widthCm + 20, furniture.y + furniture.depthCm / 2, "右の壁まで移動");
+          addControl("up", "↑", furniture.x + furniture.widthCm / 2, furniture.y - 20, "上の壁まで移動");
+          addControl("down", "↓", furniture.x + furniture.widthCm / 2, furniture.y + furniture.depthCm + 20, "下の壁まで移動");
+        }
+        group.append(controls);
       }
       group.addEventListener("click", (event) => {
         event.stopPropagation();

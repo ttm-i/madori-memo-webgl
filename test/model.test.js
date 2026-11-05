@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildElevationItems, buildFurnitureHierarchy, buildKitchenCabinetLayout, buildKitchenComponentRects, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, duplicateFurniture, duplicateFurnitureStack, findDeliveryDoorPath, fitsRectangle, FORMAT, furnitureDescendantIds, furniturePriceSummary, FURNITURE_PRESETS, furnitureDisplayHeight, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, kitchenComponentVerticalRange, moveDimensionGuide, pointInPolygon, rectangleIntersectsPolygon, rectanglesOverlap, removeFurnitureStack, resolveFurnitureElevationPlacement, resolveFurnitureVerticalRange, rotateFurniture, rotateFurnitureStack, snapToGrid, translateFurnitureDescendants, updateFurniture, validatePlan, wallDisplayWidth } from "../dist/model.js";
+import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildElevationItems, buildFurnitureHierarchy, buildKitchenCabinetLayout, buildKitchenComponentRects, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, duplicateFurniture, duplicateFurnitureStack, findDeliveryDoorPath, fitsRectangle, FORMAT, furnitureDescendantIds, furniturePriceSummary, FURNITURE_PRESETS, furnitureDisplayHeight, furnitureWallMove, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, kitchenComponentVerticalRange, moveDimensionGuide, pointInPolygon, rectangleIntersectsPolygon, rectanglesOverlap, removeFurnitureStack, resolveFurnitureElevationPlacement, resolveFurnitureVerticalRange, rotateFurniture, rotateFurnitureStack, snapToGrid, translateFurnitureDescendants, updateFurniture, validatePlan, wallDisplayWidth } from "../dist/model.js";
 import { detailMarkup, gestureExceedsTapThreshold, measurementMetrics, PlanRenderer, snapMeasurementPoint, zoomTransformAround } from "../dist/renderer.js";
 import { bayWindowFootprint, cabinetDoorPanelCount, cabinetThreePlacement, clampIndoorPitch, clampWebGLPan, closetDoorPanelCount, closetThreePlacement, cycleThreeSelectionCandidate, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, projectThreeDepth, projectThreePoint, roomEdgeWallHeight, roomInteriorViewpoint, splitWallFace, subdivideVerticalRange, subdivideWallRectangle, subdivideWallRectangleTiles, subdivideWallSegment, threeItemBelongsToRoom, threeItemFootprint, threeLayerEnabled, threeRelatedSelectionStyle, threeRoomBounds, threeSelectableType, threeSelectionKey, threeSelectionStyle, threeSelectionXrayStyle, threeViewportBox, threeWallBelongsToRoom, visibleBoxSideIndexes, wallFeatureThreePlacement, yawToQuarterTurn } from "../dist/three.js";
 
@@ -412,6 +412,18 @@ test("furniture placement reports wall clearances inside a room", () => {
     clearances: { left: 100, right: 260, top: 50, bottom: 270 },
     boundaries: { left: 0, right: 500, top: 0, bottom: 400 },
   });
+});
+
+test("furniture can move directly to each room boundary without crossing a recessed wall", () => {
+  const room = { points: [{ x: 0, y: 0 }, { x: 200, y: 0 }, { x: 200, y: 200 }, { x: 0, y: 200 }] };
+  const furniture = { x: 40, y: 30, widthCm: 30, depthCm: 30 };
+  assert.deepEqual(furnitureWallMove(furniture, room, "left"), { x: 0, y: 30, distance: 40 });
+  assert.deepEqual(furnitureWallMove(furniture, room, "up"), { x: 40, y: 0, distance: 30 });
+  const recessedRoom = { points: [{ x: 0, y: 0 }, { x: 200, y: 0 }, { x: 200, y: 200 }, { x: 120, y: 200 }, { x: 120, y: 100 }, { x: 0, y: 100 }] };
+  const recessedFurniture = { x: 140, y: 80, widthCm: 30, depthCm: 30 };
+  const left = furnitureWallMove(recessedFurniture, recessedRoom, "left");
+  assert.ok(Math.abs(left.x - 120) < .01);
+  assert.equal(left.y, 80);
 });
 
 test("furniture placement warns when a corner is outside the room", () => {

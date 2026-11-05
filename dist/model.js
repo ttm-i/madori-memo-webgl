@@ -176,7 +176,7 @@ export const FURNITURE_PRESETS = {
   dining: { name: "ダイニングテーブル", width: 140, depth: 80, height: 72 },
   sofa: { name: "ソファ", width: 180, depth: 85, height: 80 },
   bed: { name: "ダブルベッド", width: 140, depth: 195, height: 45 },
-  desk: { name: "デスク", width: 120, depth: 60, height: 72 },
+  desk: { name: "デスク", width: 95, depth: 48, height: 72 },
   chair: { name: "椅子", width: 45, depth: 50, height: 80 },
   "tv-board": { name: "テレビ台", width: 150, depth: 40, height: 45 },
   tv: { name: "テレビ", width: 110, depth: 25, height: 65 },
@@ -186,6 +186,7 @@ export const FURNITURE_PRESETS = {
   washer: { name: "洗濯機", width: 60, depth: 60, height: 100 },
   microwave: { name: "電子レンジ", width: 50, depth: 40, height: 30 },
   "hanger-rack": { name: "ハンガーラック", width: 90, depth: 45, height: 175 },
+  "trash-bin": { name: "ペダル式ゴミ箱", width: 36.7, depth: 22.5, height: 46.5 },
 };
 
 export function inferFurnitureKind(furniture) {
@@ -840,6 +841,44 @@ export function analyzeFurniturePlacement(furniture, room) {
     bottom: boundaries.bottom == null ? null : boundaries.bottom - bottom,
   } : null;
   return { inside, clearances, boundaries, ...(inside ? {} : { overflow, crossesIrregularBoundary }) };
+}
+
+export function furnitureWallMove(furniture, room, direction) {
+  if (!furniture || !room?.points?.length || !["left", "right", "up", "down"].includes(direction)) return null;
+  const width = furniture.widthCm;
+  const depth = furniture.depthCm;
+  if (![furniture.x, furniture.y, width, depth].every(Number.isFinite)) return null;
+  const insideAt = (x, y) => [
+    { x, y }, { x: x + width, y }, { x: x + width, y: y + depth }, { x, y: y + depth },
+  ].every((corner) => pointInPolygon(corner, room.points));
+  if (!insideAt(furniture.x, furniture.y)) return null;
+  const xs = room.points.map((point) => point.x);
+  const ys = room.points.map((point) => point.y);
+  const limits = {
+    left: furniture.x - Math.min(...xs),
+    right: Math.max(...xs) - (furniture.x + width),
+    up: furniture.y - Math.min(...ys),
+    down: Math.max(...ys) - (furniture.y + depth),
+  };
+  const maximum = Math.max(0, limits[direction] ?? 0);
+  const vector = {
+    left: { x: -1, y: 0 }, right: { x: 1, y: 0 }, up: { x: 0, y: -1 }, down: { x: 0, y: 1 },
+  }[direction];
+  const validAt = (distance) => insideAt(furniture.x + vector.x * distance, furniture.y + vector.y * distance);
+  let valid = 0;
+  let invalid = maximum;
+  const step = 2;
+  for (let distance = Math.min(step, maximum); distance <= maximum; distance = Math.min(maximum, distance + step)) {
+    if (!validAt(distance)) { invalid = distance; break; }
+    valid = distance;
+    if (distance === maximum) return { x: furniture.x + vector.x * distance, y: furniture.y + vector.y * distance, distance };
+  }
+  for (let index = 0; index < 12; index += 1) {
+    const middle = (valid + invalid) / 2;
+    if (validAt(middle)) valid = middle;
+    else invalid = middle;
+  }
+  return { x: furniture.x + vector.x * valid, y: furniture.y + vector.y * valid, distance: valid };
 }
 
 export function rectanglesOverlap(first, second, epsilon = 0.001) {

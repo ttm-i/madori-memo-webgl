@@ -410,6 +410,12 @@ dialog::backdrop { background: rgba(32,36,31,.42); backdrop-filter: blur(2px); }
 .placement-alert { padding: 10px 12px; border-radius: 10px; background: #f7dfdb; color: var(--danger); font-weight: 750; }
 .editing .furniture-group { cursor: grab; }
 .editing .furniture-group:active { cursor: grabbing; }
+.furniture-direct-controls { pointer-events: all; }
+.furniture-direct-control { cursor: pointer; }
+.furniture-direct-control-bg { fill: rgba(255,255,255,.96); stroke: var(--accent); stroke-width: 2.5; vector-effect: non-scaling-stroke; filter: drop-shadow(0 2px 3px rgba(45,53,48,.2)); }
+.furniture-direct-control-glyph { fill: var(--accent); font-size: 18px; font-weight: 900; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+.furniture-direct-control:focus .furniture-direct-control-bg,
+.furniture-direct-control:hover .furniture-direct-control-bg { fill: #e4f3ed; stroke-width: 3.5; }
 .editing .dimension.horizontal { cursor: ns-resize; }
 .editing .dimension.vertical { cursor: ew-resize; }
 .dimension { cursor: pointer; }

@@ -171,6 +171,26 @@ test("hanger rack is available as a dedicated rotatable furniture model", () => 
   assert.match(webgl, /kind === "hanger-rack"[\s\S]*furnitureBeam[\s\S]*shelfHeight/);
 });
 
+test("edit mode exposes direct rotate and wall-move controls", () => {
+  const renderer = readFileSync(new URL("../dist/renderer.js", import.meta.url), "utf8");
+  const styles = readFileSync(new URL("../dist/styles.css", import.meta.url), "utf8");
+  assert.match(renderer, /class: "furniture-direct-controls"/);
+  assert.match(renderer, /addControl\("rotate", "↻"/);
+  assert.match(renderer, /addControl\("left", "←"[\s\S]*addControl\("right", "→"[\s\S]*addControl\("up", "↑"[\s\S]*addControl\("down", "↓"/);
+  assert.match(renderer, /furnitureWallMove\(furniture, room, action\)/);
+  assert.match(styles, /\.furniture-direct-control-bg/);
+});
+
+test("desk and chair models are refined and a pedal bin preset is available", () => {
+  const html = readFileSync(new URL("../dist/index.html", import.meta.url), "utf8");
+  const model = readFileSync(new URL("../dist/model.js", import.meta.url), "utf8");
+  const webgl = readFileSync(new URL("../dist/webgl-three.js", import.meta.url), "utf8");
+  assert.match(html, /value="desk">デスク 95×48×72/);
+  assert.match(html, /value="trash-bin">ペダル式ゴミ箱 36\.7×22\.5×46\.5/);
+  assert.match(model, /"trash-bin": \{ name: "ペダル式ゴミ箱", width: 36\.7, depth: 22\.5, height: 46\.5 \}/);
+  assert.match(webgl, /kind === "desk"[\s\S]*backY[\s\S]*kind === "chair"[\s\S]*rearY[\s\S]*kind === "trash-bin"/);
+});
+
 test("2D selection uses an in-plan summary, wall clearances and origin-aware detail actions", () => {
   const html = readFileSync(new URL("../dist/index.html", import.meta.url), "utf8");
   const app = readFileSync(new URL("../dist/app.js", import.meta.url), "utf8");
