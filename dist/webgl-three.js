@@ -1,6 +1,6 @@
 import * as THREE from "./vendor/three/three.module.js";
-import { buildKitchenCabinetLayout, buildKitchenComponentRects, inferFurnitureKind, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=118";
-import { bayWindowFootprint, cabinetDoorPanelCount, cabinetThreePlacement, clampIndoorPitch, clampWebGLPan, closetThreePlacement, cycleThreeSelectionCandidate, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, roomInteriorViewpoint, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRelatedSelectionStyle, threeRoomBounds, threeSelectionKey, threeSelectionStyle, threeSelectionXrayStyle, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=118";
+import { buildKitchenCabinetLayout, buildKitchenComponentRects, inferFurnitureKind, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=119";
+import { bayWindowFootprint, cabinetDoorPanelCount, cabinetThreePlacement, clampIndoorPitch, clampWebGLPan, closetThreePlacement, cycleThreeSelectionCandidate, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, roomInteriorViewpoint, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRelatedSelectionStyle, threeRoomBounds, threeSelectionKey, threeSelectionStyle, threeSelectionXrayStyle, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=119";
 
 const WALL_THICKNESS = 6;
 const DEFAULT_WALL_HEIGHT = 220;
@@ -1056,7 +1056,7 @@ function buildScene(root, documentData, options) {
   };
 }
 
-export function createWebGLThreeView(canvas, onSelect = null, onClear = null) {
+export function createWebGLThreeView(canvas, onSelect = null, onClear = null, onViewpointJump = null) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: "high-performance" });
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.setClearColor(0xf3efe6, 1);
@@ -1093,7 +1093,10 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null) {
   let relatedKeys = new Set();
   let selectionOutlines = [];
   let lastPick = null;
+  let viewpointJumping = false;
+  let viewpointJumpTimer = null;
   const contextMessage = canvas.parentElement?.querySelector("[data-webgl-status]");
+  const viewpointFade = canvas.parentElement?.querySelector(".three-viewpoint-fade");
 
   function requestRender() {
     if (frameRequested || contextLost || suspended) return;
@@ -1204,16 +1207,14 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null) {
     rebuildScene();
   }
 
-  function resolveIndoorPoint(viewpointKey = view.indoorViewpointKey ?? view.indoorRoomId) {
+  function calculateIndoorViewpoint(viewpointKey = view.indoorViewpointKey ?? view.indoorRoomId) {
     const rooms = currentDocument?.plan?.rooms ?? [];
     const [requestedRoomId, viewpointType = "center", ...openingIdParts] = String(viewpointKey ?? "").split("::");
     const openingId = openingIdParts.join("::");
     const roomId = requestedRoomId || rooms[0]?.id;
     const room = rooms.find((entry) => entry.id === roomId) ?? rooms[0];
-    const normalizedKey = room ? (viewpointType === "center" ? `${room.id}::center` : `${room.id}::${viewpointType}::${openingId}`) : null;
-    const changedViewpoint = normalizedKey !== view.indoorViewpointKey || !view.indoorPoint;
-    view.indoorRoomId = room?.id ?? null;
-    view.indoorViewpointKey = normalizedKey;
+    if (!room) return null;
+    const normalizedKey = [room.id, viewpointType, openingId].filter(Boolean).join("::");
     const obstacles = [
       ...(currentDocument?.plan?.features ?? []),
       ...(currentDocument?.plan?.furniture ?? []),
@@ -1240,23 +1241,37 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null) {
         preferredPoint = { x: stove.x + stove.width / 2, y: frontY };
       }
     }
-    view.indoorPoint = preferredPoint ? roomInteriorViewpoint(room, 160, obstacles, preferredPoint) : centerPoint;
-    if (changedViewpoint && room?.points?.length) {
+    const point = preferredPoint ? roomInteriorViewpoint(room, 160, obstacles, preferredPoint) : centerPoint;
+    let yaw = 0;
+    if (point && room.points?.length) {
       const xs = room.points.map((point) => point.x);
       const ys = room.points.map((point) => point.y);
       const center = {
         x: (Math.min(...xs) + Math.max(...xs)) / 2,
         z: (Math.min(...ys) + Math.max(...ys)) / 2,
       };
-      const initialDirection = centerPoint && view.indoorPoint
-        ? { x: centerPoint.x - view.indoorPoint.x, z: centerPoint.z - view.indoorPoint.z }
-        : { x: center.x - view.indoorPoint.x, z: center.z - view.indoorPoint.z };
-      view.indoorYaw = Math.hypot(initialDirection.x, initialDirection.z) > 25
+      const initialDirection = centerPoint
+        ? { x: centerPoint.x - point.x, z: centerPoint.z - point.z }
+        : { x: center.x - point.x, z: center.z - point.z };
+      yaw = Math.hypot(initialDirection.x, initialDirection.z) > 25
         ? Math.atan2(initialDirection.x, initialDirection.z)
         : Math.max(...xs) - Math.min(...xs) >= Math.max(...ys) - Math.min(...ys) ? Math.PI / 2 : 0;
-      view.indoorPitch = -.24;
-      view.indoorDefaultYaw = view.indoorYaw;
-      view.indoorDefaultPitch = view.indoorPitch;
+    }
+    return { key: normalizedKey, point, room, yaw, pitch: -.24 };
+  }
+
+  function resolveIndoorPoint(viewpointKey = view.indoorViewpointKey ?? view.indoorRoomId) {
+    const target = calculateIndoorViewpoint(viewpointKey);
+    if (!target) return null;
+    const changedViewpoint = target.key !== view.indoorViewpointKey || !view.indoorPoint;
+    view.indoorRoomId = target.room.id;
+    view.indoorViewpointKey = target.key;
+    view.indoorPoint = target.point;
+    if (changedViewpoint) {
+      view.indoorYaw = target.yaw;
+      view.indoorPitch = target.pitch;
+      view.indoorDefaultYaw = target.yaw;
+      view.indoorDefaultPitch = target.pitch;
     }
     return view.indoorPoint;
   }
@@ -1283,6 +1298,74 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null) {
     return { yaw: view.indoorYaw, pitch: view.indoorPitch };
   }
 
+  function addIndoorViewpointMarkers() {
+    if (view.mode !== "indoor" || !view.indoorRoomId) return;
+    const candidates = (currentOptions.indoorViewpoints ?? [])
+      .filter((entry) => entry.roomId === view.indoorRoomId && entry.value !== view.indoorViewpointKey);
+    if (!candidates.length) return;
+    for (const candidate of candidates) {
+      const target = calculateIndoorViewpoint(candidate.value);
+      if (!target?.point) continue;
+      const marker = new THREE.Group();
+      marker.name = `viewpoint-jump-${candidate.value}`;
+      marker.userData.viewpointJump = { key: target.key, label: candidate.label };
+      marker.position.set(target.point.x, 2.4, target.point.z);
+
+      const disc = new THREE.Mesh(
+        new THREE.CylinderGeometry(17, 17, 1.8, 32),
+        new THREE.MeshStandardMaterial({
+          color: 0x7fe0c2,
+          emissive: 0x1b725b,
+          emissiveIntensity: .42,
+          opacity: .82,
+          transparent: true,
+          roughness: .35,
+          metalness: .05,
+        }),
+      );
+      const ring = new THREE.Mesh(
+        new THREE.TorusGeometry(18, 2.4, 10, 32),
+        new THREE.MeshBasicMaterial({ color: 0xffffff, depthTest: false, transparent: true, opacity: .95 }),
+      );
+      ring.rotation.x = Math.PI / 2;
+      ring.position.y = 1.4;
+      ring.renderOrder = 24;
+      const beacon = new THREE.Mesh(
+        new THREE.OctahedronGeometry(5.5, 0),
+        new THREE.MeshBasicMaterial({ color: 0xffffff, depthTest: false }),
+      );
+      beacon.position.y = 14;
+      beacon.renderOrder = 24;
+      marker.add(disc, ring, beacon);
+      root.add(marker);
+    }
+  }
+
+  function jumpToIndoorViewpoint(viewpointKey) {
+    if (viewpointJumping || view.mode !== "indoor" || viewpointKey === view.indoorViewpointKey) return false;
+    viewpointJumping = true;
+    pointers.clear();
+    pinchStart = null;
+    usedMultiplePointers = false;
+    viewpointFade?.classList.add("is-visible");
+    if (viewpointJumpTimer !== null) clearTimeout(viewpointJumpTimer);
+    viewpointJumpTimer = setTimeout(() => {
+      clearSelection();
+      onClear?.();
+      resolveIndoorPoint(viewpointKey);
+      rebuildScene();
+      onViewpointJump?.(view.indoorViewpointKey);
+      requestAnimationFrame(() => {
+        viewpointFade?.classList.remove("is-visible");
+        viewpointJumpTimer = setTimeout(() => {
+          viewpointJumping = false;
+          viewpointJumpTimer = null;
+        }, 160);
+      });
+    }, viewpointFade ? 145 : 0);
+    return true;
+  }
+
   function rebuildScene() {
     if (!currentDocument) {
       requestRender();
@@ -1293,6 +1376,7 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null) {
     builtCutawayTurn = yawToQuarterTurn(view.yaw);
     const effectiveOptions = view.mode === "indoor" ? { ...currentOptions, cutaway: false } : currentOptions;
     sceneInfo = buildScene(root, currentDocument, { ...effectiveOptions, quarterTurn: builtCutawayTurn });
+    addIndoorViewpointMarkers();
     const selectionVisible = applySelectionHighlight();
     sceneInfo.selectionVisible = selectedKey ? selectionVisible : null;
     requestRender();
@@ -1421,6 +1505,22 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null) {
     return Boolean(selectedKey);
   }
 
+  function viewpointJumpAt(clientX, clientY) {
+    if (view.mode !== "indoor" || viewpointJumping) return null;
+    const rect = canvas.getBoundingClientRect();
+    pointer.set(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
+    raycaster.setFromCamera(pointer, indoorCamera);
+    const hits = raycaster.intersectObjects(root.children, true);
+    for (const hit of hits) {
+      let object = hit.object;
+      while (object) {
+        if (object.userData.viewpointJump) return object.userData.viewpointJump;
+        object = object.parent;
+      }
+    }
+    return null;
+  }
+
   function selectionsAt(clientX, clientY) {
     const rect = canvas.getBoundingClientRect();
     pointer.set(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
@@ -1446,6 +1546,12 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null) {
   }
 
   function pick(clientX, clientY) {
+    const viewpointJump = viewpointJumpAt(clientX, clientY);
+    if (viewpointJump) {
+      lastPick = null;
+      jumpToIndoorViewpoint(viewpointJump.key);
+      return;
+    }
     const offsets = [[0, 0], [-10, 0], [10, 0], [0, -10], [0, 10], [-8, -8], [8, -8], [-8, 8], [8, 8]];
     const candidates = offsets.flatMap(([x, y]) => selectionsAt(clientX + x, clientY + y));
     const now = performance.now();

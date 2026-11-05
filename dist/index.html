@@ -10,7 +10,7 @@
     <meta name="description" content="間取りと家具寸法を端末内だけで確認するオフラインPWA" />
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./icon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="./styles.css?v=118" />
+    <link rel="stylesheet" href="./styles.css?v=119" />
     <title>間取りメモ WebGL試作版</title>
   </head>
   <body>
@@ -232,6 +232,7 @@
           </details>
           <div class="three-canvas-frame">
             <canvas id="threeCanvas" role="img" aria-label="間取りのWebGL 3D表示"></canvas>
+            <div class="three-viewpoint-fade" aria-hidden="true"></div>
             <div id="threeCameraControls" class="three-camera-controls" aria-label="3Dの視点モード">
               <div class="three-camera-mode-switch" role="group" aria-label="視点を切り替える">
                 <button id="threeOverviewMode" class="is-active" type="button" aria-pressed="true">俯瞰</button>
@@ -397,7 +398,7 @@
       <input id="fileInput" type="file" accept="application/json,.json" hidden />
       <div id="toast" class="toast" role="status" aria-live="polite"></div>
     </div>
-    <script type="module" src="./app.js?v=118"></script>
+    <script type="module" src="./app.js?v=119"></script>
   </body>
 </html>
 

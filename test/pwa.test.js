@@ -136,13 +136,19 @@ test("the 3D tab opens with a compact viewport-first layout", () => {
   assert.match(app, /threeIndoorResetDirection[\s\S]*resetIndoorDirection\(\)/);
   assert.match(app, /room\.name}入口側/);
   assert.match(app, /room\.name}窓側/);
-  assert.match(app, /new Option\("キッチン", `\$\{room\.id}::kitchen`\)/);
+  assert.match(app, /viewpoint\("キッチン", `\$\{room\.id}::kitchen`\)/);
   assert.match(app, /\^\(浴室\|洗面室\|トイレ\|バルコニー\)\$/);
   assert.match(app, /threeViewpointRoomId = elements\.threeIndoorViewpoint\.value;\s+clearThreeSelection\(\)/);
   const webgl = readFileSync(new URL("../dist/webgl-three.js", import.meta.url), "utf8");
   assert.match(webgl, /view\.indoorYaw \+= dx/);
   assert.match(webgl, /view\.indoorYaw = view\.indoorDefaultYaw/);
   assert.match(webgl, /viewpointType === "kitchen"[\s\S]*component\.kind === "stove"[\s\S]*kitchenDepth \+ 65/);
+  assert.match(html, /class="three-viewpoint-fade"/);
+  assert.match(app, /indoorViewpoints: threeViewpointOptions/);
+  assert.match(webgl, /function addIndoorViewpointMarkers\(\)/);
+  assert.match(webgl, /userData\.viewpointJump = \{ key: target\.key, label: candidate\.label \}/);
+  assert.match(webgl, /function jumpToIndoorViewpoint\(viewpointKey\)[\s\S]*classList\.add\("is-visible"\)[\s\S]*resolveIndoorPoint\(viewpointKey\)[\s\S]*classList\.remove\("is-visible"\)/);
+  assert.match(webgl, /const viewpointJump = viewpointJumpAt\(clientX, clientY\)[\s\S]*jumpToIndoorViewpoint\(viewpointJump\.key\)/);
 });
 
 test("2D selection uses an in-plan summary, wall clearances and origin-aware detail actions", () => {
