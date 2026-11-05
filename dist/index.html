@@ -10,7 +10,7 @@
     <meta name="description" content="間取りと家具寸法を端末内だけで確認するオフラインPWA" />
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./icon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="./styles.css?v=125" />
+    <link rel="stylesheet" href="./styles.css?v=126" />
     <title>間取りメモ WebGL試作版</title>
   </head>
   <body>
@@ -353,6 +353,10 @@
               <option value="microwave">電子レンジ 50×40×30</option>
               <option value="hanger-rack">ハンガーラック 90×45×175</option>
               <option value="trash-bin">ペダル式ゴミ箱 36.7×22.5×46.5</option>
+              <option value="cupboard">食器棚 90×45×180</option>
+              <option value="mirror">姿見 40×45×160</option>
+              <option value="drying-rack">室内物干し 85×50×150</option>
+              <option value="plant">観葉植物 50×50×160</option>
             </select>
           </label>
           <p class="form-help">専用家具は2人暮らし向けの代表寸法（幅×奥行×高さ）を初期入力します。選択後に実寸へ変更できます。</p>
@@ -399,7 +403,7 @@
       <input id="fileInput" type="file" accept="application/json,.json" hidden />
       <div id="toast" class="toast" role="status" aria-live="polite"></div>
     </div>
-    <script type="module" src="./app.js?v=125"></script>
+    <script type="module" src="./app.js?v=126"></script>
   </body>
 </html>
 

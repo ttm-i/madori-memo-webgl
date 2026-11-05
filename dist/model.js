@@ -187,6 +187,10 @@ export const FURNITURE_PRESETS = {
   microwave: { name: "電子レンジ", width: 50, depth: 40, height: 30 },
   "hanger-rack": { name: "ハンガーラック", width: 90, depth: 45, height: 175 },
   "trash-bin": { name: "ペダル式ゴミ箱", width: 36.7, depth: 22.5, height: 46.5 },
+  cupboard: { name: "食器棚", width: 90, depth: 45, height: 180 },
+  mirror: { name: "姿見", width: 40, depth: 45, height: 160 },
+  "drying-rack": { name: "室内物干し", width: 85, depth: 50, height: 150 },
+  plant: { name: "観葉植物", width: 50, depth: 50, height: 160 },
 };
 
 export function inferFurnitureKind(furniture) {

@@ -494,6 +494,10 @@ test("furniture kinds are explicit and presets provide editable two-person defau
   assert.equal(inferFurnitureKind({ name: "電子レンジ" }), "custom");
   assert.deepEqual(FURNITURE_PRESETS.tv, { name: "テレビ", width: 110, depth: 25, height: 65 });
   assert.deepEqual(FURNITURE_PRESETS.bed, { name: "ダブルベッド", width: 140, depth: 195, height: 45 });
+  assert.deepEqual(FURNITURE_PRESETS.cupboard, { name: "食器棚", width: 90, depth: 45, height: 180 });
+  assert.deepEqual(FURNITURE_PRESETS.mirror, { name: "姿見", width: 40, depth: 45, height: 160 });
+  assert.deepEqual(FURNITURE_PRESETS["drying-rack"], { name: "室内物干し", width: 85, depth: 50, height: 150 });
+  assert.deepEqual(FURNITURE_PRESETS.plant, { name: "観葉植物", width: 50, depth: 50, height: 160 });
   assert.equal(furnitureDisplayHeight({ furnitureKind: "fridge" }), 180);
   assert.equal(furnitureDisplayHeight({ name: "冷蔵庫" }), 35);
   assert.equal(furnitureDisplayHeight({ name: "洗濯機", heightCm: 106 }), 106);

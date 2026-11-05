@@ -178,7 +178,22 @@ test("edit mode exposes direct rotate and wall-move controls", () => {
   assert.match(renderer, /addControl\("rotate", "↻"/);
   assert.match(renderer, /addControl\("left", "←"[\s\S]*addControl\("right", "→"[\s\S]*addControl\("up", "↑"[\s\S]*addControl\("down", "↓"/);
   assert.match(renderer, /furnitureWallMove\(furniture, room, action\)/);
+  assert.match(renderer, /directControls: event\.currentTarget\.querySelector\("\.furniture-direct-controls"\)/);
+  assert.match(renderer, /drag\.directControls\?\.setAttribute\("transform", `translate\(\$\{stackDeltaX} \$\{stackDeltaY}\)`\)/);
   assert.match(styles, /\.furniture-direct-control-bg/);
+});
+
+test("cupboard, floor mirror, drying rack and plant have dedicated furniture models", () => {
+  const html = readFileSync(new URL("../dist/index.html", import.meta.url), "utf8");
+  const webgl = readFileSync(new URL("../dist/webgl-three.js", import.meta.url), "utf8");
+  for (const expected of [
+    /value="cupboard">食器棚 90×45×180/,
+    /value="mirror">姿見 40×45×160/,
+    /value="drying-rack">室内物干し 85×50×150/,
+    /value="plant">観葉植物 50×50×160/,
+  ]) assert.match(html, expected);
+  assert.match(webgl, /kind === "cupboard"[\s\S]*kind === "mirror"[\s\S]*kind === "drying-rack"[\s\S]*kind === "plant"/);
+  assert.match(webgl, /CylinderGeometry\(potRadius[\s\S]*branches[\s\S]*SphereGeometry/);
 });
 
 test("desk and chair models are refined and a pedal bin preset is available", () => {

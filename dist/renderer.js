@@ -1,4 +1,4 @@
-import { analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildKitchenComponentRects, findSupportItem, furnitureDescendantIds, furnitureWallMove, getDimensionGroup, getElectricalPlanPosition, moveDimensionGuide, QUALITY_LABELS, rotateFurnitureStack, snapToGrid, translateFurnitureDescendants } from "./model.js?v=125";
+import { analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildKitchenComponentRects, findSupportItem, furnitureDescendantIds, furnitureWallMove, getDimensionGroup, getElectricalPlanPosition, moveDimensionGuide, QUALITY_LABELS, rotateFurnitureStack, snapToGrid, translateFurnitureDescendants } from "./model.js?v=126";
 
 const NS = "http://www.w3.org/2000/svg";
 
@@ -353,6 +353,7 @@ export class PlanRenderer {
           .filter(Boolean);
         this.draggingFurniture = {
           furniture, rect, label, sizeLabel, supportLabel, support,
+          directControls: event.currentTarget.querySelector(".furniture-direct-controls"),
           descendantGroups,
           clientX: event.clientX, clientY: event.clientY,
           startX: furniture.x, startY: furniture.y,
@@ -687,6 +688,7 @@ export class PlanRenderer {
         const stackDeltaX = drag.furniture.x - drag.startX;
         const stackDeltaY = drag.furniture.y - drag.startY;
         for (const descendantGroup of drag.descendantGroups) descendantGroup.setAttribute("transform", `translate(${stackDeltaX} ${stackDeltaY})`);
+        drag.directControls?.setAttribute("transform", `translate(${stackDeltaX} ${stackDeltaY})`);
         drag.rect.setAttribute("x", drag.furniture.x);
         drag.rect.setAttribute("y", drag.furniture.y);
         drag.label.setAttribute("x", drag.furniture.x + drag.furniture.widthCm / 2);

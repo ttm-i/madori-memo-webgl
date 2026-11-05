@@ -1,6 +1,6 @@
 import * as THREE from "./vendor/three/three.module.js";
-import { buildKitchenCabinetLayout, buildKitchenComponentRects, inferFurnitureKind, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=125";
-import { bayWindowFootprint, cabinetDoorPanelCount, cabinetThreePlacement, clampIndoorPitch, clampWebGLPan, closetThreePlacement, cycleThreeSelectionCandidate, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, roomInteriorViewpoint, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRelatedSelectionStyle, threeRoomBounds, threeSelectionKey, threeSelectionStyle, threeSelectionXrayStyle, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=125";
+import { buildKitchenCabinetLayout, buildKitchenComponentRects, inferFurnitureKind, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=126";
+import { bayWindowFootprint, cabinetDoorPanelCount, cabinetThreePlacement, clampIndoorPitch, clampWebGLPan, closetThreePlacement, cycleThreeSelectionCandidate, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, roomInteriorViewpoint, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRelatedSelectionStyle, threeRoomBounds, threeSelectionKey, threeSelectionStyle, threeSelectionXrayStyle, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=126";
 
 const WALL_THICKNESS = 6;
 const DEFAULT_WALL_HEIGHT = 220;
@@ -321,6 +321,120 @@ function detailedFurnitureAssembly(item, vertical) {
     const frontY = itemY + depth + 1.4;
     furniturePart(group, width * .34, 2.2, Math.max(4, depth * .24), cx, bottom + 2.2, frontY, 0xc6c8c5, 0x646966);
     furniturePart(group, width * .55, 1.6, 2.2, cx, top - 5.5, itemY + depth + 1.2, 0xb8bbb8, 0x646966);
+  } else if (kind === "cupboard") {
+    const cupboardWood = 0x76503a;
+    const cupboardEdge = 0x3f2c22;
+    const frameColor = 0x3c3d3a;
+    const lowerTop = bottom + height * .52;
+    const counterTop = lowerTop + 3.5;
+    furniturePart(group, width, lowerTop - bottom, depth, cx, bottom + (lowerTop - bottom) / 2, cy, cupboardWood, cupboardEdge);
+    furniturePart(group, width + 1.5, 3.5, depth + 1, cx, counterTop - 1.75, cy, 0x8e674b, cupboardEdge);
+    const frontY = itemY + depth + 1.4;
+    const lowerPanelWidth = width / 3;
+    for (let index = 0; index < 2; index += 1) furniturePart(group, lowerPanelWidth - 1.5, lowerTop - bottom - 10, 2.2,
+      itemX + lowerPanelWidth * (index + .5), bottom + (lowerTop - bottom) / 2, frontY, 0x855e44, cupboardEdge);
+    furniturePart(group, lowerPanelWidth - 1.5, (lowerTop - bottom) * .28, 2.2,
+      itemX + lowerPanelWidth * 2.5, bottom + (lowerTop - bottom) * .19, frontY, 0x855e44, cupboardEdge);
+    furniturePart(group, lowerPanelWidth - 5, (lowerTop - bottom) * .48, 3,
+      itemX + lowerPanelWidth * 2.5, bottom + (lowerTop - bottom) * .66, frontY, 0x292b29, 0x1d1f1e);
+    const upperBottom = bottom + height * .68;
+    const upperHeight = top - upperBottom;
+    const tube = 3;
+    for (const x of [itemX + tube, itemX + width - tube]) furnitureBeam(group,
+      { x, y: itemY + tube, z: lowerTop }, { x, y: itemY + tube, z: top }, tube, frameColor);
+    furniturePart(group, width, upperHeight, depth * .72, cx, upperBottom + upperHeight / 2, itemY + depth * .36, cupboardWood, cupboardEdge);
+    const glassY = itemY + depth * .72 + 1.3;
+    for (let index = 0; index < 2; index += 1) {
+      const panelWidth = width / 2 - 1;
+      furniturePart(group, panelWidth, upperHeight - 8, 2, itemX + width * (index ? .75 : .25), upperBottom + upperHeight / 2, glassY, 0x53605d, 0x252b29);
+      for (const ratio of [.34, .66]) furniturePart(group, panelWidth - 5, 1.8, 2.6,
+        itemX + width * (index ? .75 : .25), upperBottom + upperHeight * ratio, glassY + 1, 0x9b7658, cupboardEdge);
+    }
+    furniturePart(group, width - 8, 3, depth * .62, cx, bottom + height * .62, itemY + depth * .34, 0x8e674b, cupboardEdge);
+  } else if (kind === "mirror") {
+    const mirrorHeight = height * .9;
+    const mirrorWidth = width * .88;
+    const face = new THREE.Group();
+    face.position.set(cx, bottom + height * .52, itemY + depth * .27);
+    face.rotation.x = -.08;
+    const panel = new THREE.Mesh(new THREE.BoxGeometry(mirrorWidth - 4, mirrorHeight - 4, 1.6), material(0xb9ced2, { roughness: .12, metalness: .45 }));
+    panel.castShadow = true;
+    addOutline(panel, 0x545d5f, .72);
+    face.add(panel);
+    const frame = 2.5;
+    const frameMaterial = () => material(0x252827, { roughness: .48, metalness: .15 });
+    for (const x of [-1, 1]) {
+      const side = new THREE.Mesh(new THREE.BoxGeometry(frame, mirrorHeight, 3), frameMaterial());
+      side.position.x = x * (mirrorWidth / 2 - frame / 2);
+      face.add(side);
+    }
+    for (const z of [-1, 1]) {
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(mirrorWidth, frame, 3), frameMaterial());
+      rail.position.y = z * (mirrorHeight / 2 - frame / 2);
+      face.add(rail);
+    }
+    group.add(face);
+    for (const side of [-1, 1]) furnitureBeam(group,
+      { x: cx + side * width * .34, y: itemY + depth * .32, z: bottom + height * .58 },
+      { x: cx + side * width * .34, y: itemY + depth * .9, z: bottom },
+      2.2, dark);
+    furnitureBeam(group,
+      { x: cx - width * .34, y: itemY + depth * .9, z: bottom },
+      { x: cx + width * .34, y: itemY + depth * .9, z: bottom },
+      2.2, dark);
+  } else if (kind === "drying-rack") {
+    const tube = Math.max(2.2, Math.min(3.2, width * .035));
+    const rackColor = 0x7d817f;
+    const insetX = width * .08;
+    const insetY = depth * .08;
+    for (const x of [itemX + insetX, itemX + width - insetX]) {
+      for (const y of [itemY + insetY, itemY + depth - insetY]) furnitureBeam(group,
+        { x, y, z: bottom }, { x, y, z: top }, tube, rackColor, 0x464a48);
+      furnitureBeam(group,
+        { x, y: itemY + insetY, z: top - 3 }, { x, y: itemY + depth - insetY, z: top - 3 }, tube, rackColor, 0x464a48);
+      furnitureBeam(group,
+        { x, y: itemY + insetY, z: bottom + 12 }, { x, y: itemY + depth - insetY, z: bottom + 12 }, tube, rackColor, 0x464a48);
+    }
+    furnitureBeam(group,
+      { x: itemX + insetX, y: cy, z: bottom + height * .96 }, { x: itemX + width - insetX, y: cy, z: bottom + height * .96 }, tube, rackColor, 0x464a48);
+    furnitureBeam(group,
+      { x: itemX + insetX, y: itemY + depth - insetY, z: bottom + height * .52 },
+      { x: itemX + width - insetX, y: itemY + depth - insetY, z: bottom + height * .52 }, tube, rackColor, 0x464a48);
+  } else if (kind === "plant") {
+    const potHeight = Math.min(30, height * .19);
+    const potRadius = Math.min(width, depth) * .23;
+    const pot = new THREE.Mesh(new THREE.CylinderGeometry(potRadius * .88, potRadius, potHeight, 20), material(0x252824, { roughness: .72 }));
+    pot.position.set(cx, bottom + potHeight / 2, cy);
+    pot.castShadow = true;
+    addOutline(pot, 0x151714, .72);
+    group.add(pot);
+    const trunkBottom = bottom + potHeight * .68;
+    const trunkTop = bottom + height * .78;
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(2.1, 3.1, trunkTop - trunkBottom, 10), material(0x5c4931, { roughness: .9 }));
+    trunk.position.set(cx, (trunkTop + trunkBottom) / 2, cy);
+    trunk.castShadow = true;
+    group.add(trunk);
+    const branches = [
+      [-.28, -.12, .48], [.3, .08, .56], [-.38, .18, .64], [.34, -.2, .7], [-.18, .24, .78], [.12, -.12, .86],
+    ];
+    for (const [xRatio, yRatio, zRatio] of branches) {
+      const startZ = bottom + height * (zRatio - .2);
+      const end = { x: cx + width * xRatio, y: cy + depth * yRatio, z: bottom + height * zRatio };
+      furnitureBeam(group, { x: cx, y: cy, z: startZ }, end, 1.6, 0x5c4931, 0x443722);
+      for (const offset of [-1, 0, 1]) {
+        const leaf = new THREE.Mesh(new THREE.SphereGeometry(1, 10, 7), material(offset ? 0x55713d : 0x3f6035, { roughness: .82 }));
+        leaf.scale.set(width * .105, height * .035, depth * .075);
+        leaf.rotation.y = xRatio * 2 + offset * .7;
+        leaf.position.set(end.x + offset * width * .08, end.z + Math.abs(offset) * 4, end.y + offset * depth * .035);
+        leaf.castShadow = true;
+        group.add(leaf);
+      }
+    }
+    const crown = new THREE.Mesh(new THREE.SphereGeometry(1, 12, 8), material(0x496b38, { roughness: .85 }));
+    crown.scale.set(width * .24, height * .08, depth * .2);
+    crown.position.set(cx, top - height * .07, cy);
+    crown.castShadow = true;
+    group.add(crown);
   }
   group.userData.labelPosition = new THREE.Vector3(worldCenterX, top + 22, worldCenterY);
   return group;
