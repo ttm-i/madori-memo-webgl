@@ -10,7 +10,7 @@
     <meta name="description" content="間取りと家具寸法を端末内だけで確認するオフラインPWA" />
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./icon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="./styles.css?v=123" />
+    <link rel="stylesheet" href="./styles.css?v=124" />
     <title>間取りメモ WebGL試作版</title>
   </head>
   <body>
@@ -242,7 +242,6 @@
                 <span>立ち位置</span>
                 <select id="threeIndoorViewpoint" aria-label="室内視点の立ち位置"></select>
               </label>
-              <button id="threeIndoorResetDirection" class="three-indoor-reset-direction" type="button" hidden>正面へ戻す</button>
             </div>
             <div class="three-webgl-status" data-webgl-status role="status" hidden>3D表示を再接続しています…</div>
             <div id="threeSelectionStatus" class="three-selection-status selection-status-card" hidden>
@@ -399,7 +398,7 @@
       <input id="fileInput" type="file" accept="application/json,.json" hidden />
       <div id="toast" class="toast" role="status" aria-live="polite"></div>
     </div>
-    <script type="module" src="./app.js?v=123"></script>
+    <script type="module" src="./app.js?v=124"></script>
   </body>
 </html>
 

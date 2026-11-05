@@ -1,6 +1,6 @@
 import * as THREE from "./vendor/three/three.module.js";
-import { buildKitchenCabinetLayout, buildKitchenComponentRects, inferFurnitureKind, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=123";
-import { bayWindowFootprint, cabinetDoorPanelCount, cabinetThreePlacement, clampIndoorPitch, clampWebGLPan, closetThreePlacement, cycleThreeSelectionCandidate, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, roomInteriorViewpoint, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRelatedSelectionStyle, threeRoomBounds, threeSelectionKey, threeSelectionStyle, threeSelectionXrayStyle, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=123";
+import { buildKitchenCabinetLayout, buildKitchenComponentRects, inferFurnitureKind, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=124";
+import { bayWindowFootprint, cabinetDoorPanelCount, cabinetThreePlacement, clampIndoorPitch, clampWebGLPan, closetThreePlacement, cycleThreeSelectionCandidate, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, roomInteriorViewpoint, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRelatedSelectionStyle, threeRoomBounds, threeSelectionKey, threeSelectionStyle, threeSelectionXrayStyle, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=124";
 
 const WALL_THICKNESS = 6;
 const DEFAULT_WALL_HEIGHT = 220;
@@ -1353,13 +1353,6 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null, on
     return view.indoorPoint ? { ...view.indoorPoint } : null;
   }
 
-  function resetIndoorDirection() {
-    view.indoorYaw = view.indoorDefaultYaw;
-    view.indoorPitch = view.indoorDefaultPitch;
-    requestRender();
-    return { yaw: view.indoorYaw, pitch: view.indoorPitch };
-  }
-
   function indoorDoorDestination(opening) {
     const roomIds = opening?.roomIds ?? [];
     if (!String(opening?.kind ?? "").includes("door") || roomIds.length !== 2 || !roomIds.includes(view.indoorRoomId)) return null;
@@ -1863,7 +1856,6 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null, on
     setSuspended,
     setViewMode,
     setIndoorViewpoint,
-    resetIndoorDirection,
     resetView,
     clearSelection,
     setSelection,
