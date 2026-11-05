@@ -1,6 +1,6 @@
 import * as THREE from "./vendor/three/three.module.js";
-import { buildKitchenCabinetLayout, buildKitchenComponentRects, inferFurnitureKind, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=117";
-import { bayWindowFootprint, cabinetDoorPanelCount, cabinetThreePlacement, clampIndoorPitch, clampWebGLPan, closetThreePlacement, cycleThreeSelectionCandidate, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, roomInteriorViewpoint, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRelatedSelectionStyle, threeRoomBounds, threeSelectionKey, threeSelectionStyle, threeSelectionXrayStyle, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=117";
+import { buildKitchenCabinetLayout, buildKitchenComponentRects, inferFurnitureKind, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=118";
+import { bayWindowFootprint, cabinetDoorPanelCount, cabinetThreePlacement, clampIndoorPitch, clampWebGLPan, closetThreePlacement, cycleThreeSelectionCandidate, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, roomInteriorViewpoint, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRelatedSelectionStyle, threeRoomBounds, threeSelectionKey, threeSelectionStyle, threeSelectionXrayStyle, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=118";
 
 const WALL_THICKNESS = 6;
 const DEFAULT_WALL_HEIGHT = 220;
@@ -1080,6 +1080,9 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null) {
   };
   let sceneInfo = { bounds: { x: 0, y: 0, width: 1, height: 1 }, wallHeight: DEFAULT_WALL_HEIGHT };
   let frameRequested = false;
+  let frameId = null;
+  let contextLost = false;
+  let suspended = false;
   let pinchStart = null;
   let usedMultiplePointers = false;
   let currentDocument = null;
@@ -1093,13 +1096,32 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null) {
   const contextMessage = canvas.parentElement?.querySelector("[data-webgl-status]");
 
   function requestRender() {
-    if (frameRequested) return;
+    if (frameRequested || contextLost || suspended) return;
     frameRequested = true;
-    requestAnimationFrame(() => {
+    frameId = requestAnimationFrame(() => {
       frameRequested = false;
+      frameId = null;
+      if (contextLost || suspended) return;
       resize();
       renderer.render(scene, view.mode === "indoor" ? indoorCamera : overviewCamera);
     });
+  }
+
+  function cancelPendingRender() {
+    if (frameId !== null) cancelAnimationFrame(frameId);
+    frameId = null;
+    frameRequested = false;
+  }
+
+  function setSuspended(value) {
+    suspended = Boolean(value);
+    if (suspended) {
+      cancelPendingRender();
+      pointers.clear();
+      pinchStart = null;
+      usedMultiplePointers = false;
+    } else requestRender();
+    return suspended;
   }
 
   function resize() {
@@ -1529,10 +1551,13 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null) {
   }, { passive: false });
   canvas.addEventListener("webglcontextlost", (event) => {
     event.preventDefault();
+    contextLost = true;
+    cancelPendingRender();
     if (contextMessage) contextMessage.hidden = false;
     canvas.setAttribute("aria-label", "間取りのWebGL 3D表示（一時停止中）");
   });
   canvas.addEventListener("webglcontextrestored", () => {
+    contextLost = false;
     if (contextMessage) contextMessage.hidden = true;
     canvas.setAttribute("aria-label", "間取りのWebGL 3D表示");
     rebuildScene();
@@ -1559,7 +1584,15 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null) {
     getFocus: () => view.focus ? { ...view.focus } : null,
     getViewMode: () => view.mode,
     getIndoorViewpoint: () => view.indoorPoint ? { ...view.indoorPoint } : null,
+    getDiagnostics: () => ({
+      contextLost,
+      suspended,
+      framePending: frameRequested,
+      geometries: renderer.info.memory.geometries,
+      textures: renderer.info.memory.textures,
+    }),
     setZoom,
+    setSuspended,
     setViewMode,
     setIndoorViewpoint,
     resetIndoorDirection,

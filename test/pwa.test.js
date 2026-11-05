@@ -90,6 +90,11 @@ test("the WebGL prototype stays local-first and isolated from the stable databas
   assert.match(html, /data-webgl-status/);
   assert.match(webgl, /threeSelectionStyle\(selectedTone\)/);
   assert.match(webgl, /relatedObjects\.forEach/);
+  assert.match(webgl, /if \(frameRequested \|\| contextLost \|\| suspended\) return/);
+  assert.match(webgl, /cancelAnimationFrame\(frameId\)/);
+  assert.match(webgl, /webglcontextlost[\s\S]*contextLost = true[\s\S]*cancelPendingRender\(\)/);
+  assert.match(webgl, /webglcontextrestored[\s\S]*contextLost = false[\s\S]*rebuildScene\(\)/);
+  assert.match(app, /visibilitychange[\s\S]*setSuspended\(document\.hidden \|\| activeView !== "three"\)/);
   assert.match(app, /幅 .*奥行 .*高さ/);
   assert.match(app, /床置き/);
   assert.match(app, /support\.name.*床から/s);

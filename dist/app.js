@@ -1,7 +1,7 @@
-import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=117";
-import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildElevationItems, buildFurnitureHierarchy, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurnitureStack, featureSupportRange, findSupportItem, furnitureDescendantIds as modelFurnitureDescendantIds, furniturePriceSummary, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, QUALITY_LABELS, removeFurnitureStack, resolveFurnitureVerticalRange, rotateFurnitureStack, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=117";
-import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=117";
-import { createWebGLThreeView } from "./webgl-three.js?v=117";
+import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=118";
+import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildElevationItems, buildFurnitureHierarchy, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurnitureStack, featureSupportRange, findSupportItem, furnitureDescendantIds as modelFurnitureDescendantIds, furniturePriceSummary, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, QUALITY_LABELS, removeFurnitureStack, resolveFurnitureVerticalRange, rotateFurnitureStack, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=118";
+import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=118";
+import { createWebGLThreeView } from "./webgl-three.js?v=118";
 
 const elements = Object.fromEntries([
   "menuButton", "dataMenu", "detailDialog", "detailType", "detailTitle", "detailBody", "fileInput",
@@ -93,6 +93,7 @@ function updateThreeView() {
       clearThreeSelection();
     },
   );
+  webglThreeView.setSuspended(document.hidden || activeView !== "three");
   const result = webglThreeView.render(activePlan, {
     quarterTurn: threeQuarterTurn,
     cutaway: threeCutaway,
@@ -1345,6 +1346,7 @@ document.querySelectorAll(".tab").forEach((tab) => tab.addEventListener("click",
   document.querySelectorAll(".tab").forEach((item) => item.classList.toggle("is-active", item === tab));
   document.querySelectorAll(".view").forEach((view) => view.classList.remove("is-active"));
   document.getElementById(`${tab.dataset.view}View`).classList.add("is-active");
+  webglThreeView?.setSuspended(document.hidden || activeView !== "three");
   if (tab.dataset.view === "wall") updateWallView();
   if (tab.dataset.view === "delivery") renderDeliveryView();
   if (tab.dataset.view === "three") updateThreeView();
@@ -1663,6 +1665,9 @@ elements.displayDimensionsToggle.addEventListener("change", () => {
 elements.fitButton.addEventListener("click", () => renderer.fit());
 window.addEventListener("online", updateConnection);
 window.addEventListener("offline", updateConnection);
+document.addEventListener("visibilitychange", () => {
+  webglThreeView?.setSuspended(document.hidden || activeView !== "three");
+});
 
 updateConnection();
 updateDimensionFilters();
