@@ -193,6 +193,7 @@ test("cupboard, floor mirror, drying rack and plant have dedicated furniture mod
     /value="plant">観葉植物 50×50×160/,
   ]) assert.match(html, expected);
   assert.match(webgl, /kind === "cupboard"[\s\S]*kind === "mirror"[\s\S]*kind === "drying-rack"[\s\S]*kind === "plant"/);
+  assert.match(webgl, /kind === "drying-rack"[\s\S]*const shirts = \[[\s\S]*shoulderWidth[\s\S]*towelWidth[\s\S]*kind === "plant"/);
   assert.match(webgl, /CylinderGeometry\(potRadius[\s\S]*branches[\s\S]*SphereGeometry/);
 });
 

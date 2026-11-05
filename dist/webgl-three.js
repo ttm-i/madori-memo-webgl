@@ -1,6 +1,6 @@
 import * as THREE from "./vendor/three/three.module.js";
-import { buildKitchenCabinetLayout, buildKitchenComponentRects, inferFurnitureKind, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=126";
-import { bayWindowFootprint, cabinetDoorPanelCount, cabinetThreePlacement, clampIndoorPitch, clampWebGLPan, closetThreePlacement, cycleThreeSelectionCandidate, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, roomInteriorViewpoint, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRelatedSelectionStyle, threeRoomBounds, threeSelectionKey, threeSelectionStyle, threeSelectionXrayStyle, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=126";
+import { buildKitchenCabinetLayout, buildKitchenComponentRects, inferFurnitureKind, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=127";
+import { bayWindowFootprint, cabinetDoorPanelCount, cabinetThreePlacement, clampIndoorPitch, clampWebGLPan, closetThreePlacement, cycleThreeSelectionCandidate, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, roomInteriorViewpoint, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRelatedSelectionStyle, threeRoomBounds, threeSelectionKey, threeSelectionStyle, threeSelectionXrayStyle, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=127";
 
 const WALL_THICKNESS = 6;
 const DEFAULT_WALL_HEIGHT = 220;
@@ -400,6 +400,48 @@ function detailedFurnitureAssembly(item, vertical) {
     furnitureBeam(group,
       { x: itemX + insetX, y: itemY + depth - insetY, z: bottom + height * .52 },
       { x: itemX + width - insetX, y: itemY + depth - insetY, z: bottom + height * .52 }, tube, rackColor, 0x464a48);
+
+    const railZ = bottom + height * .96;
+    const garmentY = cy + tube * .72;
+    const hangerColor = 0x383b39;
+    const shirts = [
+      { x: cx - width * .22, color: 0xc8d8de, outline: 0x687b82, length: Math.min(45, height * .3) },
+      { x: cx + width * .22, color: 0xe7d3bd, outline: 0x8d7761, length: Math.min(39, height * .26) },
+    ];
+    for (const shirt of shirts) {
+      const hangerTop = railZ - tube * .4;
+      const shoulderZ = hangerTop - 11;
+      const shoulderWidth = Math.min(28, width * .32);
+      furnitureBeam(group,
+        { x: shirt.x, y: garmentY, z: hangerTop + 2 },
+        { x: shirt.x, y: garmentY, z: hangerTop - 2.5 }, 1.4, hangerColor, 0x202321);
+      furnitureBeam(group,
+        { x: shirt.x, y: garmentY, z: hangerTop - 2.5 },
+        { x: shirt.x - shoulderWidth / 2, y: garmentY, z: shoulderZ }, 1.4, hangerColor, 0x202321);
+      furnitureBeam(group,
+        { x: shirt.x, y: garmentY, z: hangerTop - 2.5 },
+        { x: shirt.x + shoulderWidth / 2, y: garmentY, z: shoulderZ }, 1.4, hangerColor, 0x202321);
+      furniturePart(group, shoulderWidth * .62, shirt.length, 2.4,
+        shirt.x, shoulderZ - shirt.length / 2 + 1.5, garmentY + 1.2, shirt.color, shirt.outline);
+      furnitureBeam(group,
+        { x: shirt.x - shoulderWidth * .25, y: garmentY + 1.2, z: shoulderZ - 2 },
+        { x: shirt.x - shoulderWidth * .52, y: garmentY + 1.2, z: shoulderZ - shirt.length * .35 },
+        6.2, shirt.color, shirt.outline);
+      furnitureBeam(group,
+        { x: shirt.x + shoulderWidth * .25, y: garmentY + 1.2, z: shoulderZ - 2 },
+        { x: shirt.x + shoulderWidth * .52, y: garmentY + 1.2, z: shoulderZ - shirt.length * .35 },
+        6.2, shirt.color, shirt.outline);
+      furniturePart(group, shoulderWidth * .16, 2, 3,
+        shirt.x, shoulderZ - 2.2, garmentY + 2.5, 0xf1eee8, shirt.outline);
+    }
+
+    const towelWidth = Math.min(24, width * .3);
+    const towelHeight = Math.min(34, height * .23);
+    const towelBarZ = bottom + height * .52;
+    furniturePart(group, towelWidth, towelHeight, 2.8,
+      cx, towelBarZ - towelHeight / 2 + 1, itemY + depth - insetY + 1.5, 0xadc8bf, 0x59776d);
+    furniturePart(group, towelWidth - 3, 1.6, 3.2,
+      cx, towelBarZ - towelHeight * .52, itemY + depth - insetY + 3, 0xe7eee9, 0x759087);
   } else if (kind === "plant") {
     const potHeight = Math.min(30, height * .19);
     const potRadius = Math.min(width, depth) * .23;
