@@ -138,11 +138,16 @@ test("the 3D tab opens with a compact viewport-first layout", () => {
   assert.match(app, /room\.name}窓側/);
   assert.match(app, /viewpoint\("キッチン", `\$\{room\.id}::kitchen`\)/);
   assert.match(app, /\^\(浴室\|洗面室\|トイレ\|バルコニー\)\$/);
+  assert.match(app, /玄関\|廊下[\s\S]*::entrance::\$\{entranceDoor\.id}[\s\S]*::back::\$\{innerDoor\.id}/);
+  assert.match(app, /\/洋室\/[\s\S]*::wall`[\s\S]*::window::\$\{sideWindow\.id}[\s\S]*::back::\$\{backWindow\.id}/);
   assert.match(app, /threeViewpointRoomId = elements\.threeIndoorViewpoint\.value;\s+clearThreeSelection\(\)/);
   const webgl = readFileSync(new URL("../dist/webgl-three.js", import.meta.url), "utf8");
   assert.match(webgl, /view\.indoorYaw \+= dx/);
   assert.match(webgl, /view\.indoorYaw = view\.indoorDefaultYaw/);
   assert.match(webgl, /viewpointType === "kitchen"[\s\S]*component\.kind === "stove"[\s\S]*kitchenDepth \+ 65/);
+  assert.match(webgl, /viewpointType === "entrance"\) openingOffset = 55/);
+  assert.match(webgl, /viewpointType === "back"\) openingOffset = 50/);
+  assert.match(webgl, /viewpointType === "wall" && \/洋室\/[\s\S]*minX \+ 45[\s\S]*\* \.48/);
   assert.match(html, /class="three-viewpoint-fade"/);
   assert.match(app, /indoorViewpoints: threeViewpointOptions/);
   assert.match(webgl, /function addIndoorViewpointMarkers\(\)/);

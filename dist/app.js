@@ -1,7 +1,7 @@
-import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=119";
-import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildElevationItems, buildFurnitureHierarchy, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurnitureStack, featureSupportRange, findSupportItem, furnitureDescendantIds as modelFurnitureDescendantIds, furniturePriceSummary, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, QUALITY_LABELS, removeFurnitureStack, resolveFurnitureVerticalRange, rotateFurnitureStack, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=119";
-import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=119";
-import { createWebGLThreeView } from "./webgl-three.js?v=119";
+import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=120";
+import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildElevationItems, buildFurnitureHierarchy, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurnitureStack, featureSupportRange, findSupportItem, furnitureDescendantIds as modelFurnitureDescendantIds, furniturePriceSummary, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, QUALITY_LABELS, removeFurnitureStack, resolveFurnitureVerticalRange, rotateFurnitureStack, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=120";
+import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=120";
+import { createWebGLThreeView } from "./webgl-three.js?v=120";
 
 const elements = Object.fromEntries([
   "menuButton", "dataMenu", "detailDialog", "detailType", "detailTitle", "detailBody", "fileInput",
@@ -165,6 +165,31 @@ function updateThreeRoomFilter() {
       .sort((first, second) => (second.widthCm ?? 0) - (first.widthCm ?? 0))[0];
     if (/^(浴室|洗面室|トイレ|バルコニー)$/.test(room.name)) return [viewpoint(room.name, `${room.id}::center`)];
     const windowOpening = matching("window");
+    if (/玄関|廊下/.test(room.name)) {
+      const entranceDoor = roomOpenings.find((opening) => String(opening.kind ?? "").includes("door") && !(opening.roomIds?.length))
+        ?? matching("door");
+      const innerDoor = roomOpenings
+        .filter((opening) => String(opening.kind ?? "").includes("door") && opening.id !== entranceDoor?.id)
+        .find((opening) => (opening.roomIds ?? []).some((roomId) => /LDK|リビング/.test(rooms.find((candidate) => candidate.id === roomId)?.name ?? "")))
+        ?? roomOpenings.filter((opening) => String(opening.kind ?? "").includes("door") && opening.id !== entranceDoor?.id).slice(-1)[0];
+      return [
+        entranceDoor ? viewpoint(`${room.name}入口側`, `${room.id}::entrance::${entranceDoor.id}`) : null,
+        viewpoint(`${room.name}中央`, `${room.id}::center`),
+        innerDoor ? viewpoint(`${room.name}奥側`, `${room.id}::back::${innerDoor.id}`) : null,
+      ].filter(Boolean);
+    }
+    if (/洋室/.test(room.name)) {
+      const entranceDoor = matching("door");
+      const windows = roomOpenings.filter((opening) => String(opening.kind ?? "").includes("window"));
+      const sideWindow = windows.find((opening) => Math.abs(opening.to.x - opening.from.x) < Math.abs(opening.to.y - opening.from.y));
+      const backWindow = windows.find((opening) => Math.abs(opening.to.x - opening.from.x) >= Math.abs(opening.to.y - opening.from.y));
+      return [
+        entranceDoor ? viewpoint(`${room.name}入口側`, `${room.id}::entrance::${entranceDoor.id}`) : null,
+        viewpoint(`${room.name}壁側`, `${room.id}::wall`),
+        sideWindow ? viewpoint(`${room.name}窓側`, `${room.id}::window::${sideWindow.id}`) : null,
+        backWindow ? viewpoint(`${room.name}奥側`, `${room.id}::back::${backWindow.id}`) : null,
+      ].filter(Boolean);
+    }
     if (/LDK|リビング/.test(room.name)) {
       const doorOptions = roomOpenings
         .filter((opening) => String(opening.kind ?? "").includes("door"))
