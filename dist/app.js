@@ -1,7 +1,7 @@
-import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=120";
-import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildElevationItems, buildFurnitureHierarchy, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurnitureStack, featureSupportRange, findSupportItem, furnitureDescendantIds as modelFurnitureDescendantIds, furniturePriceSummary, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, QUALITY_LABELS, removeFurnitureStack, resolveFurnitureVerticalRange, rotateFurnitureStack, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=120";
-import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=120";
-import { createWebGLThreeView } from "./webgl-three.js?v=120";
+import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=121";
+import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildElevationItems, buildFurnitureHierarchy, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurnitureStack, featureSupportRange, findSupportItem, furnitureDescendantIds as modelFurnitureDescendantIds, furniturePriceSummary, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, QUALITY_LABELS, removeFurnitureStack, resolveFurnitureVerticalRange, rotateFurnitureStack, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=121";
+import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=121";
+import { createWebGLThreeView } from "./webgl-three.js?v=121";
 
 const elements = Object.fromEntries([
   "menuButton", "dataMenu", "detailDialog", "detailType", "detailTitle", "detailBody", "fileInput",
@@ -96,6 +96,12 @@ function updateThreeView() {
     (viewpointKey) => {
       threeViewpointRoomId = viewpointKey;
       elements.threeIndoorViewpoint.value = viewpointKey;
+      const destination = threeViewpointOptions.find((option) => option.value === viewpointKey);
+      if (threeRoomId && destination?.roomId && destination.roomId !== threeRoomId) {
+        threeRoomId = destination.roomId;
+        elements.threeRoomFilter.value = threeRoomId;
+        updateThreeView();
+      }
       clearThreeSelection();
       syncThreeZoomControls();
     },
@@ -135,7 +141,7 @@ function syncThreeZoomControls() {
   const activeRoomId = threeViewpointRoomId.split("::")[0];
   const sameRoomViewpointCount = threeViewpointOptions.filter((option) => option.roomId === activeRoomId).length;
   elements.threeZoomHint.textContent = threeCameraMode === "indoor"
-    ? sameRoomViewpointCount > 1 ? "1本指で見回す・床の印で移動" : "1本指で周囲を見回せます"
+    ? sameRoomViewpointCount > 1 ? "1本指で見回す・床の印／ドアで移動" : "1本指で見回す・ドアで部屋移動"
     : "1本指で回転・2本指で拡大縮小／移動";
   elements.threeZoomHint.hidden = threeCameraMode === "indoor" ? false : !zoomed;
 }

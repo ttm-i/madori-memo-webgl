@@ -185,6 +185,7 @@ export const FURNITURE_PRESETS = {
   fridge: { name: "冷蔵庫", width: 60, depth: 68, height: 180 },
   washer: { name: "洗濯機", width: 60, depth: 60, height: 100 },
   microwave: { name: "電子レンジ", width: 50, depth: 40, height: 30 },
+  "hanger-rack": { name: "ハンガーラック", width: 90, depth: 45, height: 175 },
 };
 
 export function inferFurnitureKind(furniture) {

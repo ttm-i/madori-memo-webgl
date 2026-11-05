@@ -154,6 +154,18 @@ test("the 3D tab opens with a compact viewport-first layout", () => {
   assert.match(webgl, /userData\.viewpointJump = \{ key: target\.key, label: candidate\.label \}/);
   assert.match(webgl, /function jumpToIndoorViewpoint\(viewpointKey\)[\s\S]*classList\.add\("is-visible"\)[\s\S]*resolveIndoorPoint\(viewpointKey\)[\s\S]*classList\.remove\("is-visible"\)/);
   assert.match(webgl, /const viewpointJump = viewpointJumpAt\(clientX, clientY\)[\s\S]*jumpToIndoorViewpoint\(viewpointJump\.key\)/);
+  assert.match(webgl, /function indoorDoorJumpAt\(clientX, clientY\)[\s\S]*roomIds\.length === 2[\s\S]*destinationRoomId[\s\S]*calculateIndoorViewpoint/);
+  assert.match(webgl, /const doorJump = indoorDoorJumpAt\(clientX, clientY\)[\s\S]*jumpToIndoorViewpoint\(doorJump\.key\)/);
+  assert.match(app, /床の印／ドアで移動/);
+});
+
+test("hanger rack is available as a dedicated rotatable furniture model", () => {
+  const html = readFileSync(new URL("../dist/index.html", import.meta.url), "utf8");
+  const model = readFileSync(new URL("../dist/model.js", import.meta.url), "utf8");
+  const webgl = readFileSync(new URL("../dist/webgl-three.js", import.meta.url), "utf8");
+  assert.match(html, /value="hanger-rack">ハンガーラック 90×45×175/);
+  assert.match(model, /"hanger-rack": \{ name: "ハンガーラック", width: 90, depth: 45, height: 175 \}/);
+  assert.match(webgl, /kind === "hanger-rack"[\s\S]*furnitureBeam[\s\S]*shelfHeight/);
 });
 
 test("2D selection uses an in-plan summary, wall clearances and origin-aware detail actions", () => {

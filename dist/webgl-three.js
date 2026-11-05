@@ -1,6 +1,6 @@
 import * as THREE from "./vendor/three/three.module.js";
-import { buildKitchenCabinetLayout, buildKitchenComponentRects, inferFurnitureKind, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=120";
-import { bayWindowFootprint, cabinetDoorPanelCount, cabinetThreePlacement, clampIndoorPitch, clampWebGLPan, closetThreePlacement, cycleThreeSelectionCandidate, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, roomInteriorViewpoint, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRelatedSelectionStyle, threeRoomBounds, threeSelectionKey, threeSelectionStyle, threeSelectionXrayStyle, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=120";
+import { buildKitchenCabinetLayout, buildKitchenComponentRects, inferFurnitureKind, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=121";
+import { bayWindowFootprint, cabinetDoorPanelCount, cabinetThreePlacement, clampIndoorPitch, clampWebGLPan, closetThreePlacement, cycleThreeSelectionCandidate, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, roomInteriorViewpoint, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRelatedSelectionStyle, threeRoomBounds, threeSelectionKey, threeSelectionStyle, threeSelectionXrayStyle, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=121";
 
 const WALL_THICKNESS = 6;
 const DEFAULT_WALL_HEIGHT = 220;
@@ -135,6 +135,24 @@ function furniturePart(group, width, height, depth, x, z, y, color, outline = 0x
   return mesh;
 }
 
+function furnitureBeam(group, from, to, thickness, color, outline = 0x262a29) {
+  const start = new THREE.Vector3(from.x, from.z, from.y);
+  const end = new THREE.Vector3(to.x, to.z, to.y);
+  const direction = end.clone().sub(start);
+  const length = direction.length();
+  if (length < .1) return null;
+  const mesh = new THREE.Mesh(
+    new THREE.BoxGeometry(thickness, length, thickness),
+    material(color, { roughness: .52, metalness: .18 }),
+  );
+  mesh.position.copy(start).add(end).multiplyScalar(.5);
+  mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction.normalize());
+  mesh.castShadow = true;
+  addOutline(mesh, outline, .7);
+  group.add(mesh);
+  return mesh;
+}
+
 function detailedFurnitureAssembly(item, vertical) {
   const { width: footprintWidth, depth: footprintDepth } = threeItemFootprint(item, "furniture");
   if (![item.x, item.y, footprintWidth, footprintDepth, vertical.bottomCm, vertical.topCm].every(Number.isFinite)) return null;
@@ -237,6 +255,36 @@ function detailedFurnitureAssembly(item, vertical) {
     const frontY = itemY + depth + 1.2;
     furniturePart(group, width * .68, height * .68, 2.2, itemX + width * .4, bottom + height * .52, frontY, dark, 0x252726);
     furniturePart(group, width * .17, height * .68, 2.2, itemX + width * .86, bottom + height * .52, frontY, metal, 0x626764);
+  } else if (kind === "hanger-rack") {
+    const frame = 3.2;
+    const insetX = Math.max(3, width * .045);
+    const footInset = Math.max(2, depth * .06);
+    const apexY = itemY + depth * .5;
+    const apexZ = top - frame * .7;
+    for (const side of [-1, 1]) {
+      const x = cx + side * (width / 2 - insetX);
+      furnitureBeam(group, { x, y: itemY + footInset, z: bottom + frame / 2 }, { x, y: apexY, z: apexZ }, frame, dark);
+      furnitureBeam(group, { x, y: itemY + depth - footInset, z: bottom + frame / 2 }, { x, y: apexY, z: apexZ }, frame, dark);
+      for (const ratio of [.32, .52]) {
+        const z = bottom + height * ratio;
+        const spread = (depth / 2 - footInset) * (1 - ratio);
+        furnitureBeam(group, { x, y: apexY - spread, z }, { x, y: apexY + spread, z }, 1.5, dark);
+      }
+    }
+    furnitureBeam(group,
+      { x: itemX + insetX, y: apexY, z: top - 6 },
+      { x: itemX + width - insetX, y: apexY, z: top - 6 },
+      3, dark);
+    const shelfHeight = bottom + Math.min(34, height * .22);
+    furniturePart(group, width - insetX * 2, 3.5, depth * .76, cx, shelfHeight, cy, 0xc9b183, 0x79694f);
+    furnitureBeam(group,
+      { x: itemX + insetX, y: itemY + depth * .12, z: shelfHeight - 3 },
+      { x: itemX + width - insetX, y: itemY + depth * .12, z: shelfHeight - 3 },
+      2.6, dark);
+    furnitureBeam(group,
+      { x: itemX + insetX, y: itemY + depth * .88, z: shelfHeight - 3 },
+      { x: itemX + width - insetX, y: itemY + depth * .88, z: shelfHeight - 3 },
+      2.6, dark);
   }
   group.userData.labelPosition = new THREE.Vector3(worldCenterX, top + 22, worldCenterY);
   return group;
@@ -1535,6 +1583,41 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null, on
     return null;
   }
 
+  function indoorDoorJumpAt(clientX, clientY) {
+    if (view.mode !== "indoor" || viewpointJumping || !view.indoorRoomId) return null;
+    const rect = canvas.getBoundingClientRect();
+    pointer.set(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
+    raycaster.setFromCamera(pointer, indoorCamera);
+    const hits = raycaster.intersectObjects(root.children, true);
+    for (const hit of hits) {
+      let object = hit.object;
+      while (object) {
+        const selection = object.userData.selection;
+        const opening = selection?.type === "opening" ? selection.item : null;
+        const roomIds = opening?.roomIds ?? [];
+        if (opening && String(opening.kind ?? "").includes("door") && roomIds.length === 2 && roomIds.includes(view.indoorRoomId)) {
+          const destinationRoomId = roomIds.find((roomId) => roomId !== view.indoorRoomId);
+          const midpoint = {
+            x: (opening.from.x + opening.to.x) / 2,
+            y: (opening.from.y + opening.to.y) / 2,
+          };
+          const candidates = (currentOptions.indoorViewpoints ?? [])
+            .filter((entry) => entry.roomId === destinationRoomId)
+            .map((entry) => ({ entry, target: calculateIndoorViewpoint(entry.value) }))
+            .filter(({ target }) => target?.point)
+            .sort((first, second) => {
+              const firstDistance = Math.hypot(first.target.point.x - midpoint.x, first.target.point.z - midpoint.y);
+              const secondDistance = Math.hypot(second.target.point.x - midpoint.x, second.target.point.z - midpoint.y);
+              return firstDistance - secondDistance;
+            });
+          if (candidates[0]) return { key: candidates[0].target.key, label: candidates[0].entry.label };
+        }
+        object = object.parent;
+      }
+    }
+    return null;
+  }
+
   function selectionsAt(clientX, clientY) {
     const rect = canvas.getBoundingClientRect();
     pointer.set(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
@@ -1564,6 +1647,14 @@ export function createWebGLThreeView(canvas, onSelect = null, onClear = null, on
     if (viewpointJump) {
       lastPick = null;
       jumpToIndoorViewpoint(viewpointJump.key);
+      return;
+    }
+    const doorJump = indoorDoorJumpAt(clientX, clientY);
+    if (doorJump) {
+      lastPick = null;
+      clearSelection();
+      onClear?.();
+      jumpToIndoorViewpoint(doorJump.key);
       return;
     }
     const offsets = [[0, 0], [-10, 0], [10, 0], [0, -10], [0, 10], [-8, -8], [8, -8], [-8, 8], [8, 8]];
