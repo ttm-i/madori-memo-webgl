@@ -1,6 +1,6 @@
 import * as THREE from "./vendor/three/three.module.js";
-import { buildKitchenCabinetLayout, buildKitchenComponentRects, inferFurnitureKind, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=130";
-import { bayWindowFootprint, cabinetDoorPanelCount, cabinetThreePlacement, clampIndoorPitch, clampWebGLPan, closetThreePlacement, cycleThreeSelectionCandidate, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, roomInteriorViewpoint, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRelatedSelectionStyle, threeRoomBounds, threeSelectionKey, threeSelectionStyle, threeSelectionXrayStyle, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=130";
+import { buildKitchenCabinetLayout, buildKitchenComponentRects, inferFurnitureKind, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=131";
+import { bayWindowFootprint, cabinetDoorPanelCount, cabinetThreePlacement, clampIndoorPitch, clampWebGLPan, closetThreePlacement, cycleThreeSelectionCandidate, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, roomInteriorViewpoint, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRelatedSelectionStyle, threeRoomBounds, threeSelectionKey, threeSelectionStyle, threeSelectionXrayStyle, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=131";
 
 const WALL_THICKNESS = 6;
 const DEFAULT_WALL_HEIGHT = 220;
@@ -212,20 +212,20 @@ function detailedFurnitureAssembly(item, vertical) {
       pillowWidth, 6.5, Math.min(32, depth * .18),
       cx + pillowOffset, mattressTop + 3.25, itemY + depth * .2, 0xf8f7f3, 0xb5aaa0);
 
-    const duvetWidth = width - 10;
+    const duvetWidth = width - 2;
     const duvetDepth = depth * .64;
     const duvetCenterY = itemY + depth * .67;
     const duvetColor = 0x606363;
     const duvetOutline = 0x414444;
-    furniturePart(group, duvetWidth, 3.2, duvetDepth,
-      cx, mattressTop + 1.6, duvetCenterY, duvetColor, duvetOutline);
-    const duvetDrop = Math.max(7, height * .19);
+    furniturePart(group, duvetWidth, 2.2, duvetDepth,
+      cx, mattressTop + 1.1, duvetCenterY, duvetColor, duvetOutline);
+    const duvetDrop = Math.max(12, height * .3);
     for (const side of [-1, 1]) furniturePart(group,
-      2.4, duvetDrop, duvetDepth * .92,
-      cx + side * duvetWidth / 2, mattressTop - duvetDrop / 2 + 1,
-      duvetCenterY + duvetDepth * .03, duvetColor, duvetOutline);
-    furniturePart(group, duvetWidth, duvetDrop, 3.2,
-      cx, mattressTop - duvetDrop / 2 + 1, itemY + depth - 6, duvetColor, duvetOutline);
+      4, duvetDrop, duvetDepth * .96,
+      cx + side * (duvetWidth / 2 - 1.5), mattressTop - duvetDrop / 2 + .5,
+      duvetCenterY + duvetDepth * .02, duvetColor, duvetOutline);
+    furniturePart(group, duvetWidth, duvetDrop, 4.5,
+      cx, mattressTop - duvetDrop / 2 + .5, itemY + depth - 2.5, duvetColor, duvetOutline);
   } else if (kind === "sofa") {
     const seatTop = bottom + height * .48;
     furniturePart(group, width, height * .34, depth * .78, cx, bottom + height * .25, cy + depth * .08, fabric);
