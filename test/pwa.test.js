@@ -189,7 +189,8 @@ test("edit mode exposes direct rotate and wall-move controls", () => {
   assert.match(renderer, /class: "furniture-direct-controls"/);
   assert.match(renderer, /addControl\("rotate", "↻"/);
   assert.match(renderer, /addControl\("left", "←"[\s\S]*addControl\("right", "→"[\s\S]*addControl\("up", "↑"[\s\S]*addControl\("down", "↓"/);
-  assert.match(renderer, /furnitureWallMove\(furniture, room, action\)/);
+  assert.match(renderer, /furnitureWallMove\(furniture, room, action, documentData\.plan\)/);
+  assert.match(renderer, /左の壁・設備・家具まで移動[\s\S]*右の壁・設備・家具まで移動[\s\S]*上の壁・設備・家具まで移動[\s\S]*下の壁・設備・家具まで移動/);
   assert.match(renderer, /directControls: event\.currentTarget\.querySelector\("\.furniture-direct-controls"\)/);
   assert.match(renderer, /drag\.directControls\?\.setAttribute\("transform", `translate\(\$\{stackDeltaX} \$\{stackDeltaY}\)`\)/);
   assert.match(styles, /\.furniture-direct-control-bg/);

@@ -848,7 +848,7 @@ export function analyzeFurniturePlacement(furniture, room) {
   return { inside, clearances, boundaries, ...(inside ? {} : { overflow, crossesIrregularBoundary }) };
 }
 
-export function furnitureWallMove(furniture, room, direction) {
+export function furnitureWallMove(furniture, room, direction, plan = null) {
   if (!furniture || !room?.points?.length || !["left", "right", "up", "down"].includes(direction)) return null;
   const width = furniture.widthCm;
   const depth = furniture.depthCm;
@@ -869,10 +869,17 @@ export function furnitureWallMove(furniture, room, direction) {
   const vector = {
     left: { x: -1, y: 0 }, right: { x: 1, y: 0 }, up: { x: 0, y: -1 }, down: { x: 0, y: 1 },
   }[direction];
-  const validAt = (distance) => insideAt(furniture.x + vector.x * distance, furniture.y + vector.y * distance);
+  const conflictsAt = (x, y) => plan ? analyzeFurnitureConflicts({ ...furniture, x, y }, plan) : [];
+  const conflictKey = (conflict) => `${conflict.type}:${conflict.id}`;
+  const initialConflictKeys = new Set(conflictsAt(furniture.x, furniture.y).map(conflictKey));
+  const validAt = (distance) => {
+    const x = furniture.x + vector.x * distance;
+    const y = furniture.y + vector.y * distance;
+    return insideAt(x, y) && conflictsAt(x, y).every((conflict) => initialConflictKeys.has(conflictKey(conflict)));
+  };
   let valid = 0;
   let invalid = maximum;
-  const step = 2;
+  const step = 1;
   for (let distance = Math.min(step, maximum); distance <= maximum; distance = Math.min(maximum, distance + step)) {
     if (!validAt(distance)) { invalid = distance; break; }
     valid = distance;

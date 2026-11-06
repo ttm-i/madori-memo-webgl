@@ -1,4 +1,4 @@
-import { analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildKitchenComponentRects, findSupportItem, furnitureDescendantIds, furnitureWallMove, getDimensionGroup, getElectricalPlanPosition, moveDimensionGuide, QUALITY_LABELS, rotateFurnitureStack, snapToGrid, translateFurnitureDescendants } from "./model.js?v=131";
+import { analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildKitchenComponentRects, findSupportItem, furnitureDescendantIds, furnitureWallMove, getDimensionGroup, getElectricalPlanPosition, moveDimensionGuide, QUALITY_LABELS, rotateFurnitureStack, snapToGrid, translateFurnitureDescendants } from "./model.js?v=132";
 
 const NS = "http://www.w3.org/2000/svg";
 
@@ -298,7 +298,7 @@ export class PlanRenderer {
       if (selected && !this.locked) {
         const controls = svg("g", { class: "furniture-direct-controls", "aria-label": `${furniture.name}の直接操作` });
         const operate = (action) => {
-          const destination = action === "rotate" ? null : furnitureWallMove(furniture, room, action);
+          const destination = action === "rotate" ? null : furnitureWallMove(furniture, room, action, documentData.plan);
           if (action !== "rotate" && (!destination || destination.distance < .05)) return;
           this.onFurnitureEvent?.("start");
           if (action === "rotate") rotateFurnitureStack(documentData.plan, furniture);
@@ -329,10 +329,10 @@ export class PlanRenderer {
         };
         addControl("rotate", "↻", furniture.x + furniture.widthCm + 18, furniture.y - 18, "90度回転");
         if (!furniture.supportId && placement.inside) {
-          addControl("left", "←", furniture.x - 20, furniture.y + furniture.depthCm / 2, "左の壁まで移動");
-          addControl("right", "→", furniture.x + furniture.widthCm + 20, furniture.y + furniture.depthCm / 2, "右の壁まで移動");
-          addControl("up", "↑", furniture.x + furniture.widthCm / 2, furniture.y - 20, "上の壁まで移動");
-          addControl("down", "↓", furniture.x + furniture.widthCm / 2, furniture.y + furniture.depthCm + 20, "下の壁まで移動");
+          addControl("left", "←", furniture.x - 20, furniture.y + furniture.depthCm / 2, "左の壁・設備・家具まで移動");
+          addControl("right", "→", furniture.x + furniture.widthCm + 20, furniture.y + furniture.depthCm / 2, "右の壁・設備・家具まで移動");
+          addControl("up", "↑", furniture.x + furniture.widthCm / 2, furniture.y - 20, "上の壁・設備・家具まで移動");
+          addControl("down", "↓", furniture.x + furniture.widthCm / 2, furniture.y + furniture.depthCm + 20, "下の壁・設備・家具まで移動");
         }
         group.append(controls);
       }

@@ -426,6 +426,28 @@ test("furniture can move directly to each room boundary without crossing a reces
   assert.equal(left.y, 80);
 });
 
+test("direct furniture movement stops at the first furniture, equipment or partition wall", () => {
+  const room = { points: [{ x: 0, y: 0 }, { x: 300, y: 0 }, { x: 300, y: 240 }, { x: 0, y: 240 }] };
+  const moving = { id: "moving", name: "移動家具", x: 20, y: 40, widthCm: 30, depthCm: 30 };
+  const other = { id: "other", name: "別の家具", x: 100, y: 35, widthCm: 40, depthCm: 50 };
+  const feature = { id: "feature", name: "固定設備", x: 15, y: 120, width: 50, height: 30 };
+  const plan = { furniture: [moving, other], features: [feature], walls: [] };
+  const furnitureDestination = furnitureWallMove(moving, room, "right", plan);
+  assert.ok(Math.abs(furnitureDestination.x - 70) < .01);
+  assert.equal(furnitureDestination.y, 40);
+  const featureDestination = furnitureWallMove(moving, room, "down", plan);
+  assert.equal(featureDestination.x, 20);
+  assert.ok(Math.abs(featureDestination.y - 90) < .01);
+
+  const partitionPlan = {
+    furniture: [moving], features: [],
+    walls: [{ id: "partition", name: "間仕切り壁", from: { x: 160, y: 0 }, to: { x: 160, y: 240 }, thicknessCm: 10 }],
+  };
+  const wallDestination = furnitureWallMove(moving, room, "right", partitionPlan);
+  assert.ok(Math.abs(wallDestination.x - 125) < .01);
+  assert.equal(wallDestination.y, 40);
+});
+
 test("furniture placement warns when a corner is outside the room", () => {
   const room = { points: [{ x: 0, y: 0 }, { x: 300, y: 0 }, { x: 300, y: 200 }, { x: 0, y: 200 }] };
   const result = analyzeFurniturePlacement({ x: 250, y: 40, widthCm: 100, depthCm: 80 }, room);
