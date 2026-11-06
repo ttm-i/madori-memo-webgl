@@ -1,6 +1,6 @@
 import * as THREE from "./vendor/three/three.module.js";
-import { buildKitchenCabinetLayout, buildKitchenComponentRects, inferFurnitureKind, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=129";
-import { bayWindowFootprint, cabinetDoorPanelCount, cabinetThreePlacement, clampIndoorPitch, clampWebGLPan, closetThreePlacement, cycleThreeSelectionCandidate, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, roomInteriorViewpoint, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRelatedSelectionStyle, threeRoomBounds, threeSelectionKey, threeSelectionStyle, threeSelectionXrayStyle, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=129";
+import { buildKitchenCabinetLayout, buildKitchenComponentRects, inferFurnitureKind, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=130";
+import { bayWindowFootprint, cabinetDoorPanelCount, cabinetThreePlacement, clampIndoorPitch, clampWebGLPan, closetThreePlacement, cycleThreeSelectionCandidate, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, roomInteriorViewpoint, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRelatedSelectionStyle, threeRoomBounds, threeSelectionKey, threeSelectionStyle, threeSelectionXrayStyle, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=130";
 
 const WALL_THICKNESS = 6;
 const DEFAULT_WALL_HEIGHT = 220;
@@ -169,6 +169,7 @@ function detailedFurnitureAssembly(item, vertical) {
   const bottom = vertical.bottomCm;
   const top = vertical.topCm;
   const height = top - bottom;
+  let visualTop = top;
   const cx = 0;
   const cy = 0;
   group.position.set(worldCenterX, 0, worldCenterY);
@@ -180,15 +181,51 @@ function detailedFurnitureAssembly(item, vertical) {
   const metal = 0x8d9390;
 
   if (kind === "bed") {
-    const frameHeight = Math.min(12, height * .28);
-    furniturePart(group, width, frameHeight, depth, cx, bottom + frameHeight / 2, cy, wood);
-    const mattressHeight = Math.max(10, height - frameHeight - 5);
-    furniturePart(group, width - 5, mattressHeight, depth - 6, cx, bottom + frameHeight + mattressHeight / 2, cy + 2, 0xeadfd4, 0x9a8679);
-    furniturePart(group, width, height, 5, cx, bottom + height / 2, itemY + 2.5, wood);
+    const frameWood = 0x6c4934;
+    const frameOutline = 0x3f2d24;
+    const legHeight = Math.max(4, Math.min(6, height * .12));
+    const frameHeight = Math.max(9, Math.min(13, height * .27));
+    const frameBottom = bottom + legHeight;
+    furniturePart(group, width, frameHeight, depth, cx, frameBottom + frameHeight / 2, cy, frameWood, frameOutline);
+    const legSize = Math.max(4, Math.min(5.5, width * .045));
+    for (const dx of [-1, 1]) for (const dy of [-1, 1]) furniturePart(group,
+      legSize, legHeight, legSize,
+      cx + dx * (width / 2 - legSize * 1.2), bottom + legHeight / 2,
+      cy + dy * (depth / 2 - legSize * 1.2), frameWood, frameOutline);
+
+    const mattressBottom = frameBottom + frameHeight * .62;
+    const mattressTop = Math.max(mattressBottom + 12, top - 3);
+    const mattressHeight = mattressTop - mattressBottom;
+    furniturePart(group, width - 7, mattressHeight, depth - 10,
+      cx, mattressBottom + mattressHeight / 2, cy + 2, 0xf0efeb, 0xa39d96);
+
+    const headboardTop = bottom + Math.max(78, height * 1.75);
+    const headboardBottom = frameBottom + frameHeight * .38;
+    furniturePart(group, width, headboardTop - headboardBottom, 5,
+      cx, headboardBottom + (headboardTop - headboardBottom) / 2, itemY + 2.5, frameWood, frameOutline);
+    visualTop = headboardTop;
+
     const singleBed = item.furnitureKind === "single-bed";
-    const pillowWidth = singleBed ? Math.min(55, width * .58) : Math.max(18, (width - 12) / 2);
+    const pillowWidth = singleBed ? Math.min(55, width * .58) : Math.max(18, (width - 18) / 2);
     const pillowOffsets = singleBed ? [0] : [-width * .23, width * .23];
-    for (const pillowOffset of pillowOffsets) furniturePart(group, pillowWidth, 4, Math.min(32, depth * .18), cx + pillowOffset, top + 1.5, itemY + depth * .2, 0xf6f1e9, 0xb5aaa0);
+    for (const pillowOffset of pillowOffsets) furniturePart(group,
+      pillowWidth, 6.5, Math.min(32, depth * .18),
+      cx + pillowOffset, mattressTop + 3.25, itemY + depth * .2, 0xf8f7f3, 0xb5aaa0);
+
+    const duvetWidth = width - 10;
+    const duvetDepth = depth * .64;
+    const duvetCenterY = itemY + depth * .67;
+    const duvetColor = 0x606363;
+    const duvetOutline = 0x414444;
+    furniturePart(group, duvetWidth, 3.2, duvetDepth,
+      cx, mattressTop + 1.6, duvetCenterY, duvetColor, duvetOutline);
+    const duvetDrop = Math.max(7, height * .19);
+    for (const side of [-1, 1]) furniturePart(group,
+      2.4, duvetDrop, duvetDepth * .92,
+      cx + side * duvetWidth / 2, mattressTop - duvetDrop / 2 + 1,
+      duvetCenterY + duvetDepth * .03, duvetColor, duvetOutline);
+    furniturePart(group, duvetWidth, duvetDrop, 3.2,
+      cx, mattressTop - duvetDrop / 2 + 1, itemY + depth - 6, duvetColor, duvetOutline);
   } else if (kind === "sofa") {
     const seatTop = bottom + height * .48;
     furniturePart(group, width, height * .34, depth * .78, cx, bottom + height * .25, cy + depth * .08, fabric);
@@ -480,7 +517,7 @@ function detailedFurnitureAssembly(item, vertical) {
     crown.castShadow = true;
     group.add(crown);
   }
-  group.userData.labelPosition = new THREE.Vector3(worldCenterX, top + 22, worldCenterY);
+  group.userData.labelPosition = new THREE.Vector3(worldCenterX, visualTop + 22, worldCenterY);
   return group;
 }
 

@@ -179,6 +179,7 @@ test("single bed is available with a representative default size and the bed mod
   assert.match(model, /"single-bed": \{ name: "シングルベッド", width: 97, depth: 195, height: 45 \}/);
   assert.match(model, /if \(explicit === "single-bed"\) return "bed"/);
   assert.match(webgl, /const singleBed = item\.furnitureKind === "single-bed"[\s\S]*const pillowOffsets = singleBed \? \[0\] : \[-width \* \.23, width \* \.23\]/);
+  assert.match(webgl, /const mattressTop[\s\S]*const headboardTop[\s\S]*const duvetDepth[\s\S]*duvetDrop/);
 });
 
 test("edit mode exposes direct rotate and wall-move controls", () => {

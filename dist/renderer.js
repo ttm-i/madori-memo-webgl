@@ -1,4 +1,4 @@
-import { analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildKitchenComponentRects, findSupportItem, furnitureDescendantIds, furnitureWallMove, getDimensionGroup, getElectricalPlanPosition, moveDimensionGuide, QUALITY_LABELS, rotateFurnitureStack, snapToGrid, translateFurnitureDescendants } from "./model.js?v=129";
+import { analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildKitchenComponentRects, findSupportItem, furnitureDescendantIds, furnitureWallMove, getDimensionGroup, getElectricalPlanPosition, moveDimensionGuide, QUALITY_LABELS, rotateFurnitureStack, snapToGrid, translateFurnitureDescendants } from "./model.js?v=130";
 
 const NS = "http://www.w3.org/2000/svg";
 
