@@ -171,6 +171,14 @@ test("hanger rack is available as a dedicated rotatable furniture model", () => 
   assert.match(webgl, /kind === "hanger-rack"[\s\S]*furnitureBeam[\s\S]*shelfHeight/);
 });
 
+test("single bed is available with a representative default size and the bed model", () => {
+  const html = readFileSync(new URL("../dist/index.html", import.meta.url), "utf8");
+  const model = readFileSync(new URL("../dist/model.js", import.meta.url), "utf8");
+  assert.match(html, /value="single-bed">シングルベッド 97×195×45/);
+  assert.match(model, /"single-bed": \{ name: "シングルベッド", width: 97, depth: 195, height: 45 \}/);
+  assert.match(model, /if \(explicit === "single-bed"\) return "bed"/);
+});
+
 test("edit mode exposes direct rotate and wall-move controls", () => {
   const renderer = readFileSync(new URL("../dist/renderer.js", import.meta.url), "utf8");
   const styles = readFileSync(new URL("../dist/styles.css", import.meta.url), "utf8");
