@@ -292,3 +292,21 @@ test("2D selection uses an in-plan summary, wall clearances and origin-aware det
   assert.match(app, /origin === "three" \? "3Dで近寄る" : "3Dで位置を表示"/);
   assert.match(app, /const showPlanAction = origin !== "plan"/);
 });
+
+test("furniture candidates live under Other and support comparison, preview, adoption and delivery data", () => {
+  const html = readFileSync(new URL("../dist/index.html", import.meta.url), "utf8");
+  const app = readFileSync(new URL("../dist/app.js", import.meta.url), "utf8");
+  const model = readFileSync(new URL("../dist/model.js", import.meta.url), "utf8");
+  const renderer = readFileSync(new URL("../dist/renderer.js", import.meta.url), "utf8");
+  assert.match(html, /data-view="plan"[^>]*>2D[\s\S]*data-view="three"[^>]*>3D[\s\S]*data-view="other"[^>]*>その他/);
+  assert.match(html, /data-other-view="wall"[^>]*>壁面[\s\S]*data-other-view="delivery"[^>]*>搬入[\s\S]*data-other-view="candidates"[^>]*>家具候補/);
+  assert.match(html, /id="candidateGroupDialog"[\s\S]*id="candidateDialog"[\s\S]*id="candidateDeliverySideA"[\s\S]*id="candidateDeliverySideC"/);
+  assert.match(model, /input\.plan\.furnitureCandidateGroups \?\?= \[\]/);
+  assert.match(model, /export function previewFurnitureCandidate[\s\S]*export function applyFurnitureCandidate/);
+  assert.match(model, /candidate\.deliveryDimensions[\s\S]*furniture\.deliveryDimensions = structuredClone/);
+  assert.match(app, /function candidateComparisonTable[\s\S]*function renderCandidateGroups\(\)/);
+  assert.match(app, /function showCandidatePreview[\s\S]*function adoptCandidate/);
+  assert.match(app, /candidateDeliveryResult[\s\S]*analyzeDeliveryRoute/);
+  assert.match(renderer, /for \(const furniture of documentData\.plan\.furniture[\s\S]*furniture-candidate-preview/);
+  assert.match(renderer, /setCandidatePreview\(preview\)/);
+});

@@ -10,7 +10,7 @@
     <meta name="description" content="間取りと家具寸法を端末内だけで確認するオフラインPWA" />
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./icon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="./styles.css?v=141" />
+    <link rel="stylesheet" href="./styles.css?v=142" />
     <title>間取りメモ WebGL試作版</title>
   </head>
   <body>
@@ -30,9 +30,8 @@
 
       <nav class="tabs" aria-label="表示モード">
         <button class="tab is-active" data-view="plan" type="button">2D</button>
-        <button class="tab" data-view="wall" type="button">壁面</button>
-        <button class="tab" data-view="delivery" type="button">搬入</button>
         <button class="tab" data-view="three" type="button">3D</button>
+        <button class="tab" data-view="other" type="button">その他</button>
       </nav>
 
       <main>
@@ -89,6 +88,11 @@
               <button id="measurementClearButton" type="button">クリア</button>
               <button id="measurementEndButton" type="button">終了</button>
             </div>
+            <div id="candidatePreviewBar" class="candidate-preview-bar" hidden>
+              <span id="candidatePreviewLabel"></span>
+              <button id="adoptCandidatePreviewButton" type="button">採用</button>
+              <button id="clearCandidatePreviewButton" type="button">戻す</button>
+            </div>
             <svg id="planCanvas" viewBox="0 0 800 1100" role="img" aria-labelledby="planTitle planDescription">
               <title id="planTitle">間取り平面図</title>
               <desc id="planDescription">読み込んだ間取りデータを表示します</desc>
@@ -121,7 +125,14 @@
           </section>
         </section>
 
-        <section id="wallView" class="view wall-view" aria-label="壁面図">
+        <section id="otherView" class="view other-view" aria-label="その他の機能">
+          <nav class="other-tabs" aria-label="その他の表示">
+            <button class="other-tab is-active" data-other-view="wall" type="button">壁面</button>
+            <button class="other-tab" data-other-view="delivery" type="button">搬入</button>
+            <button class="other-tab" data-other-view="candidates" type="button">家具候補</button>
+          </nav>
+
+        <section id="wallView" class="other-panel wall-view is-active" aria-label="壁面図">
           <div class="wall-heading">
             <div>
               <p class="eyebrow">WALL ELEVATION</p>
@@ -185,7 +196,7 @@
           <p id="wallCeilingNote" class="wall-note" hidden>破線は表示上限です。天井位置を示すものではありません。</p>
         </section>
 
-        <section id="deliveryView" class="view delivery-view" aria-label="搬入経路">
+        <section id="deliveryView" class="other-panel delivery-view" aria-label="搬入経路">
           <div class="delivery-heading">
             <div><p class="eyebrow">DELIVERY ROUTE</p><h2>搬入経路</h2></div>
             <span class="delivery-caution">参考判定</span>
@@ -209,6 +220,20 @@
             </section>
             <div id="deliveryLimitations" class="delivery-limitations"></div>
           </div>
+        </section>
+
+        <section id="candidatesView" class="other-panel candidates-view" aria-label="家具候補">
+          <div class="candidate-heading">
+            <div><p class="eyebrow">FURNITURE CANDIDATES</p><h2>家具候補</h2></div>
+            <button id="addCandidateGroupButton" class="primary-button compact" type="button">＋ 比較グループ</button>
+          </div>
+          <p class="candidate-intro">ブランドや商品違いをまとめて比較します。配置家具と連携すると、候補寸法を2Dで試してから採用できます。</p>
+          <div id="candidateEmpty" class="wall-empty">
+            <strong>家具候補はまだありません</strong>
+            <span>「比較グループ」から、ソファやテーブルなどの候補を登録できます。</span>
+          </div>
+          <div id="candidateGroupList" class="candidate-group-list"></div>
+        </section>
         </section>
 
         <section id="threeView" class="view three-view" aria-label="概略3D表示">
@@ -404,10 +429,58 @@
         </form>
       </dialog>
 
+      <dialog id="candidateGroupDialog" class="detail-dialog form-dialog">
+        <form id="candidateGroupForm">
+          <div class="dialog-heading">
+            <div><p class="eyebrow">COMPARISON GROUP</p><h2 id="candidateGroupDialogTitle">比較グループを追加</h2></div>
+            <button id="cancelCandidateGroupButton" class="icon-button" type="button" aria-label="閉じる">×</button>
+          </div>
+          <label class="field-label">グループ名<input id="candidateGroupName" maxlength="80" placeholder="例：LDKのソファ" required /></label>
+          <label class="field-label">配置家具と連携<select id="candidateGroupFurniture"></select></label>
+          <p class="field-help">連携すると、各商品の寸法を現在位置で比較・プレビューできます。</p>
+          <button id="candidateGroupSubmitButton" class="primary-button full-width" type="submit">追加する</button>
+        </form>
+      </dialog>
+
+      <dialog id="candidateDialog" class="detail-dialog form-dialog">
+        <form id="candidateForm">
+          <div class="dialog-heading">
+            <div><p class="eyebrow">PRODUCT CANDIDATE</p><h2 id="candidateDialogTitle">商品候補を追加</h2></div>
+            <button id="cancelCandidateButton" class="icon-button" type="button" aria-label="閉じる">×</button>
+          </div>
+          <div class="field-row">
+            <label class="field-label">ブランド<input id="candidateBrand" maxlength="80" placeholder="例：ブランド名" required /></label>
+            <label class="field-label">商品名<input id="candidateProductName" maxlength="120" required /></label>
+          </div>
+          <label class="field-label">商品ページURL<input id="candidateProductUrl" type="url" inputmode="url" placeholder="https://..." required /></label>
+          <div class="field-row candidate-dimension-row">
+            <label class="field-label">幅（cm）<input id="candidateWidth" type="number" min="1" max="1000" step="0.1" inputmode="decimal" required /></label>
+            <label class="field-label">奥行（cm）<input id="candidateDepth" type="number" min="1" max="1000" step="0.1" inputmode="decimal" required /></label>
+            <label class="field-label">高さ（cm）<input id="candidateHeight" type="number" min="1" max="1000" step="0.1" inputmode="decimal" required /></label>
+          </div>
+          <div class="field-row">
+            <label class="field-label">税込価格（円）<input id="candidatePrice" type="number" min="0" max="999999999" step="1" inputmode="numeric" /></label>
+            <label class="field-label">価格確認日<input id="candidatePriceCheckedAt" type="date" /></label>
+          </div>
+          <label class="field-label">色・型・バリエーション<input id="candidateVariant" maxlength="120" placeholder="例：グレー／幅180cm" /></label>
+          <fieldset class="candidate-delivery-fields">
+            <legend>梱包寸法（任意）</legend>
+            <p>登録すると、採用時に搬入タブへ反映します。</p>
+            <div class="field-row candidate-dimension-row">
+              <label class="field-label">辺A（cm）<input id="candidateDeliverySideA" type="number" min="1" max="1000" step="0.1" inputmode="decimal" /></label>
+              <label class="field-label">辺B（cm）<input id="candidateDeliverySideB" type="number" min="1" max="1000" step="0.1" inputmode="decimal" /></label>
+              <label class="field-label">辺C（cm）<input id="candidateDeliverySideC" type="number" min="1" max="1000" step="0.1" inputmode="decimal" /></label>
+            </div>
+          </fieldset>
+          <label class="field-label">メモ<textarea id="candidateNote" maxlength="500" rows="3"></textarea></label>
+          <button id="candidateSubmitButton" class="primary-button full-width" type="submit">追加する</button>
+        </form>
+      </dialog>
+
       <input id="fileInput" type="file" accept="application/json,.json" hidden />
       <div id="toast" class="toast" role="status" aria-live="polite"></div>
     </div>
-    <script type="module" src="./app.js?v=141"></script>
+    <script type="module" src="./app.js?v=142"></script>
   </body>
 </html>
 

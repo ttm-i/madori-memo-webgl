@@ -49,6 +49,8 @@ export function validatePlan(input) {
   input.plan.features ??= [];
   input.plan.features = input.plan.features.filter((feature) => feature.kind !== "column");
   input.plan.furniture ??= [];
+  input.plan.furnitureCandidateGroups ??= [];
+  if (!Array.isArray(input.plan.furnitureCandidateGroups)) throw new Error("furnitureCandidateGroupsが配列ではありません");
   for (const furniture of input.plan.furniture) {
     if (furniture.priceYen != null && (!Number.isInteger(furniture.priceYen) || furniture.priceYen < 0 || furniture.priceYen > 999999999)) {
       throw new Error(`${furniture.name ?? "家具"}の価格が不正です`);
@@ -57,6 +59,22 @@ export function validatePlan(input) {
       const productUrl = normalizeFurnitureProductUrl(furniture.productUrl);
       if (!productUrl) throw new Error(`${furniture.name ?? "家具"}の商品URLが不正です`);
       furniture.productUrl = productUrl;
+    }
+  }
+  for (const group of input.plan.furnitureCandidateGroups) {
+    if (!group?.id || typeof group.name !== "string" || !Array.isArray(group.candidates)) throw new Error("家具候補グループが不正です");
+    for (const candidate of group.candidates) {
+      if (!candidate?.id || typeof candidate.brand !== "string" || typeof candidate.productName !== "string") throw new Error(`${group.name || "家具候補"}の商品情報が不正です`);
+      const productUrl = normalizeFurnitureProductUrl(candidate.productUrl);
+      if (!productUrl) throw new Error(`${candidate.productName || "商品候補"}の商品URLが不正です`);
+      candidate.productUrl = productUrl;
+      if (![candidate.widthCm, candidate.depthCm, candidate.heightCm].every((value) => Number.isFinite(value) && value > 0)) throw new Error(`${candidate.productName || "商品候補"}の寸法が不正です`);
+      if (candidate.priceYen != null && (!Number.isInteger(candidate.priceYen) || candidate.priceYen < 0 || candidate.priceYen > 999999999)) throw new Error(`${candidate.productName || "商品候補"}の価格が不正です`);
+      if (candidate.deliveryDimensions) {
+        const dimensions = candidate.deliveryDimensions;
+        if (![dimensions.sideACm, dimensions.sideBCm, dimensions.sideCCm].every((value) => Number.isFinite(value) && value > 0)) throw new Error(`${candidate.productName || "商品候補"}の梱包寸法が不正です`);
+        dimensions.basis = "packed";
+      }
     }
   }
   for (const room of input.plan.rooms) {
@@ -669,6 +687,47 @@ export function furniturePriceSummary(furnitureItems = []) {
     registeredCount: registered.length,
     missingCount: furnitureItems.length - registered.length,
   };
+}
+
+export function previewFurnitureCandidate(furniture, candidate) {
+  if (!furniture || !candidate) return null;
+  const width = Number(candidate.widthCm);
+  const depth = Number(candidate.depthCm);
+  const height = Number(candidate.heightCm);
+  if (![width, depth, height].every((value) => Number.isFinite(value) && value > 0)) return null;
+  const centerX = furniture.x + furniture.widthCm / 2;
+  const centerY = furniture.y + furniture.depthCm / 2;
+  const cardinalTurns = Math.floor(furnitureEighthTurns(furniture) / 2);
+  const widthCm = cardinalTurns % 2 ? depth : width;
+  const depthCm = cardinalTurns % 2 ? width : depth;
+  return {
+    ...structuredClone(furniture),
+    x: centerX - widthCm / 2,
+    y: centerY - depthCm / 2,
+    widthCm,
+    depthCm,
+    heightCm: height,
+    ...(Number.isInteger(candidate.priceYen) ? { priceYen: candidate.priceYen } : {}),
+    ...(normalizeFurnitureProductUrl(candidate.productUrl) ? { productUrl: normalizeFurnitureProductUrl(candidate.productUrl) } : {}),
+    ...(candidate.deliveryDimensions ? { deliveryDimensions: structuredClone(candidate.deliveryDimensions) } : {}),
+  };
+}
+
+export function applyFurnitureCandidate(furniture, candidate, groupId = null) {
+  const preview = previewFurnitureCandidate(furniture, candidate);
+  if (!preview) return furniture;
+  for (const key of ["x", "y", "widthCm", "depthCm", "heightCm"]) furniture[key] = preview[key];
+  if (Number.isInteger(candidate.priceYen)) furniture.priceYen = candidate.priceYen;
+  else delete furniture.priceYen;
+  const productUrl = normalizeFurnitureProductUrl(candidate.productUrl);
+  if (productUrl) furniture.productUrl = productUrl;
+  else delete furniture.productUrl;
+  if (candidate.deliveryDimensions) furniture.deliveryDimensions = structuredClone(candidate.deliveryDimensions);
+  else delete furniture.deliveryDimensions;
+  furniture.appliedCandidateId = candidate.id;
+  if (groupId) furniture.candidateGroupId = groupId;
+  else delete furniture.candidateGroupId;
+  return furniture;
 }
 
 export function duplicateFurnitureStack(plan, furniture, createId) {

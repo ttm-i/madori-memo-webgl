@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildElevationItems, buildFurnitureHierarchy, buildKitchenCabinetLayout, buildKitchenComponentRects, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, duplicateFurniture, duplicateFurnitureStack, findDeliveryDoorPath, fitsRectangle, FORMAT, furnitureBounds, furnitureDescendantIds, furnitureEighthTurns, furniturePolygon, furniturePriceSummary, FURNITURE_PRESETS, furnitureDisplayHeight, furnitureWallMove, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, kitchenComponentVerticalRange, moveDimensionGuide, normalizeFurnitureProductUrl, pointInPolygon, rectangleIntersectsPolygon, rectanglesOverlap, removeFurnitureStack, resolveFurnitureElevationPlacement, resolveFurnitureVerticalRange, rotateFurniture, rotateFurnitureStack, snapToGrid, supportSurfaceSize, translateFurnitureDescendants, updateFurniture, validatePlan, wallDisplayWidth } from "../dist/model.js";
+import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, applyFurnitureCandidate, buildElevationItems, buildFurnitureHierarchy, buildKitchenCabinetLayout, buildKitchenComponentRects, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, duplicateFurniture, duplicateFurnitureStack, findDeliveryDoorPath, fitsRectangle, FORMAT, furnitureBounds, furnitureDescendantIds, furnitureEighthTurns, furniturePolygon, furniturePriceSummary, FURNITURE_PRESETS, furnitureDisplayHeight, furnitureWallMove, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, kitchenComponentVerticalRange, moveDimensionGuide, normalizeFurnitureProductUrl, pointInPolygon, previewFurnitureCandidate, rectangleIntersectsPolygon, rectanglesOverlap, removeFurnitureStack, resolveFurnitureElevationPlacement, resolveFurnitureVerticalRange, rotateFurniture, rotateFurnitureStack, snapToGrid, supportSurfaceSize, translateFurnitureDescendants, updateFurniture, validatePlan, wallDisplayWidth } from "../dist/model.js";
 import { detailMarkup, gestureExceedsTapThreshold, measurementMetrics, PlanRenderer, snapMeasurementPoint, zoomTransformAround } from "../dist/renderer.js";
 import { bayWindowFootprint, cabinetDoorPanelCount, cabinetThreePlacement, clampIndoorPitch, clampWebGLPan, closetDoorPanelCount, closetThreePlacement, cycleThreeSelectionCandidate, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, projectThreeDepth, projectThreePoint, roomEdgeWallHeight, roomInteriorViewpoint, splitWallFace, subdivideVerticalRange, subdivideWallRectangle, subdivideWallRectangleTiles, subdivideWallSegment, threeItemBelongsToRoom, threeItemFootprint, threeLayerEnabled, threeRelatedSelectionStyle, threeRoomBounds, threeSelectableType, threeSelectionKey, threeSelectionStyle, threeSelectionXrayStyle, threeViewportBox, threeWallBelongsToRoom, visibleBoxSideIndexes, wallFeatureThreePlacement, yawToQuarterTurn } from "../dist/three.js";
 
@@ -323,6 +323,35 @@ test("furniture product links accept web URLs, survive duplication and reject un
   const invalidPlan = createSamplePlan();
   invalidPlan.plan.furniture[0].productUrl = "file:///secret";
   assert.throws(() => validatePlan(invalidPlan), /商品URLが不正/);
+});
+
+test("furniture candidates preserve current orientation and apply price, link and packed dimensions", () => {
+  const furniture = { id: "table", name: "テーブル", x: 100, y: 200, widthCm: 70, depthCm: 105, heightCm: 70, rotationEighthTurns: 2 };
+  const candidate = {
+    id: "candidate-a",
+    brand: "ブランドA",
+    productName: "テーブルA",
+    productUrl: "https://example.com/table-a",
+    widthCm: 120,
+    depthCm: 75,
+    heightCm: 72,
+    priceYen: 49800,
+    deliveryDimensions: { sideACm: 126, sideBCm: 81, sideCCm: 16, basis: "packed" },
+  };
+  const preview = previewFurnitureCandidate(furniture, candidate);
+  assert.deepEqual({ x: preview.x, y: preview.y, width: preview.widthCm, depth: preview.depthCm, height: preview.heightCm }, { x: 97.5, y: 192.5, width: 75, depth: 120, height: 72 });
+  assert.equal(furniture.widthCm, 70);
+  applyFurnitureCandidate(furniture, candidate, "group-a");
+  assert.deepEqual({ width: furniture.widthCm, depth: furniture.depthCm, price: furniture.priceYen, url: furniture.productUrl }, { width: 75, depth: 120, price: 49800, url: "https://example.com/table-a" });
+  assert.deepEqual(furniture.deliveryDimensions, candidate.deliveryDimensions);
+  assert.equal(furniture.appliedCandidateId, "candidate-a");
+  assert.equal(furniture.candidateGroupId, "group-a");
+
+  const documentData = createSamplePlan();
+  documentData.plan.furnitureCandidateGroups = [{ id: "group-a", name: "ダイニングテーブル", furnitureId: "sample-sofa", candidates: [candidate] }];
+  assert.doesNotThrow(() => validatePlan(documentData));
+  documentData.plan.furnitureCandidateGroups[0].candidates[0].deliveryDimensions.sideACm = 0;
+  assert.throws(() => validatePlan(documentData), /梱包寸法が不正/);
 });
 
 test("furniture details render registered product links safely", () => {

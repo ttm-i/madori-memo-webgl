@@ -1,13 +1,14 @@
-import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=141";
-import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildElevationItems, buildFurnitureHierarchy, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurnitureStack, featureSupportRange, findSupportItem, furnitureDescendantIds as modelFurnitureDescendantIds, furniturePriceSummary, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, normalizeFurnitureProductUrl, QUALITY_LABELS, removeFurnitureStack, resolveFurnitureVerticalRange, rotateFurnitureStack, supportSurfaceSize, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=141";
-import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=141";
-import { createWebGLThreeView } from "./webgl-three.js?v=141";
+import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=142";
+import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, applyFurnitureCandidate, buildElevationItems, buildFurnitureHierarchy, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurnitureStack, featureSupportRange, findSupportItem, furnitureDescendantIds as modelFurnitureDescendantIds, furniturePriceSummary, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, normalizeFurnitureProductUrl, previewFurnitureCandidate, QUALITY_LABELS, removeFurnitureStack, resolveFurnitureVerticalRange, rotateFurnitureStack, supportSurfaceSize, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=142";
+import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=142";
+import { createWebGLThreeView } from "./webgl-three.js?v=142";
 
 const elements = Object.fromEntries([
   "menuButton", "dataMenu", "detailDialog", "detailType", "detailTitle", "detailBody", "fileInput",
   "importButton", "emptyImportButton", "exportButton", "resetButton", "sampleButton", "emptyState",
   "planCanvas", "viewportLayer", "canvasFrame", "lockButton", "fitButton", "undoButton",
   "planSelectionStatus", "planSelectionSummary", "planSelectionDetailsButton",
+  "candidatePreviewBar", "candidatePreviewLabel", "adoptCandidatePreviewButton", "clearCandidatePreviewButton",
   "displayMenuButton", "displayMenu", "displayRoomLabelsToggle", "displayFeaturesToggle",
   "displayFurnitureToggle", "displayElectricalToggle", "displayDimensionsToggle",
   "dimensionFilters", "dimensionFilterList", "selectionMenuButton", "selectionMenu", "selectionModeHint",
@@ -27,6 +28,9 @@ const elements = Object.fromEntries([
   "deliveryEmpty", "deliveryContent", "deliveryRouteGrid", "deliveryDoorGrid", "deliveryFurnitureList", "deliveryLimitations",
   "deliveryDialog", "deliveryForm", "deliveryDialogTitle", "cancelDeliveryButton", "deliveryBasis",
   "deliverySideA", "deliverySideB", "deliverySideC",
+  "addCandidateGroupButton", "candidateEmpty", "candidateGroupList",
+  "candidateGroupDialog", "candidateGroupForm", "candidateGroupDialogTitle", "candidateGroupName", "candidateGroupFurniture", "candidateGroupSubmitButton", "cancelCandidateGroupButton",
+  "candidateDialog", "candidateForm", "candidateDialogTitle", "candidateBrand", "candidateProductName", "candidateProductUrl", "candidateWidth", "candidateDepth", "candidateHeight", "candidatePrice", "candidatePriceCheckedAt", "candidateVariant", "candidateDeliverySideA", "candidateDeliverySideB", "candidateDeliverySideC", "candidateNote", "candidateSubmitButton", "cancelCandidateButton",
   "threeCanvas", "threeEmpty", "threeHeightNote", "threeSelectionStatus", "threeSelectionSummary", "threeSelectionDetailsButton", "threeCutawayToggle", "threeLabelsToggle",
   "threeRoomFilter", "threeWallsToggle", "threeOpeningsToggle", "threeFeaturesToggle", "threeFurnitureToggle", "threeElectricalToggle",
   "threeZoomOut", "threeZoomReset", "threeZoomIn", "threeZoomValue", "threeZoomHint", "threeCameraControls", "threeOverviewMode", "threeIndoorMode", "threeIndoorViewpointGroup", "threeIndoorViewpoint",
@@ -64,6 +68,10 @@ let threeViewpointRoomId = "";
 let threeViewpointOptions = [];
 let webglThreeView = null;
 let activeView = "plan";
+let activeOtherView = "wall";
+let editingCandidateGroupId = null;
+let editingCandidateId = null;
+let candidatePreview = null;
 const threeLayers = { walls: true, openings: true, features: true, furniture: true, electrical: true };
 const selectableByMode = {
   view: new Set(["room", "dimension", "equipment", "electrical", "furniture"]),
@@ -830,6 +838,7 @@ function updateDimensionFilters() {
 
 async function setActivePlan(plan, { persist = true } = {}) {
   activePlan = plan;
+  clearCandidatePreview();
   activePlan.plan.features = (activePlan.plan.features ?? []).filter((feature) => feature.kind !== "column");
   alignSupportedFurniture(activePlan.plan);
   history.length = 0;
@@ -838,6 +847,7 @@ async function setActivePlan(plan, { persist = true } = {}) {
   updateSummary();
   updateWallView();
   renderDeliveryView();
+  renderCandidateGroups();
   updateDimensionFilters();
   updateThreeRoomFilter();
   requestAnimationFrame(() => renderer.fit());
@@ -1168,6 +1178,293 @@ function clearThreeSelection() {
   webglThreeView?.clearSelection();
 }
 
+function furnitureCandidateGroups() {
+  return activePlan?.plan?.furnitureCandidateGroups ?? [];
+}
+
+function candidateLinkedFurniture(group) {
+  return activePlan?.plan?.furniture?.find((item) => item.id === group?.furnitureId) ?? null;
+}
+
+function clearCandidatePreview() {
+  candidatePreview = null;
+  renderer.setCandidatePreview(null);
+  if (elements.candidatePreviewBar) elements.candidatePreviewBar.hidden = true;
+  if (elements.candidatePreviewLabel) elements.candidatePreviewLabel.textContent = "";
+}
+
+function candidatePlacementResult(group, candidate) {
+  const furniture = candidateLinkedFurniture(group);
+  if (!furniture) return { tone: "muted", label: "配置家具と未連携" };
+  const preview = previewFurnitureCandidate(furniture, candidate);
+  if (!preview) return { tone: "danger", label: "寸法を確認" };
+  alignFurnitureToSupport(activePlan.plan, preview);
+  const room = activePlan.plan.rooms.find((item) => item.id === preview.roomId);
+  const inside = analyzeFurniturePlacement(preview, room).inside;
+  const conflicts = analyzeFurnitureConflicts(preview, activePlan.plan);
+  const supportFit = analyzeFurnitureSupportFit(preview, activePlan.plan);
+  const warnings = [];
+  if (!inside) warnings.push("部屋外");
+  if (conflicts.length) warnings.push("重なり");
+  if (supportFit?.fits === false) warnings.push("設置面超過");
+  return warnings.length
+    ? { tone: "warning", label: `要確認：${warnings.join("・")}` }
+    : { tone: "ok", label: "現在位置で配置OK" };
+}
+
+function candidateDeliveryResult(group, candidate) {
+  if (!candidate.deliveryDimensions) return "梱包寸法未登録";
+  const furniture = candidateLinkedFurniture(group);
+  if (!furniture) return `${candidate.deliveryDimensions.sideACm}×${candidate.deliveryDimensions.sideBCm}×${candidate.deliveryDimensions.sideCCm} cm`;
+  const preview = previewFurnitureCandidate(furniture, candidate);
+  if (!preview) return "寸法を確認";
+  const analysis = analyzeDeliveryRoute(preview, activePlan);
+  if (analysis.status === "candidate") return "数値上は通過候補";
+  if (analysis.status === "review") return "搬入要再確認";
+  return "判定情報不足";
+}
+
+function showCandidatePreview(group, candidate) {
+  const furniture = candidateLinkedFurniture(group);
+  if (!furniture) return showToast("先に比較グループを配置家具と連携してください");
+  candidatePreview = { groupId: group.id, candidateId: candidate.id, furnitureId: furniture.id };
+  const label = `${candidate.brand} ${candidate.productName}`.trim();
+  renderer.setCandidatePreview({ furnitureId: furniture.id, candidate, label });
+  elements.candidatePreviewLabel.textContent = `${label}（${candidate.widthCm}×${candidate.depthCm}×${candidate.heightCm} cm）`;
+  elements.candidatePreviewBar.hidden = false;
+  document.querySelector('.tab[data-view="plan"]').click();
+  renderer.focusFurniture(furniture.id);
+  showToast("候補寸法を破線で表示しています。まだ保存されていません");
+}
+
+async function adoptCandidate(group, candidate) {
+  const furniture = candidateLinkedFurniture(group);
+  if (!furniture) return showToast("先に比較グループを配置家具と連携してください");
+  pushHistory();
+  applyFurnitureCandidate(furniture, candidate, group.id);
+  alignFurnitureToSupport(activePlan.plan, furniture);
+  alignSupportedFurniture(activePlan.plan);
+  clearCandidatePreview();
+  renderer.render(activePlan);
+  renderDeliveryView();
+  renderCandidateGroups();
+  await persistActivePlan();
+  showToast(`${candidate.brand} ${candidate.productName}の寸法・価格・URLを採用しました`);
+}
+
+function candidateComparisonTable(group) {
+  const candidates = group.candidates ?? [];
+  if (candidates.length < 2) return null;
+  const wrapper = document.createElement("div");
+  wrapper.className = "candidate-comparison-scroll";
+  const table = document.createElement("table");
+  table.className = "candidate-comparison-table";
+  const head = document.createElement("thead");
+  const headRow = document.createElement("tr");
+  const corner = document.createElement("th");
+  corner.textContent = "比較";
+  headRow.append(corner, ...candidates.map((candidate) => {
+    const cell = document.createElement("th");
+    cell.textContent = `${candidate.brand}\n${candidate.productName}`;
+    return cell;
+  }));
+  head.append(headRow);
+  const body = document.createElement("tbody");
+  const rows = [
+    ["サイズ", (candidate) => `${candidate.widthCm}×${candidate.depthCm}×${candidate.heightCm} cm`],
+    ["価格", (candidate) => Number.isInteger(candidate.priceYen) ? `${candidate.priceYen.toLocaleString("ja-JP")}円` : "未登録"],
+    ["確認日", (candidate) => candidate.priceCheckedAt || "—"],
+    ["色・型", (candidate) => candidate.variant || "—"],
+    ["配置", (candidate) => candidatePlacementResult(group, candidate).label],
+    ["梱包・搬入", (candidate) => candidateDeliveryResult(group, candidate)],
+  ];
+  for (const [label, value] of rows) {
+    const row = document.createElement("tr");
+    const heading = document.createElement("th");
+    heading.textContent = label;
+    row.append(heading, ...candidates.map((candidate) => {
+      const cell = document.createElement("td");
+      cell.textContent = value(candidate);
+      return cell;
+    }));
+    body.append(row);
+  }
+  table.append(head, body);
+  wrapper.append(table);
+  return wrapper;
+}
+
+function openCandidateGroupDialog(group = null) {
+  editingCandidateGroupId = group?.id ?? null;
+  const furniture = activePlan?.plan?.furniture ?? [];
+  elements.candidateGroupFurniture.replaceChildren(
+    new Option("配置家具と連携しない", ""),
+    ...furniture.map((item) => {
+      const room = activePlan.plan.rooms.find((candidate) => candidate.id === item.roomId);
+      return new Option(`${item.name}${room ? `（${room.name}）` : ""}`, item.id);
+    }),
+  );
+  elements.candidateGroupName.value = group?.name ?? "";
+  elements.candidateGroupFurniture.value = group?.furnitureId ?? "";
+  elements.candidateGroupDialogTitle.textContent = group ? "比較グループを編集" : "比較グループを追加";
+  elements.candidateGroupSubmitButton.textContent = group ? "変更を保存" : "追加する";
+  elements.candidateGroupDialog.showModal();
+}
+
+function openCandidateDialog(group, candidate = null) {
+  editingCandidateGroupId = group.id;
+  editingCandidateId = candidate?.id ?? null;
+  elements.candidateBrand.value = candidate?.brand ?? "";
+  elements.candidateProductName.value = candidate?.productName ?? "";
+  elements.candidateProductUrl.value = candidate?.productUrl ?? "";
+  elements.candidateWidth.value = candidate?.widthCm ?? "";
+  elements.candidateDepth.value = candidate?.depthCm ?? "";
+  elements.candidateHeight.value = candidate?.heightCm ?? "";
+  elements.candidatePrice.value = Number.isInteger(candidate?.priceYen) ? candidate.priceYen : "";
+  elements.candidatePriceCheckedAt.value = candidate?.priceCheckedAt ?? "";
+  elements.candidateVariant.value = candidate?.variant ?? "";
+  elements.candidateDeliverySideA.value = candidate?.deliveryDimensions?.sideACm ?? "";
+  elements.candidateDeliverySideB.value = candidate?.deliveryDimensions?.sideBCm ?? "";
+  elements.candidateDeliverySideC.value = candidate?.deliveryDimensions?.sideCCm ?? "";
+  elements.candidateNote.value = candidate?.note ?? "";
+  elements.candidateDialogTitle.textContent = candidate ? "商品候補を編集" : `${group.name}に商品を追加`;
+  elements.candidateSubmitButton.textContent = candidate ? "変更を保存" : "追加する";
+  elements.candidateDialog.showModal();
+}
+
+function renderCandidateGroups() {
+  const groups = furnitureCandidateGroups();
+  elements.candidateEmpty.hidden = groups.length > 0;
+  const cards = groups.map((group) => {
+    const card = document.createElement("section");
+    card.className = "candidate-group-card";
+    const heading = document.createElement("div");
+    heading.className = "candidate-group-heading";
+    const titleWrap = document.createElement("div");
+    const title = document.createElement("h3");
+    title.textContent = group.name;
+    const linked = document.createElement("p");
+    const furniture = candidateLinkedFurniture(group);
+    linked.textContent = furniture ? `配置家具：${furniture.name}` : "配置家具：未連携";
+    titleWrap.append(title, linked);
+    const headingActions = document.createElement("div");
+    const editGroup = document.createElement("button");
+    editGroup.type = "button";
+    editGroup.textContent = "編集";
+    editGroup.addEventListener("click", () => openCandidateGroupDialog(group));
+    const deleteGroup = document.createElement("button");
+    deleteGroup.type = "button";
+    deleteGroup.className = "danger-text";
+    deleteGroup.textContent = "削除";
+    deleteGroup.addEventListener("click", async () => {
+      if (!confirm(`「${group.name}」と商品候補を削除しますか？`)) return;
+      pushHistory();
+      const linkedFurniture = candidateLinkedFurniture(group);
+      if (linkedFurniture?.candidateGroupId === group.id) {
+        delete linkedFurniture.appliedCandidateId;
+        delete linkedFurniture.candidateGroupId;
+      }
+      activePlan.plan.furnitureCandidateGroups = groups.filter((item) => item.id !== group.id);
+      if (candidatePreview?.groupId === group.id) clearCandidatePreview();
+      renderCandidateGroups();
+      await persistActivePlan();
+    });
+    headingActions.append(editGroup, deleteGroup);
+    heading.append(titleWrap, headingActions);
+    card.append(heading);
+
+    const candidates = group.candidates ?? [];
+    const list = document.createElement("div");
+    list.className = "candidate-product-list";
+    for (const candidate of candidates) {
+      const item = document.createElement("article");
+      item.className = "candidate-product-card";
+      if (furniture?.appliedCandidateId === candidate.id) item.classList.add("is-applied");
+      const top = document.createElement("div");
+      top.className = "candidate-product-top";
+      const identity = document.createElement("div");
+      const brand = document.createElement("span");
+      brand.className = "candidate-brand";
+      brand.textContent = candidate.brand;
+      const productName = document.createElement("strong");
+      productName.textContent = candidate.productName;
+      identity.append(brand, productName);
+      const price = document.createElement("strong");
+      price.className = "candidate-price";
+      price.textContent = Number.isInteger(candidate.priceYen) ? `${candidate.priceYen.toLocaleString("ja-JP")}円` : "価格未登録";
+      top.append(identity, price);
+      const size = document.createElement("p");
+      size.className = "candidate-size";
+      const packageSize = candidate.deliveryDimensions
+        ? `・梱包 ${candidate.deliveryDimensions.sideACm}×${candidate.deliveryDimensions.sideBCm}×${candidate.deliveryDimensions.sideCCm} cm`
+        : "・梱包寸法未登録";
+      size.textContent = `${candidate.widthCm}×${candidate.depthCm}×${candidate.heightCm} cm${candidate.variant ? `・${candidate.variant}` : ""}${packageSize}`;
+      const placement = candidatePlacementResult(group, candidate);
+      const status = document.createElement("p");
+      status.className = `candidate-placement ${placement.tone}`;
+      status.textContent = `${placement.label}${furniture?.appliedCandidateId === candidate.id ? "・採用中" : ""}`;
+      if (candidate.note) {
+        const note = document.createElement("p");
+        note.className = "candidate-note";
+        note.textContent = candidate.note;
+        item.append(top, size, status, note);
+      } else item.append(top, size, status);
+      const actions = document.createElement("div");
+      actions.className = "candidate-product-actions";
+      const link = document.createElement("a");
+      link.href = candidate.productUrl;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      link.textContent = "商品ページ ↗";
+      const preview = document.createElement("button");
+      preview.type = "button";
+      preview.textContent = "2Dで試す";
+      preview.disabled = !furniture;
+      preview.addEventListener("click", () => showCandidatePreview(group, candidate));
+      const apply = document.createElement("button");
+      apply.type = "button";
+      apply.className = "candidate-apply-button";
+      apply.textContent = furniture?.appliedCandidateId === candidate.id ? "採用中" : "採用";
+      apply.disabled = !furniture || furniture?.appliedCandidateId === candidate.id;
+      apply.addEventListener("click", () => adoptCandidate(group, candidate));
+      const edit = document.createElement("button");
+      edit.type = "button";
+      edit.textContent = "編集";
+      edit.addEventListener("click", () => openCandidateDialog(group, candidate));
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "danger-text";
+      remove.textContent = "削除";
+      remove.addEventListener("click", async () => {
+        if (!confirm(`${candidate.brand} ${candidate.productName}を削除しますか？`)) return;
+        pushHistory();
+        if (furniture?.appliedCandidateId === candidate.id) {
+          delete furniture.appliedCandidateId;
+          delete furniture.candidateGroupId;
+        }
+        group.candidates = group.candidates.filter((itemCandidate) => itemCandidate.id !== candidate.id);
+        if (candidatePreview?.candidateId === candidate.id) clearCandidatePreview();
+        renderCandidateGroups();
+        await persistActivePlan();
+      });
+      actions.append(link, preview, apply, edit, remove);
+      item.append(actions);
+      list.append(item);
+    }
+    card.append(list);
+    const comparison = candidateComparisonTable(group);
+    if (comparison) card.append(comparison);
+    const add = document.createElement("button");
+    add.type = "button";
+    add.className = "candidate-add-product";
+    add.textContent = "＋ 商品候補を追加";
+    add.addEventListener("click", () => openCandidateDialog(group));
+    card.append(add);
+    return card;
+  });
+  elements.candidateGroupList.replaceChildren(...cards);
+}
+
 function renderFurnitureList() {
   const furnitureItems = activePlan?.plan.furniture ?? [];
   const roomsWithFurniture = activePlan.plan.rooms.filter((room) => furnitureItems.some((item) => item.roomId === room.id));
@@ -1397,6 +1694,21 @@ function setWallViewportMode(mode) {
   if (overviewActive) elements.wallSvgScroll.scrollLeft = 0;
 }
 
+function setOtherView(view) {
+  activeOtherView = ["wall", "delivery", "candidates"].includes(view) ? view : "wall";
+  document.querySelectorAll(".other-tab").forEach((tab) => {
+    const active = tab.dataset.otherView === activeOtherView;
+    tab.classList.toggle("is-active", active);
+    tab.setAttribute("aria-pressed", String(active));
+  });
+  document.querySelectorAll(".other-panel").forEach((panel) => panel.classList.toggle("is-active", panel.id === `${activeOtherView}View`));
+  if (activeOtherView === "wall") updateWallView();
+  if (activeOtherView === "delivery") renderDeliveryView();
+  if (activeOtherView === "candidates") renderCandidateGroups();
+}
+
+document.querySelectorAll(".other-tab").forEach((tab) => tab.addEventListener("click", () => setOtherView(tab.dataset.otherView)));
+
 document.querySelectorAll(".tab").forEach((tab) => tab.addEventListener("click", () => {
   if (tab.dataset.view !== "plan" && renderer.measurementMode) setMeasurementMode(false);
   activeView = tab.dataset.view;
@@ -1404,8 +1716,7 @@ document.querySelectorAll(".tab").forEach((tab) => tab.addEventListener("click",
   document.querySelectorAll(".view").forEach((view) => view.classList.remove("is-active"));
   document.getElementById(`${tab.dataset.view}View`).classList.add("is-active");
   webglThreeView?.setSuspended(document.hidden || activeView !== "three");
-  if (tab.dataset.view === "wall") updateWallView();
-  if (tab.dataset.view === "delivery") renderDeliveryView();
+  if (tab.dataset.view === "other") setOtherView(activeOtherView);
   if (tab.dataset.view === "three") updateThreeView();
 }));
 
@@ -1493,6 +1804,103 @@ elements.furnitureListButton.addEventListener("click", () => {
   if (!activePlan) return showToast("先に間取りデータを読み込んでください");
   renderFurnitureList();
   elements.furnitureListDialog.showModal();
+});
+elements.addCandidateGroupButton.addEventListener("click", () => {
+  if (!activePlan) return showToast("先に間取りデータを読み込んでください");
+  openCandidateGroupDialog();
+});
+elements.cancelCandidateGroupButton.addEventListener("click", () => elements.candidateGroupDialog.close());
+elements.cancelCandidateButton.addEventListener("click", () => elements.candidateDialog.close());
+elements.candidateGroupForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!activePlan) return;
+  const name = elements.candidateGroupName.value.trim();
+  if (!name) return showToast("比較グループ名を入力してください");
+  pushHistory();
+  const groups = furnitureCandidateGroups();
+  const existing = groups.find((group) => group.id === editingCandidateGroupId);
+  if (existing) {
+    existing.name = name;
+    existing.furnitureId = elements.candidateGroupFurniture.value || null;
+    existing.updatedAt = new Date().toISOString();
+  } else {
+    groups.push({
+      id: crypto.randomUUID(),
+      name,
+      furnitureId: elements.candidateGroupFurniture.value || null,
+      candidates: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+  }
+  editingCandidateGroupId = null;
+  elements.candidateGroupDialog.close();
+  clearCandidatePreview();
+  renderCandidateGroups();
+  await persistActivePlan();
+  showToast(existing ? "比較グループを変更しました" : "比較グループを追加しました");
+});
+elements.candidateForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const group = furnitureCandidateGroups().find((item) => item.id === editingCandidateGroupId);
+  if (!group) return showToast("比較グループが見つかりません");
+  const brand = elements.candidateBrand.value.trim();
+  const productName = elements.candidateProductName.value.trim();
+  const productUrl = normalizeFurnitureProductUrl(elements.candidateProductUrl.value.trim());
+  const widthCm = Number(elements.candidateWidth.value);
+  const depthCm = Number(elements.candidateDepth.value);
+  const heightCm = Number(elements.candidateHeight.value);
+  const priceText = elements.candidatePrice.value.trim();
+  const priceYen = priceText === "" ? null : Number(priceText);
+  const deliveryTexts = [elements.candidateDeliverySideA.value, elements.candidateDeliverySideB.value, elements.candidateDeliverySideC.value].map((value) => value.trim());
+  const deliverySides = deliveryTexts.map(Number);
+  if (!brand || !productName) return showToast("ブランドと商品名を入力してください");
+  if (!productUrl) return showToast("商品ページURLは http:// または https:// から入力してください");
+  if (![widthCm, depthCm, heightCm].every((value) => Number.isFinite(value) && value > 0)) return showToast("商品の幅・奥行・高さを確認してください");
+  if (priceYen !== null && (!Number.isInteger(priceYen) || priceYen < 0 || priceYen > 999999999)) return showToast("税込価格を1円単位で確認してください");
+  if (deliveryTexts.some(Boolean) && (!deliveryTexts.every(Boolean) || !deliverySides.every((value) => Number.isFinite(value) && value > 0))) return showToast("梱包寸法は3辺すべてを入力してください");
+  pushHistory();
+  const existing = group.candidates.find((candidate) => candidate.id === editingCandidateId);
+  const candidate = existing ?? { id: crypto.randomUUID(), createdAt: new Date().toISOString() };
+  Object.assign(candidate, {
+    brand,
+    productName,
+    productUrl,
+    widthCm,
+    depthCm,
+    heightCm,
+    priceCheckedAt: elements.candidatePriceCheckedAt.value || null,
+    variant: elements.candidateVariant.value.trim() || null,
+    note: elements.candidateNote.value.trim() || null,
+    updatedAt: new Date().toISOString(),
+  });
+  if (priceYen === null) delete candidate.priceYen;
+  else candidate.priceYen = priceYen;
+  if (deliveryTexts.every(Boolean)) candidate.deliveryDimensions = { sideACm: deliverySides[0], sideBCm: deliverySides[1], sideCCm: deliverySides[2], basis: "packed" };
+  else delete candidate.deliveryDimensions;
+  if (!existing) group.candidates.push(candidate);
+  const linkedFurniture = candidateLinkedFurniture(group);
+  if (existing && linkedFurniture?.appliedCandidateId === candidate.id) {
+    applyFurnitureCandidate(linkedFurniture, candidate, group.id);
+    alignFurnitureToSupport(activePlan.plan, linkedFurniture);
+    alignSupportedFurniture(activePlan.plan);
+    renderer.render(activePlan);
+    renderDeliveryView();
+  }
+  group.updatedAt = new Date().toISOString();
+  editingCandidateId = null;
+  elements.candidateDialog.close();
+  clearCandidatePreview();
+  renderCandidateGroups();
+  await persistActivePlan();
+  showToast(existing ? "商品候補を変更しました" : "商品候補を追加しました");
+});
+elements.clearCandidatePreviewButton.addEventListener("click", clearCandidatePreview);
+elements.adoptCandidatePreviewButton.addEventListener("click", () => {
+  if (!candidatePreview) return;
+  const group = furnitureCandidateGroups().find((item) => item.id === candidatePreview.groupId);
+  const candidate = group?.candidates?.find((item) => item.id === candidatePreview.candidateId);
+  if (group && candidate) adoptCandidate(group, candidate);
 });
 elements.furnitureListRoomFilter.addEventListener("change", () => {
   furnitureListRoomId = elements.furnitureListRoomFilter.value;
@@ -1680,11 +2088,13 @@ elements.furnitureRoomEdit.addEventListener("change", async () => {
 });
 elements.undoButton.addEventListener("click", async () => {
   if (!history.length) return;
+  clearCandidatePreview();
   activePlan = history.pop();
   renderer.render(activePlan);
   updateSummary();
   updateWallView();
   renderDeliveryView();
+  renderCandidateGroups();
   updateUndoButton();
   await persistActivePlan();
   showToast("直前の変更を戻しました");
@@ -1692,12 +2102,14 @@ elements.undoButton.addEventListener("click", async () => {
 elements.resetButton.addEventListener("click", async () => {
   if (!confirm("この端末に保存した間取りデータを消去しますか？")) return;
   await deleteActivePlan();
+  clearCandidatePreview();
   activePlan = null;
   history.length = 0;
   renderer.render(null);
   updateSummary();
   updateWallView();
   renderDeliveryView();
+  renderCandidateGroups();
   updateDimensionFilters();
   updateUndoButton();
   elements.dataMenu.close();

@@ -1,4 +1,4 @@
-import { alignFurnitureToSupport, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildKitchenComponentRects, findSupportItem, furnitureBounds, furnitureDescendantIds, furnitureRotationDegrees, furnitureWallMove, getDimensionGroup, getElectricalPlanPosition, moveDimensionGuide, normalizeFurnitureProductUrl, QUALITY_LABELS, rotateFurnitureStack, snapToGrid, translateFurnitureDescendants } from "./model.js?v=141";
+import { alignFurnitureToSupport, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildKitchenComponentRects, findSupportItem, furnitureBounds, furnitureDescendantIds, furnitureRotationDegrees, furnitureWallMove, getDimensionGroup, getElectricalPlanPosition, moveDimensionGuide, normalizeFurnitureProductUrl, previewFurnitureCandidate, QUALITY_LABELS, rotateFurnitureStack, snapToGrid, translateFurnitureDescendants } from "./model.js?v=142";
 
 const NS = "http://www.w3.org/2000/svg";
 
@@ -93,6 +93,7 @@ export class PlanRenderer {
     this.measurementMode = false;
     this.measurement = { from: null, to: null };
     this.selectedFurnitureId = null;
+    this.candidatePreview = null;
     this.dimensionGroups = null;
     this.selectableTypes = new Set(["room", "dimension", "equipment", "electrical", "furniture"]);
     this.suppressNextClick = false;
@@ -368,6 +369,23 @@ export class PlanRenderer {
         };
       });
       content.append(group);
+      if (this.candidatePreview?.furnitureId === furniture.id) {
+        const preview = previewFurnitureCandidate(furniture, this.candidatePreview.candidate);
+        if (preview) {
+          const previewCenterX = preview.x + preview.widthCm / 2;
+          const previewCenterY = preview.y + preview.depthCm / 2;
+          const previewRotation = furnitureRotationDegrees(preview);
+          const previewGroup = svg("g", { class: "furniture-candidate-preview", "aria-label": `${this.candidatePreview.label ?? "商品候補"}の配置プレビュー` });
+          const previewRect = svg("rect", { x: preview.x, y: preview.y, width: preview.widthCm, height: preview.depthCm, rx: 6 });
+          if (previewRotation) previewRect.setAttribute("transform", `rotate(${previewRotation} ${previewCenterX} ${previewCenterY})`);
+          previewGroup.append(
+            previewRect,
+            svg("text", { x: previewCenterX, y: previewCenterY - 3 }, this.candidatePreview.label ?? "商品候補"),
+            svg("text", { x: previewCenterX, y: previewCenterY + 11 }, `${this.candidatePreview.candidate.widthCm}×${this.candidatePreview.candidate.depthCm}×${this.candidatePreview.candidate.heightCm}`),
+          );
+          content.append(previewGroup);
+        }
+      }
     }
 
     for (const dimension of documentData.plan.dimensions ?? []) {
@@ -532,6 +550,10 @@ export class PlanRenderer {
   isSelectable(type) { return !this.measurementMode && this.selectableTypes.has(type); }
   setSelectedFurniture(id) {
     this.selectedFurnitureId = id;
+    if (this.document) this.render(this.document);
+  }
+  setCandidatePreview(preview) {
+    this.candidatePreview = preview;
     if (this.document) this.render(this.document);
   }
 
