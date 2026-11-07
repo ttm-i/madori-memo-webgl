@@ -1,4 +1,4 @@
-import { alignFurnitureToSupport, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildKitchenComponentRects, findSupportItem, furnitureBounds, furnitureDescendantIds, furnitureRotationDegrees, furnitureWallMove, getDimensionGroup, getElectricalPlanPosition, moveDimensionGuide, normalizeFurnitureProductUrl, previewFurnitureCandidate, QUALITY_LABELS, rotateFurnitureStack, snapToGrid, translateFurnitureDescendants } from "./model.js?v=145";
+import { alignCurtainToOpening, alignFurnitureToSupport, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildKitchenComponentRects, findSupportItem, furnitureBounds, furnitureDescendantIds, furnitureRotationDegrees, furnitureWallMove, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, moveDimensionGuide, normalizeFurnitureProductUrl, previewFurnitureCandidate, QUALITY_LABELS, rotateFurnitureStack, snapToGrid, translateFurnitureDescendants } from "./model.js?v=146";
 
 const NS = "http://www.w3.org/2000/svg";
 
@@ -254,8 +254,9 @@ export class PlanRenderer {
 
     for (const furniture of documentData.plan.furniture ?? []) {
       const room = documentData.plan.rooms.find((item) => item.id === furniture.roomId);
-      const placement = analyzeFurniturePlacement(furniture, room);
-      const conflicts = analyzeFurnitureConflicts(furniture, documentData.plan);
+      const windowAttached = inferFurnitureKind(furniture) === "curtain" && Boolean(furniture.openingId);
+      const placement = windowAttached ? { inside: true, boundaries: null, clearances: null } : analyzeFurniturePlacement(furniture, room);
+      const conflicts = windowAttached ? [] : analyzeFurnitureConflicts(furniture, documentData.plan);
       const selected = furniture.id === this.selectedFurnitureId;
       const support = findSupportItem(documentData.plan, furniture.supportId);
       const supportFit = analyzeFurnitureSupportFit(furniture, documentData.plan);
@@ -301,7 +302,7 @@ export class PlanRenderer {
         group.append(svg("text", { class: "placement-warning", x: centerX, y: bounds.top - 10 }, warning));
       }
       let directControls = null;
-      if (selected && !this.locked) {
+      if (selected && !this.locked && !windowAttached) {
         const controls = svg("g", { class: "furniture-direct-controls", "aria-label": `${furniture.name}の直接操作` });
         directControls = controls;
         const operate = (action) => {
@@ -354,7 +355,7 @@ export class PlanRenderer {
       group.addEventListener("pointerdown", (event) => {
         if (this.locked || !this.isSelectable("furniture")) return;
         event.stopPropagation();
-        if (anotherFurnitureSelected || (furniture.supportId && !supportedMovable)) return;
+        if (windowAttached || anotherFurnitureSelected || (furniture.supportId && !supportedMovable)) return;
         event.currentTarget.setPointerCapture?.(event.pointerId);
         const descendantGroups = [...furnitureDescendantIds(documentData.plan, furniture.id)]
           .map((id) => this.svg.querySelector(`.furniture-group[data-furniture-id="${id}"]`))
@@ -372,6 +373,7 @@ export class PlanRenderer {
       if (this.candidatePreview?.furnitureId === furniture.id) {
         const preview = previewFurnitureCandidate(furniture, this.candidatePreview.candidate);
         if (preview) {
+          if (inferFurnitureKind(preview) === "curtain") alignCurtainToOpening(documentData.plan, preview);
           const previewCenterX = preview.x + preview.widthCm / 2;
           const previewCenterY = preview.y + preview.depthCm / 2;
           const previewRotation = furnitureRotationDegrees(preview);
@@ -888,6 +890,11 @@ export function detailMarkup(type, item) {
     }
     if (item.kind && item.kind !== "kitchen") values.push(["種類", item.kind]);
     if (type === "furniture" && item.roomName) values.push(["配置先", item.roomName]);
+    if (type === "furniture" && item.openingName) values.push(["取り付け窓", item.openingName]);
+    if (type === "furniture" && item.furnitureKind === "curtain") {
+      const colorLabels = { greige: "グレージュ", ivory: "アイボリー", gray: "グレー", blue: "ブルー", green: "グリーン", brown: "ブラウン" };
+      values.push(["構成", "メイン＋レース＋レール"], ["メイン色", colorLabels[item.curtainColor] ?? "グレージュ"]);
+    }
     if (type === "furniture" && item.supportName) values.push(["設置面", `${item.supportName}の上`]);
     if (type === "furniture" && item.supportFit) {
       values.push(["設置面寸法", `${item.supportFit.supportWidthCm} × ${item.supportFit.supportDepthCm} cm`]);

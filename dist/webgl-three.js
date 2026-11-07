@@ -1,6 +1,6 @@
 import * as THREE from "./vendor/three/three.module.js";
-import { buildKitchenCabinetLayout, buildKitchenComponentRects, furnitureEighthTurns, inferFurnitureKind, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=145";
-import { bayWindowFootprint, cabinetDoorPanelCount, cabinetThreePlacement, clampIndoorPitch, clampWebGLPan, closetThreePlacement, cycleThreeSelectionCandidate, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, roomInteriorViewpoint, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRelatedSelectionStyle, threeRoomBounds, threeSelectionKey, threeSelectionStyle, threeSelectionXrayStyle, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=145";
+import { buildKitchenCabinetLayout, buildKitchenComponentRects, furnitureEighthTurns, inferFurnitureKind, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=146";
+import { bayWindowFootprint, cabinetDoorPanelCount, cabinetThreePlacement, clampIndoorPitch, clampWebGLPan, closetThreePlacement, cycleThreeSelectionCandidate, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, roomInteriorViewpoint, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRelatedSelectionStyle, threeRoomBounds, threeSelectionKey, threeSelectionStyle, threeSelectionXrayStyle, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=146";
 
 const WALL_THICKNESS = 6;
 const DEFAULT_WALL_HEIGHT = 220;
@@ -198,8 +198,8 @@ function detailedFurnitureAssembly(item, vertical) {
   const group = markSelectable(new THREE.Group(), "furniture", item);
   const eighthTurns = furnitureEighthTurns(item);
   const cardinalTurns = Math.floor(eighthTurns / 2);
-  const width = cardinalTurns % 2 ? footprintDepth : footprintWidth;
-  const depth = cardinalTurns % 2 ? footprintWidth : footprintDepth;
+  const width = kind === "curtain" ? footprintWidth : (cardinalTurns % 2 ? footprintDepth : footprintWidth);
+  const depth = kind === "curtain" ? footprintDepth : (cardinalTurns % 2 ? footprintWidth : footprintDepth);
   const worldCenterX = item.x + footprintWidth / 2;
   const worldCenterY = item.y + footprintDepth / 2;
   const itemX = -width / 2;
@@ -218,7 +218,49 @@ function detailedFurnitureAssembly(item, vertical) {
   const dark = 0x494b49;
   const metal = 0x8d9390;
 
-  if (kind === "bed") {
+  if (kind === "curtain") {
+    const curtainColors = { greige: 0x9b8d80, ivory: 0xe6dfd2, gray: 0x7f8587, blue: 0x66849a, green: 0x71856f, brown: 0x765a49 };
+    const mainColor = curtainColors[item.curtainColor] ?? curtainColors.greige;
+    const mainOutline = 0x4d4945;
+    const railZ = top + 3;
+    const railY = itemY + depth * .58;
+    furnitureBeam(group, { x: itemX - 5, y: railY, z: railZ }, { x: itemX + width + 5, y: railY, z: railZ }, 2.4, 0xb9bbb8, 0x626765);
+    furnitureBeam(group, { x: itemX - 5, y: railY - 3.2, z: railZ }, { x: itemX + width + 5, y: railY - 3.2, z: railZ }, 1.8, 0xd0d1ce, 0x747875);
+
+    const laceWidth = width * .94;
+    const laceHeight = Math.max(20, height - 7);
+    const laceSegments = Math.max(8, Math.min(18, Math.round(laceWidth / 12)));
+    const laceSegmentWidth = laceWidth / laceSegments;
+    for (let index = 0; index < laceSegments; index += 1) {
+      const mesh = new THREE.Mesh(
+        new THREE.BoxGeometry(laceSegmentWidth + .5, laceHeight, .9),
+        material(index % 2 ? 0xf1f2ef : 0xffffff, { opacity: .46, roughness: .92 }),
+      );
+      mesh.position.set(
+        -laceWidth / 2 + laceSegmentWidth * (index + .5),
+        bottom + laceHeight / 2,
+        itemY + depth * .28 + (index % 2 ? 1.4 : 0),
+      );
+      mesh.receiveShadow = true;
+      group.add(mesh);
+    }
+
+    const sideWidth = Math.min(width * .3, 58);
+    const mainHeight = Math.max(20, height - 3);
+    const pleats = 5;
+    for (const side of [-1, 1]) {
+      const sideCenter = side * (width / 2 - sideWidth / 2);
+      for (let index = 0; index < pleats; index += 1) {
+        const pleatWidth = sideWidth / pleats + .9;
+        const x = sideCenter - sideWidth / 2 + sideWidth * (index + .5) / pleats;
+        furniturePart(group, pleatWidth, mainHeight, 2.2,
+          x, bottom + mainHeight / 2, itemY + depth * .7 + (index % 2 ? 2 : 0), mainColor, mainOutline);
+      }
+      furniturePart(group, 3.4, 7, 4.2,
+        sideCenter - side * sideWidth * .08, bottom + mainHeight * .48, itemY + depth * .82, 0xc5b59f, 0x6e6255);
+    }
+    visualTop = railZ + 2;
+  } else if (kind === "bed") {
     const frameWood = 0x6c4934;
     const frameOutline = 0x3f2d24;
     const legHeight = Math.max(4, Math.min(6, height * .12));

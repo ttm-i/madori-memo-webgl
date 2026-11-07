@@ -1,7 +1,7 @@
-import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=145";
-import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, applyFurnitureCandidate, buildElevationItems, buildFurnitureHierarchy, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurnitureStack, featureSupportRange, findSupportItem, furnitureDescendantIds as modelFurnitureDescendantIds, furniturePriceSummary, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, normalizeFurnitureProductUrl, previewFurnitureCandidate, QUALITY_LABELS, removeFurnitureStack, resolveFurnitureVerticalRange, rotateFurnitureStack, supportSurfaceSize, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=145";
-import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=145";
-import { createWebGLThreeView } from "./webgl-three.js?v=145";
+import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=146";
+import { alignCurtainToOpening, alignCurtainsToOpenings, alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, applyFurnitureCandidate, buildElevationItems, buildFurnitureHierarchy, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, curtainOpening, DIMENSION_GROUP_LABELS, duplicateFurnitureStack, featureSupportRange, findSupportItem, furnitureDescendantIds as modelFurnitureDescendantIds, furniturePriceSummary, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, normalizeFurnitureProductUrl, previewFurnitureCandidate, QUALITY_LABELS, removeFurnitureStack, resolveFurnitureVerticalRange, rotateFurnitureStack, supportSurfaceSize, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=146";
+import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=146";
+import { createWebGLThreeView } from "./webgl-three.js?v=146";
 
 const elements = Object.fromEntries([
   "menuButton", "dataMenu", "detailDialog", "detailType", "detailTitle", "detailBody", "fileInput",
@@ -16,7 +16,7 @@ const elements = Object.fromEntries([
   "furnitureMenuButton", "furnitureMenu", "snapToggle",
   "summaryTitle", "roomCount", "measuredCount", "uncertainCount", "connectionBadge", "saveStatus", "toast",
   "furnitureButton", "furnitureDialog", "furnitureForm", "cancelFurnitureButton",
-  "furnitureName", "furnitureWidth", "furnitureDepth", "furnitureHeight", "furniturePrice", "furnitureProductUrl", "furnitureRoom", "furniturePreset", "furnitureSupport", "furnitureSupportHelp",
+  "furnitureName", "furnitureWidth", "furnitureDepth", "furnitureHeight", "furniturePrice", "furnitureProductUrl", "furnitureRoom", "furniturePreset", "furnitureSupportGroup", "furnitureSupport", "furnitureSupportHelp", "furnitureCurtainFields", "furnitureCurtainOpening", "furnitureCurtainColor",
   "furnitureViewActions", "showFurnitureInPlanButton", "showFurnitureInThreeButton", "furnitureActions", "rotateFurnitureButton", "duplicateFurnitureButton", "deleteFurnitureButton",
   "furnitureRoomEditGroup", "furnitureRoomEdit",
   "editFurnitureButton", "furnitureDialogTitle", "furnitureSubmitButton",
@@ -358,7 +358,7 @@ function updateFurnitureSupportOptions(selectedId = "") {
     options.push(group);
   };
   appendGroup("固定設備の上", (activePlan?.plan.features ?? []).filter((item) => item.kind !== "column" && item.roomId === roomId));
-  appendGroup("家具の上", (activePlan?.plan.furniture ?? []).filter((item) => item.roomId === roomId && !excluded.has(item.id)));
+  appendGroup("家具の上", (activePlan?.plan.furniture ?? []).filter((item) => item.roomId === roomId && !excluded.has(item.id) && inferFurnitureKind(item) !== "curtain"));
   elements.furnitureSupport.replaceChildren(...options);
   elements.furnitureSupport.value = [...elements.furnitureSupport.options].some((option) => option.value === selectedId) ? selectedId : "";
   updateFurnitureSupportHelp();
@@ -391,6 +391,41 @@ function updateFurnitureSupportHelp() {
   }
   elements.furnitureSupportHelp.textContent = `${support.name} ${supportWidth}×${supportDepth} cm内で、横 ${supportWidth - width} cm・奥行 ${supportDepth - depth} cm移動できます。`;
   elements.furnitureSupportHelp.classList.remove("warning");
+}
+
+function roomWindowOpenings(roomId) {
+  return (activePlan?.plan.openings ?? []).filter((opening) => {
+    if (!String(opening.kind ?? "").includes("window")) return false;
+    return opening.roomId === roomId || opening.roomIds?.includes(roomId);
+  });
+}
+
+function applyCurtainOpeningDefaults(opening) {
+  if (!opening?.from || !opening?.to) return;
+  const openingWidth = Number.isFinite(opening.widthCm)
+    ? opening.widthCm
+    : Math.hypot(opening.to.x - opening.from.x, opening.to.y - opening.from.y);
+  const sillHeight = opening.sillHeightCm ?? 0;
+  const openingHeight = opening.heightCm ?? 180;
+  const railTop = sillHeight + openingHeight + 10;
+  const curtainHeight = sillHeight <= 15 ? Math.max(80, railTop - 1) : Math.max(80, openingHeight + 20);
+  elements.furnitureWidth.value = String(Math.ceil((openingWidth + 20) / 5) * 5);
+  elements.furnitureDepth.value = "12";
+  elements.furnitureHeight.value = String(Math.round(curtainHeight * 10) / 10);
+}
+
+function updateCurtainFurnitureFields({ selectedOpeningId = "", applyDefaults = false } = {}) {
+  const isCurtain = elements.furniturePreset.value === "curtain";
+  elements.furnitureCurtainFields.hidden = !isCurtain;
+  elements.furnitureSupportGroup.hidden = isCurtain;
+  elements.furnitureSupport.disabled = isCurtain;
+  if (!isCurtain) return;
+  const windows = roomWindowOpenings(elements.furnitureRoom.value);
+  elements.furnitureCurtainOpening.replaceChildren(...windows.map((opening) => new Option(opening.name, opening.id)));
+  const preferred = windows.find((opening) => opening.id === selectedOpeningId) ?? windows[0] ?? null;
+  elements.furnitureCurtainOpening.value = preferred?.id ?? "";
+  elements.furnitureSupport.value = "";
+  if (applyDefaults && preferred) applyCurtainOpeningDefaults(preferred);
 }
 
 function showToast(message) {
@@ -856,6 +891,7 @@ async function setActivePlan(plan, { persist = true } = {}) {
   activePlan = plan;
   clearCandidatePreview();
   activePlan.plan.features = (activePlan.plan.features ?? []).filter((feature) => feature.kind !== "column");
+  alignCurtainsToOpenings(activePlan.plan);
   alignSupportedFurniture(activePlan.plan);
   history.length = 0;
   updateUndoButton();
@@ -904,6 +940,7 @@ function showDetail(type, item, { origin = activeView === "three" ? "three" : "p
   preserveFurnitureSelectionOnClose = false;
   renderer.setSelectedFurniture(origin === "plan" ? selectedFurnitureId : null);
   const furnitureEditable = type === "furniture" && !locked && activeView === "plan";
+  const curtainAttached = type === "furniture" && inferFurnitureKind(item) === "curtain";
   elements.furnitureViewActions.hidden = type !== "furniture";
   if (type === "furniture") {
     const showPlanAction = origin !== "plan";
@@ -914,7 +951,9 @@ function showDetail(type, item, { origin = activeView === "three" ? "three" : "p
     elements.furnitureViewActions.classList.toggle("single-action", !showPlanAction);
   }
   elements.furnitureActions.hidden = !furnitureEditable;
-  elements.furnitureRoomEditGroup.hidden = !furnitureEditable;
+  elements.furnitureRoomEditGroup.hidden = !furnitureEditable || curtainAttached;
+  elements.rotateFurnitureButton.hidden = curtainAttached;
+  elements.duplicateFurnitureButton.hidden = curtainAttached;
   const typeLabels = { room: "ROOM", dimension: "DIMENSION", opening: "OPENING", feature: "EQUIPMENT", outlet: "OUTLET", switch: "SWITCH", furniture: "FURNITURE" };
   const detailClasses = ["detail-room", "detail-dimension", "detail-equipment", "detail-furniture"];
   elements.detailDialog.classList.remove(...detailClasses);
@@ -923,9 +962,10 @@ function showDetail(type, item, { origin = activeView === "three" ? "three" : "p
   elements.detailTitle.textContent = item.name;
   const room = item.roomId ? activePlan.plan.rooms.find((candidate) => candidate.id === item.roomId) : null;
   const support = type === "furniture" ? findSupportItem(activePlan.plan, item.supportId) : null;
+  const curtainWindow = curtainAttached ? activePlan.plan.openings.find((opening) => opening.id === item.openingId) : null;
   const vertical = type === "furniture" ? resolveFurnitureVerticalRange(activePlan.plan, item) : null;
   const detailItem = type === "furniture" && room
-    ? { ...item, roomName: room.name, supportName: support?.name, supportFit: analyzeFurnitureSupportFit(item, activePlan.plan), vertical, placement: analyzeFurniturePlacement(item, room), conflicts: analyzeFurnitureConflicts(item, activePlan.plan) }
+    ? { ...item, roomName: room.name, openingName: curtainWindow?.name, supportName: support?.name, supportFit: curtainAttached ? null : analyzeFurnitureSupportFit(item, activePlan.plan), vertical, placement: curtainAttached ? { inside: true, boundaries: null } : analyzeFurniturePlacement(item, room), conflicts: analyzeFurnitureConflicts(item, activePlan.plan) }
     : room ? { ...item, roomName: room.name } : item;
   elements.detailBody.innerHTML = detailMarkup(type, detailItem);
   if (type === "furniture") {
@@ -1017,8 +1057,10 @@ function placementOverflowSummary(placement) {
 
 function furnitureInspectionPresentation(furniture) {
   const room = activePlan.plan.rooms.find((candidate) => candidate.id === furniture.roomId);
-  const placement = room ? analyzeFurniturePlacement(furniture, room) : null;
-  const supportFit = analyzeFurnitureSupportFit(furniture, activePlan.plan);
+  const curtainAttached = inferFurnitureKind(furniture) === "curtain";
+  const opening = curtainAttached ? curtainOpening(activePlan.plan, furniture) : null;
+  const placement = curtainAttached ? { inside: true } : room ? analyzeFurniturePlacement(furniture, room) : null;
+  const supportFit = curtainAttached ? null : analyzeFurnitureSupportFit(furniture, activePlan.plan);
   const conflicts = analyzeFurnitureConflicts(furniture, activePlan.plan);
   const support = findSupportItem(activePlan.plan, furniture.supportId);
   const vertical = resolveFurnitureVerticalRange(activePlan.plan, furniture);
@@ -1026,7 +1068,9 @@ function furnitureInspectionPresentation(furniture) {
   const heightLabel = Number.isFinite(furniture.heightCm)
     ? `${formatCm(furniture.heightCm)} cm`
     : `約${formatCm(vertical.topCm - vertical.bottomCm)} cm（模式）`;
-  const installationLabel = support
+  const installationLabel = curtainAttached
+    ? `${opening?.name ?? "窓"}に固定（メイン＋レース）`
+    : support
     ? `${support.name}の上・床から ${formatCm(vertical.bottomCm)} cm`
     : vertical.bottomCm > .001
       ? `床から ${formatCm(vertical.bottomCm)} cm`
@@ -1214,6 +1258,11 @@ function candidatePlacementResult(group, candidate) {
   if (!furniture) return { tone: "muted", label: "配置家具と未連携" };
   const preview = previewFurnitureCandidate(furniture, candidate);
   if (!preview) return { tone: "danger", label: "寸法を確認" };
+  if (inferFurnitureKind(preview) === "curtain") {
+    return alignCurtainToOpening(activePlan.plan, preview)
+      ? { tone: "ok", label: "選択した窓に固定" }
+      : { tone: "danger", label: "設置先窓を確認" };
+  }
   alignFurnitureToSupport(activePlan.plan, preview);
   const room = activePlan.plan.rooms.find((item) => item.id === preview.roomId);
   const inside = analyzeFurniturePlacement(preview, room).inside;
@@ -1258,7 +1307,8 @@ async function adoptCandidate(group, candidate) {
   if (!furniture) return showToast("先に比較グループを配置家具と連携してください");
   pushHistory();
   applyFurnitureCandidate(furniture, candidate, group.id);
-  alignFurnitureToSupport(activePlan.plan, furniture);
+  if (inferFurnitureKind(furniture) === "curtain") alignCurtainToOpening(activePlan.plan, furniture);
+  else alignFurnitureToSupport(activePlan.plan, furniture);
   alignSupportedFurniture(activePlan.plan);
   clearCandidatePreview();
   renderer.render(activePlan);
@@ -1501,9 +1551,10 @@ function renderFurnitureList() {
   elements.furnitureListPriceSummary.replaceChildren(priceTotal, priceMeta);
   const issueById = new Map(roomHierarchy.map(({ furniture }) => {
     const room = activePlan.plan.rooms.find((candidate) => candidate.id === furniture.roomId);
-    const outside = !analyzeFurniturePlacement(furniture, room).inside;
+    const curtainAttached = inferFurnitureKind(furniture) === "curtain";
+    const outside = curtainAttached ? false : !analyzeFurniturePlacement(furniture, room).inside;
     const overlap = analyzeFurnitureConflicts(furniture, activePlan.plan).length > 0;
-    const support = analyzeFurnitureSupportFit(furniture, activePlan.plan)?.fits === false;
+    const support = curtainAttached ? false : analyzeFurnitureSupportFit(furniture, activePlan.plan)?.fits === false;
     return [furniture.id, { outside, overlap, support, review: outside || overlap || support }];
   }));
   const matchesIssue = (furniture) => !furnitureListIssue || issueById.get(furniture.id)?.[furnitureListIssue] === true;
@@ -1564,9 +1615,10 @@ function renderFurnitureList() {
   };
   const rows = filteredHierarchy.filter(({ furniture }) => !isHiddenByCollapsedAncestor(furniture)).map(({ furniture, depth }) => {
     const room = activePlan.plan.rooms.find((candidate) => candidate.id === furniture.roomId);
-    const placement = analyzeFurniturePlacement(furniture, room);
+    const curtainAttached = inferFurnitureKind(furniture) === "curtain";
+    const placement = curtainAttached ? { inside: true } : analyzeFurniturePlacement(furniture, room);
     const conflicts = analyzeFurnitureConflicts(furniture, activePlan.plan);
-    const supportFit = analyzeFurnitureSupportFit(furniture, activePlan.plan);
+    const supportFit = curtainAttached ? null : analyzeFurnitureSupportFit(furniture, activePlan.plan);
     const vertical = resolveFurnitureVerticalRange(activePlan.plan, furniture);
     const wrapper = document.createElement("div");
     wrapper.className = "furniture-list-row";
@@ -1811,6 +1863,7 @@ elements.furnitureButton.addEventListener("click", () => {
   elements.furnitureName.value = "家具";
   elements.furniturePreset.value = "custom";
   updateFurnitureSupportOptions();
+  updateCurtainFurnitureFields();
   elements.furnitureDialogTitle.textContent = "家具を追加";
   elements.furnitureSubmitButton.textContent = "追加する";
   elements.furnitureDialog.showModal();
@@ -1898,7 +1951,8 @@ elements.candidateForm.addEventListener("submit", async (event) => {
   const linkedFurniture = candidateLinkedFurniture(group);
   if (existing && linkedFurniture?.appliedCandidateId === candidate.id) {
     applyFurnitureCandidate(linkedFurniture, candidate, group.id);
-    alignFurnitureToSupport(activePlan.plan, linkedFurniture);
+    if (inferFurnitureKind(linkedFurniture) === "curtain") alignCurtainToOpening(activePlan.plan, linkedFurniture);
+    else alignFurnitureToSupport(activePlan.plan, linkedFurniture);
     alignSupportedFurniture(activePlan.plan);
     renderer.render(activePlan);
     renderDeliveryView();
@@ -1938,14 +1992,23 @@ elements.furnitureListExpandAll.addEventListener("click", () => {
 });
 elements.furniturePreset.addEventListener("change", () => {
   const preset = FURNITURE_PRESETS[elements.furniturePreset.value];
-  if (!preset) return;
-  elements.furnitureName.value = preset.name;
-  elements.furnitureWidth.value = String(preset.width);
-  elements.furnitureDepth.value = String(preset.depth);
-  elements.furnitureHeight.value = String(preset.height);
+  if (preset) {
+    elements.furnitureName.value = preset.name;
+    elements.furnitureWidth.value = String(preset.width);
+    elements.furnitureDepth.value = String(preset.depth);
+    elements.furnitureHeight.value = String(preset.height);
+  }
+  updateCurtainFurnitureFields({ applyDefaults: elements.furniturePreset.value === "curtain" });
   updateFurnitureSupportHelp();
 });
-elements.furnitureRoom.addEventListener("change", () => updateFurnitureSupportOptions());
+elements.furnitureRoom.addEventListener("change", () => {
+  updateFurnitureSupportOptions();
+  updateCurtainFurnitureFields({ applyDefaults: elements.furniturePreset.value === "curtain" });
+});
+elements.furnitureCurtainOpening.addEventListener("change", () => {
+  const opening = activePlan?.plan.openings?.find((item) => item.id === elements.furnitureCurtainOpening.value);
+  if (opening) applyCurtainOpeningDefaults(opening);
+});
 elements.furnitureSupport.addEventListener("change", updateFurnitureSupportHelp);
 elements.furnitureWidth.addEventListener("input", updateFurnitureSupportHelp);
 elements.furnitureDepth.addEventListener("input", updateFurnitureSupportHelp);
@@ -1992,14 +2055,24 @@ elements.furnitureForm.addEventListener("submit", async (event) => {
   if (priceYen !== null && (!Number.isInteger(priceYen) || priceYen < 0 || priceYen > 999999999)) return showToast("家具の税込価格を1円単位で確認してください");
   if (productUrlText && !productUrl) return showToast("商品ページURLは http:// または https:// から入力してください");
   const name = elements.furnitureName.value.trim() || "家具";
-  const supportId = elements.furnitureSupport.value || null;
+  const furnitureKind = elements.furniturePreset.value === "custom" ? null : elements.furniturePreset.value;
+  const curtainOpeningId = furnitureKind === "curtain" ? elements.furnitureCurtainOpening.value : null;
+  if (furnitureKind === "curtain" && !curtainOpeningId) return showToast("取り付ける窓を選んでください");
+  const supportId = furnitureKind === "curtain" ? null : (elements.furnitureSupport.value || null);
   if (editingFurnitureId) {
     const furniture = activePlan.plan.furniture.find((item) => item.id === editingFurnitureId);
     if (!furniture) return showToast("編集する家具が見つかりません");
     pushHistory();
-    const furnitureKind = elements.furniturePreset.value === "custom" ? null : elements.furniturePreset.value;
     updateFurniture(furniture, { name, roomId: room.id, widthCm, depthCm, heightCm, priceYen, productUrl, supportId, furnitureKind });
-    alignFurnitureToSupport(activePlan.plan, furniture);
+    if (furnitureKind === "curtain") {
+      furniture.openingId = curtainOpeningId;
+      furniture.curtainColor = elements.furnitureCurtainColor.value;
+      alignCurtainToOpening(activePlan.plan, furniture);
+    } else {
+      delete furniture.openingId;
+      delete furniture.curtainColor;
+      alignFurnitureToSupport(activePlan.plan, furniture);
+    }
     alignSupportedFurniture(activePlan.plan);
     renderer.render(activePlan);
     renderDeliveryView();
@@ -2024,18 +2097,22 @@ elements.furnitureForm.addEventListener("submit", async (event) => {
     depthCm,
     quality: "measured",
   };
-  if (elements.furniturePreset.value !== "custom") furniture.furnitureKind = elements.furniturePreset.value;
+  if (furnitureKind) furniture.furnitureKind = furnitureKind;
   if (heightCm !== null) furniture.heightCm = heightCm;
   if (priceYen !== null) furniture.priceYen = priceYen;
   if (productUrl) furniture.productUrl = productUrl;
   if (supportId) furniture.supportId = supportId;
-  alignFurnitureToSupport(activePlan.plan, furniture);
+  if (furnitureKind === "curtain") {
+    furniture.openingId = curtainOpeningId;
+    furniture.curtainColor = elements.furnitureCurtainColor.value;
+    alignCurtainToOpening(activePlan.plan, furniture);
+  } else alignFurnitureToSupport(activePlan.plan, furniture);
   activePlan.plan.furniture.push(furniture);
   renderer.render(activePlan);
   renderDeliveryView();
   await persistActivePlan();
   elements.furnitureDialog.close();
-  showToast("家具を追加しました。編集モードで移動できます");
+  showToast(furnitureKind === "curtain" ? "カーテンセットを窓に取り付けました" : "家具を追加しました。編集モードで移動できます");
 });
 elements.editFurnitureButton.addEventListener("click", () => {
   if (locked) return;
@@ -2051,6 +2128,8 @@ elements.editFurnitureButton.addEventListener("click", () => {
   elements.furnitureProductUrl.value = furniture.productUrl ?? "";
   elements.furnitureRoom.replaceChildren(...activePlan.plan.rooms.map((room) => new Option(room.name, room.id, false, room.id === furniture.roomId)));
   updateFurnitureSupportOptions(furniture.supportId ?? "");
+  elements.furnitureCurtainColor.value = furniture.curtainColor ?? "greige";
+  updateCurtainFurnitureFields({ selectedOpeningId: furniture.openingId ?? "" });
   elements.furnitureSupport.dispatchEvent(new Event("change"));
   elements.furnitureDialogTitle.textContent = "家具を編集";
   elements.furnitureSubmitButton.textContent = "変更を保存";
@@ -2061,6 +2140,7 @@ elements.rotateFurnitureButton.addEventListener("click", async () => {
   if (locked) return;
   const furniture = selectedFurniture();
   if (!furniture) return;
+  if (inferFurnitureKind(furniture) === "curtain") return showToast("カーテンは取り付け窓に固定されています");
   pushHistory();
   rotateFurnitureStack(activePlan.plan, furniture);
   const supportedCount = furnitureDescendantIds(furniture.id).size;

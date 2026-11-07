@@ -183,6 +183,21 @@ test("hanger rack is available as a dedicated rotatable furniture model", () => 
   assert.match(webgl, /kind === "hanger-rack"[\s\S]*furnitureBeam[\s\S]*shelfHeight/);
 });
 
+test("curtains are window-attached furniture with lace, main fabric and a rail", () => {
+  const html = readFileSync(new URL("../dist/index.html", import.meta.url), "utf8");
+  const app = readFileSync(new URL("../dist/app.js", import.meta.url), "utf8");
+  const model = readFileSync(new URL("../dist/model.js", import.meta.url), "utf8");
+  const renderer = readFileSync(new URL("../dist/renderer.js", import.meta.url), "utf8");
+  const webgl = readFileSync(new URL("../dist/webgl-three.js", import.meta.url), "utf8");
+  assert.match(html, /value="curtain">カーテンセット（窓に合わせて自動設定）/);
+  assert.match(html, /id="furnitureCurtainOpening"[\s\S]*id="furnitureCurtainColor"/);
+  assert.match(model, /export function alignCurtainToOpening[\s\S]*inwardOffset[\s\S]*rotationEighthTurns/);
+  assert.match(app, /updateCurtainFurnitureFields[\s\S]*applyCurtainOpeningDefaults/);
+  assert.match(app, /カーテンは取り付け窓に固定されています/);
+  assert.match(renderer, /const windowAttached = inferFurnitureKind\(furniture\) === "curtain"/);
+  assert.match(webgl, /kind === "curtain"[\s\S]*curtainColors[\s\S]*laceSegments[\s\S]*const pleats/);
+});
+
 test("single bed is available with a representative default size and the bed model", () => {
   const html = readFileSync(new URL("../dist/index.html", import.meta.url), "utf8");
   const model = readFileSync(new URL("../dist/model.js", import.meta.url), "utf8");
@@ -210,7 +225,7 @@ test("edit mode exposes direct rotate and wall-move controls", () => {
   assert.match(renderer, /addControl\("left", "←"[\s\S]*addControl\("right", "→"[\s\S]*addControl\("up", "↑"[\s\S]*addControl\("down", "↓"/);
   assert.match(renderer, /furnitureWallMove\(furniture, room, action, documentData\.plan\)/);
   assert.match(renderer, /左の壁・設備・家具まで移動[\s\S]*右の壁・設備・家具まで移動[\s\S]*上の壁・設備・家具まで移動[\s\S]*下の壁・設備・家具まで移動/);
-  assert.match(renderer, /if \(anotherFurnitureSelected \|\| \(furniture\.supportId && !supportedMovable\)\) return/);
+  assert.match(renderer, /if \(windowAttached \|\| anotherFurnitureSelected \|\| \(furniture\.supportId && !supportedMovable\)\) return/);
   assert.match(renderer, /const supportedMovable = support && supportFit\?\.overlaps !== false/);
   assert.match(renderer, /drag\.furniture\.x = drag\.startX \+ dx;[\s\S]*drag\.furniture\.y = drag\.startY \+ dy;[\s\S]*alignFurnitureToSupport/);
   assert.match(renderer, /directControls,/);

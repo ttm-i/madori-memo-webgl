@@ -60,6 +60,10 @@ export function validatePlan(input) {
       if (!productUrl) throw new Error(`${furniture.name ?? "家具"}の商品URLが不正です`);
       furniture.productUrl = productUrl;
     }
+    if (furniture.furnitureKind === "curtain") {
+      const opening = input.plan.openings.find((candidate) => candidate.id === furniture.openingId && String(candidate.kind ?? "").includes("window"));
+      if (!opening) throw new Error(`${furniture.name ?? "カーテン"}の設置先窓が不正です`);
+    }
   }
   for (const group of input.plan.furnitureCandidateGroups) {
     if (!group?.id || typeof group.name !== "string" || !Array.isArray(group.candidates)) throw new Error("家具候補グループが不正です");
@@ -246,6 +250,7 @@ export const FURNITURE_PRESETS = {
   mirror: { name: "姿見", width: 40, depth: 45, height: 160 },
   "drying-rack": { name: "室内物干し", width: 85, depth: 50, height: 150 },
   plant: { name: "観葉植物", width: 50, depth: 50, height: 160 },
+  curtain: { name: "カーテンセット", width: 200, depth: 12, height: 200 },
 };
 
 export function inferFurnitureKind(furniture) {
@@ -259,8 +264,56 @@ export function furnitureDisplayHeight(furniture) {
   return FURNITURE_PRESETS[inferFurnitureKind(furniture)]?.height ?? 35;
 }
 
+export function curtainOpening(plan, furniture) {
+  if (inferFurnitureKind(furniture) !== "curtain" || !furniture?.openingId) return null;
+  return (plan?.openings ?? []).find((opening) => opening.id === furniture.openingId && String(opening.kind ?? "").includes("window")) ?? null;
+}
+
+export function alignCurtainToOpening(plan, furniture) {
+  const opening = curtainOpening(plan, furniture);
+  if (!opening?.from || !opening?.to || !Number.isFinite(furniture?.widthCm) || !Number.isFinite(furniture?.depthCm)) return false;
+  const dx = opening.to.x - opening.from.x;
+  const dy = opening.to.y - opening.from.y;
+  const length = Math.hypot(dx, dy);
+  if (length < .001) return false;
+  const midpoint = { x: (opening.from.x + opening.to.x) / 2, y: (opening.from.y + opening.to.y) / 2 };
+  const roomId = opening.roomId ?? opening.roomIds?.[0] ?? furniture.roomId;
+  const room = (plan?.rooms ?? []).find((candidate) => candidate.id === roomId);
+  const roomCenter = room?.points?.length
+    ? room.points.reduce((sum, point) => ({ x: sum.x + point.x / room.points.length, y: sum.y + point.y / room.points.length }), { x: 0, y: 0 })
+    : null;
+  let normal = { x: -dy / length, y: dx / length };
+  if (roomCenter && (roomCenter.x - midpoint.x) * normal.x + (roomCenter.y - midpoint.y) * normal.y < 0) {
+    normal = { x: -normal.x, y: -normal.y };
+  }
+  const inwardOffset = furniture.depthCm / 2 + 2;
+  const centerX = midpoint.x + normal.x * inwardOffset;
+  const centerY = midpoint.y + normal.y * inwardOffset;
+  const radians = Math.atan2(dy, dx);
+  const eighthTurns = ((Math.round(radians / (Math.PI / 4)) % 8) + 8) % 8;
+  furniture.x = centerX - furniture.widthCm / 2;
+  furniture.y = centerY - furniture.depthCm / 2;
+  furniture.rotationEighthTurns = eighthTurns;
+  furniture.rotationQuarterTurns = Math.floor(eighthTurns / 2) % 4;
+  furniture.roomId = roomId;
+  delete furniture.supportId;
+  delete furniture.supportOffsetX;
+  delete furniture.supportOffsetY;
+  return true;
+}
+
+export function alignCurtainsToOpenings(plan) {
+  for (const furniture of plan?.furniture ?? []) alignCurtainToOpening(plan, furniture);
+  return plan;
+}
+
 export function resolveFurnitureVerticalRange(plan, furniture, visited = new Set()) {
   const ownHeight = furnitureDisplayHeight(furniture);
+  const opening = curtainOpening(plan, furniture);
+  if (opening) {
+    const railTop = (opening.sillHeightCm ?? 0) + (opening.heightCm ?? ownHeight) + 10;
+    return { bottomCm: Math.max(0, railTop - ownHeight), topCm: railTop, schematic: !Number.isFinite(furniture?.heightCm), support: null };
+  }
   if (!furniture?.supportId || visited.has(furniture.id)) {
     return { bottomCm: 0, topCm: ownHeight, schematic: !Number.isFinite(furniture?.heightCm), support: null };
   }
@@ -1153,11 +1206,12 @@ function wallBounds(wall) {
 }
 
 export function analyzeFurnitureConflicts(furniture, plan) {
+  if (inferFurnitureKind(furniture) === "curtain") return [];
   const conflicts = [];
   const furnitureRange = resolveFurnitureVerticalRange(plan, furniture);
   const overlapsVertically = (range) => furnitureRange.bottomCm < range.topCm - .001 && furnitureRange.topCm > range.bottomCm + .001;
   for (const other of plan.furniture ?? []) {
-    if (other.id !== furniture.id && overlapsVertically(resolveFurnitureVerticalRange(plan, other)) && rectanglesOverlap(furniture, other)) conflicts.push({ type: "furniture", id: other.id, name: other.name });
+    if (other.id !== furniture.id && inferFurnitureKind(other) !== "curtain" && overlapsVertically(resolveFurnitureVerticalRange(plan, other)) && rectanglesOverlap(furniture, other)) conflicts.push({ type: "furniture", id: other.id, name: other.name });
   }
   for (const feature of plan.features ?? []) {
     if (feature.kind === "column") continue;

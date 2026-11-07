@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, applyFurnitureCandidate, buildElevationItems, buildFurnitureHierarchy, buildKitchenCabinetLayout, buildKitchenComponentRects, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, duplicateFurniture, duplicateFurnitureStack, findDeliveryDoorPath, fitsRectangle, FORMAT, furnitureBounds, furnitureDescendantIds, furnitureEighthTurns, furniturePolygon, furniturePriceSummary, FURNITURE_PRESETS, furnitureDisplayHeight, furnitureWallMove, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, kitchenComponentVerticalRange, moveDimensionGuide, normalizeFurnitureProductUrl, pointInPolygon, previewFurnitureCandidate, rectangleIntersectsPolygon, rectanglesOverlap, removeFurnitureStack, resolveFurnitureElevationPlacement, resolveFurnitureVerticalRange, rotateFurniture, rotateFurnitureStack, snapToGrid, supportSurfaceSize, translateFurnitureDescendants, updateFurniture, validatePlan, wallDisplayWidth } from "../dist/model.js";
+import { alignCurtainToOpening, alignCurtainsToOpenings, alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, applyFurnitureCandidate, buildElevationItems, buildFurnitureHierarchy, buildKitchenCabinetLayout, buildKitchenComponentRects, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, curtainOpening, duplicateFurniture, duplicateFurnitureStack, findDeliveryDoorPath, fitsRectangle, FORMAT, furnitureBounds, furnitureDescendantIds, furnitureEighthTurns, furniturePolygon, furniturePriceSummary, FURNITURE_PRESETS, furnitureDisplayHeight, furnitureWallMove, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, kitchenComponentVerticalRange, moveDimensionGuide, normalizeFurnitureProductUrl, pointInPolygon, previewFurnitureCandidate, rectangleIntersectsPolygon, rectanglesOverlap, removeFurnitureStack, resolveFurnitureElevationPlacement, resolveFurnitureVerticalRange, rotateFurniture, rotateFurnitureStack, snapToGrid, supportSurfaceSize, translateFurnitureDescendants, updateFurniture, validatePlan, wallDisplayWidth } from "../dist/model.js";
 import { detailMarkup, gestureExceedsTapThreshold, measurementMetrics, PlanRenderer, snapMeasurementPoint, zoomTransformAround } from "../dist/renderer.js";
 import { bayWindowFootprint, cabinetDoorPanelCount, cabinetThreePlacement, clampIndoorPitch, clampWebGLPan, closetDoorPanelCount, closetThreePlacement, cycleThreeSelectionCandidate, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, projectThreeDepth, projectThreePoint, roomEdgeWallHeight, roomInteriorViewpoint, splitWallFace, subdivideVerticalRange, subdivideWallRectangle, subdivideWallRectangleTiles, subdivideWallSegment, threeItemBelongsToRoom, threeItemFootprint, threeLayerEnabled, threeRelatedSelectionStyle, threeRoomBounds, threeSelectableType, threeSelectionKey, threeSelectionStyle, threeSelectionXrayStyle, threeViewportBox, threeWallBelongsToRoom, visibleBoxSideIndexes, wallFeatureThreePlacement, yawToQuarterTurn } from "../dist/three.js";
 
@@ -600,10 +600,28 @@ test("furniture kinds are explicit and presets provide editable two-person defau
   assert.deepEqual(FURNITURE_PRESETS["drying-rack"], { name: "室内物干し", width: 85, depth: 50, height: 150 });
   assert.deepEqual(FURNITURE_PRESETS.plant, { name: "観葉植物", width: 50, depth: 50, height: 160 });
   assert.deepEqual(FURNITURE_PRESETS["counter-chair"], { name: "カウンターチェア", width: 41.5, depth: 45.5, height: 98 });
+  assert.deepEqual(FURNITURE_PRESETS.curtain, { name: "カーテンセット", width: 200, depth: 12, height: 200 });
   assert.equal(furnitureDisplayHeight({ furnitureKind: "fridge" }), 180);
   assert.equal(furnitureDisplayHeight({ name: "冷蔵庫" }), 35);
   assert.equal(furnitureDisplayHeight({ name: "洗濯機", heightCm: 106 }), 106);
   assert.deepEqual(resolveFurnitureVerticalRange({ furniture: [] }, { name: "ソファ", furnitureKind: "sofa" }), { bottomCm: 0, topCm: 80, schematic: true, support: null });
+});
+
+test("curtains attach to the indoor side of their selected window", () => {
+  const curtain = { id: "curtain", name: "カーテン", furnitureKind: "curtain", openingId: "window", roomId: "room", x: 0, y: 0, widthCm: 220, depthCm: 12, heightCm: 210 };
+  const plan = {
+    rooms: [{ id: "room", name: "部屋", points: [{ x: 0, y: 0 }, { x: 300, y: 0 }, { x: 300, y: 300 }, { x: 0, y: 300 }] }],
+    openings: [{ id: "window", name: "掃き出し窓", kind: "window", roomId: "room", from: { x: 50, y: 300 }, to: { x: 250, y: 300 }, widthCm: 200, sillHeightCm: 0, heightCm: 180 }],
+    furniture: [curtain], features: [], walls: [],
+  };
+  assert.equal(curtainOpening(plan, curtain), plan.openings[0]);
+  assert.equal(alignCurtainToOpening(plan, curtain), true);
+  assert.deepEqual({ x: curtain.x, y: curtain.y, rotation: curtain.rotationEighthTurns }, { x: 40, y: 286, rotation: 0 });
+  assert.deepEqual(resolveFurnitureVerticalRange(plan, curtain), { bottomCm: 0, topCm: 190, schematic: false, support: null });
+  assert.deepEqual(analyzeFurnitureConflicts(curtain, plan), []);
+  curtain.x = 999;
+  alignCurtainsToOpenings(plan);
+  assert.equal(curtain.x, 40);
 });
 
 test("supported furniture aligns to its base and stacks measured heights", () => {
