@@ -1,7 +1,7 @@
-import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=138";
-import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildElevationItems, buildFurnitureHierarchy, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurnitureStack, featureSupportRange, findSupportItem, furnitureDescendantIds as modelFurnitureDescendantIds, furniturePriceSummary, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, normalizeFurnitureProductUrl, QUALITY_LABELS, removeFurnitureStack, resolveFurnitureVerticalRange, rotateFurnitureStack, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=138";
-import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=138";
-import { createWebGLThreeView } from "./webgl-three.js?v=138";
+import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=139";
+import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildElevationItems, buildFurnitureHierarchy, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurnitureStack, featureSupportRange, findSupportItem, furnitureDescendantIds as modelFurnitureDescendantIds, furniturePriceSummary, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, normalizeFurnitureProductUrl, QUALITY_LABELS, removeFurnitureStack, resolveFurnitureVerticalRange, rotateFurnitureStack, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=139";
+import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=139";
+import { createWebGLThreeView } from "./webgl-three.js?v=139";
 
 const elements = Object.fromEntries([
   "menuButton", "dataMenu", "detailDialog", "detailType", "detailTitle", "detailBody", "fileInput",
@@ -362,7 +362,7 @@ function updateFurnitureSupportHelp() {
     const overflow = [];
     if (overflowWidth > .001) overflow.push(`幅 ${overflowWidth} cm`);
     if (overflowDepth > .001) overflow.push(`奥行 ${overflowDepth} cm`);
-    elements.furnitureSupportHelp.textContent = `${support.name} ${supportWidth}×${supportDepth} cmより${overflow.join("・")}大きいため、中央に固定されます。`;
+    elements.furnitureSupportHelp.textContent = `${support.name} ${supportWidth}×${supportDepth} cmより${overflow.join("・")}大きいため、初期位置は中央になります。設置面と一部でも重なれば移動・回転できます。`;
     elements.furnitureSupportHelp.classList.add("warning");
     return;
   }

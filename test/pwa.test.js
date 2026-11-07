@@ -211,6 +211,8 @@ test("edit mode exposes direct rotate and wall-move controls", () => {
   assert.match(renderer, /furnitureWallMove\(furniture, room, action, documentData\.plan\)/);
   assert.match(renderer, /左の壁・設備・家具まで移動[\s\S]*右の壁・設備・家具まで移動[\s\S]*上の壁・設備・家具まで移動[\s\S]*下の壁・設備・家具まで移動/);
   assert.match(renderer, /if \(anotherFurnitureSelected \|\| \(furniture\.supportId && !supportedMovable\)\) return/);
+  assert.match(renderer, /const supportedMovable = support && supportFit\?\.overlaps !== false/);
+  assert.match(renderer, /drag\.furniture\.x = drag\.startX \+ dx;[\s\S]*drag\.furniture\.y = drag\.startY \+ dy;[\s\S]*alignFurnitureToSupport/);
   assert.match(renderer, /directControls,/);
   assert.match(renderer, /drag\.directControls\?\.setAttribute\("transform", `translate\(\$\{stackDeltaX} \$\{stackDeltaY}\)`\)/);
   assert.match(styles, /\.furniture-direct-control-bg/);

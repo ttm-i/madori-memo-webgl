@@ -89,13 +89,11 @@ export function analyzeFurnitureSupportFit(furniture, plan) {
   const availableY = supportDepthCm - furniture.depthCm;
   const defaultX = availableX / 2;
   const defaultY = availableY / 2;
-  const fallbackOffsetX = availableX >= 0
-    ? Math.max(0, Math.min(availableX, Number.isFinite(furniture.supportOffsetX) ? furniture.supportOffsetX : defaultX))
-    : defaultX;
-  const fallbackOffsetY = availableY >= 0
-    ? Math.max(0, Math.min(availableY, Number.isFinite(furniture.supportOffsetY) ? furniture.supportOffsetY : defaultY))
-    : defaultY;
+  const fallbackOffsetX = Number.isFinite(furniture.supportOffsetX) ? furniture.supportOffsetX : defaultX;
+  const fallbackOffsetY = Number.isFinite(furniture.supportOffsetY) ? furniture.supportOffsetY : defaultY;
   let overflowEdgesCm = null;
+  let overlapWidthCm = null;
+  let overlapDepthCm = null;
   if (Number.isFinite(support.x) && Number.isFinite(support.y)) {
     const furnitureX = Number.isFinite(furniture.x) ? furniture.x : support.x + fallbackOffsetX;
     const furnitureY = Number.isFinite(furniture.y) ? furniture.y : support.y + fallbackOffsetY;
@@ -109,12 +107,20 @@ export function analyzeFurnitureSupportFit(furniture, plan) {
       top: Math.max(0, supportBox.top - furnitureBox.top),
       bottom: Math.max(0, furnitureBox.bottom - supportBox.bottom),
     };
+    overlapWidthCm = Math.max(0, Math.min(furnitureBox.right, supportBox.right) - Math.max(furnitureBox.left, supportBox.left));
+    overlapDepthCm = Math.max(0, Math.min(furnitureBox.bottom, supportBox.bottom) - Math.max(furnitureBox.top, supportBox.top));
   }
+  const fits = overflowEdgesCm
+    ? Object.values(overflowEdgesCm).every((value) => value <= .001)
+    : overflowWidthCm <= .001 && overflowDepthCm <= .001;
   return {
     support,
     supportWidthCm,
     supportDepthCm,
-    fits: overflowWidthCm <= .001 && overflowDepthCm <= .001,
+    fits,
+    overlaps: overlapWidthCm == null || overlapDepthCm == null ? fits : overlapWidthCm > .001 && overlapDepthCm > .001,
+    overlapWidthCm,
+    overlapDepthCm,
     overflowWidthCm,
     overflowDepthCm,
     overflowEdgesCm,
@@ -256,12 +262,8 @@ export function alignFurnitureToSupport(plan, furniture) {
   const availableY = depth - furniture.depthCm;
   const defaultX = availableX / 2;
   const defaultY = availableY / 2;
-  const offsetX = availableX >= 0
-    ? Math.max(0, Math.min(availableX, Number.isFinite(furniture.supportOffsetX) ? furniture.supportOffsetX : defaultX))
-    : defaultX;
-  const offsetY = availableY >= 0
-    ? Math.max(0, Math.min(availableY, Number.isFinite(furniture.supportOffsetY) ? furniture.supportOffsetY : defaultY))
-    : defaultY;
+  const offsetX = Number.isFinite(furniture.supportOffsetX) ? furniture.supportOffsetX : defaultX;
+  const offsetY = Number.isFinite(furniture.supportOffsetY) ? furniture.supportOffsetY : defaultY;
   furniture.supportOffsetX = offsetX;
   furniture.supportOffsetY = offsetY;
   furniture.x = support.x + offsetX;
@@ -269,18 +271,11 @@ export function alignFurnitureToSupport(plan, furniture) {
   const box = furnitureBounds(furniture);
   const supportRight = support.x + width;
   const supportBottom = support.y + depth;
-  if (box.width <= width) {
-    if (box.left < support.x) furniture.x += support.x - box.left;
-    else if (box.right > supportRight) furniture.x -= box.right - supportRight;
-  } else {
-    furniture.x += support.x + width / 2 - (box.left + box.right) / 2;
-  }
-  if (box.height <= depth) {
-    if (box.top < support.y) furniture.y += support.y - box.top;
-    else if (box.bottom > supportBottom) furniture.y -= box.bottom - supportBottom;
-  } else {
-    furniture.y += support.y + depth / 2 - (box.top + box.bottom) / 2;
-  }
+  const minimumOverlap = .1;
+  if (box.right < support.x + minimumOverlap) furniture.x += support.x + minimumOverlap - box.right;
+  else if (box.left > supportRight - minimumOverlap) furniture.x -= box.left - (supportRight - minimumOverlap);
+  if (box.bottom < support.y + minimumOverlap) furniture.y += support.y + minimumOverlap - box.bottom;
+  else if (box.top > supportBottom - minimumOverlap) furniture.y -= box.top - (supportBottom - minimumOverlap);
   furniture.supportOffsetX = furniture.x - support.x;
   furniture.supportOffsetY = furniture.y - support.y;
   if (support.roomId) furniture.roomId = support.roomId;

@@ -1,4 +1,4 @@
-import { alignFurnitureToSupport, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildKitchenComponentRects, findSupportItem, furnitureBounds, furnitureDescendantIds, furnitureRotationDegrees, furnitureWallMove, getDimensionGroup, getElectricalPlanPosition, moveDimensionGuide, normalizeFurnitureProductUrl, QUALITY_LABELS, rotateFurnitureStack, snapToGrid, translateFurnitureDescendants } from "./model.js?v=138";
+import { alignFurnitureToSupport, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildKitchenComponentRects, findSupportItem, furnitureBounds, furnitureDescendantIds, furnitureRotationDegrees, furnitureWallMove, getDimensionGroup, getElectricalPlanPosition, moveDimensionGuide, normalizeFurnitureProductUrl, QUALITY_LABELS, rotateFurnitureStack, snapToGrid, translateFurnitureDescendants } from "./model.js?v=139";
 
 const NS = "http://www.w3.org/2000/svg";
 
@@ -258,9 +258,7 @@ export class PlanRenderer {
       const selected = furniture.id === this.selectedFurnitureId;
       const support = findSupportItem(documentData.plan, furniture.supportId);
       const supportFit = analyzeFurnitureSupportFit(furniture, documentData.plan);
-      const supportWidth = support?.widthCm ?? support?.width;
-      const supportDepth = support?.depthCm ?? support?.height;
-      const supportedMovable = support && supportFit?.fits !== false;
+      const supportedMovable = support && supportFit?.overlaps !== false;
       const supportOverflow = supportFit?.fits === false;
       const anotherFurnitureSelected = Boolean(this.selectedFurnitureId && !selected);
       const bounds = furnitureBounds(furniture);
@@ -684,10 +682,8 @@ export class PlanRenderer {
         const previousX = drag.furniture.x;
         const previousY = drag.furniture.y;
         if (drag.support) {
-          const supportWidth = drag.support.widthCm ?? drag.support.width;
-          const supportDepth = drag.support.depthCm ?? drag.support.height;
-          drag.furniture.x = Math.max(drag.support.x, Math.min(drag.support.x + supportWidth - drag.furniture.widthCm, drag.startX + dx));
-          drag.furniture.y = Math.max(drag.support.y, Math.min(drag.support.y + supportDepth - drag.furniture.depthCm, drag.startY + dy));
+          drag.furniture.x = drag.startX + dx;
+          drag.furniture.y = drag.startY + dy;
           drag.furniture.supportOffsetX = drag.furniture.x - drag.support.x;
           drag.furniture.supportOffsetY = drag.furniture.y - drag.support.y;
           alignFurnitureToSupport(this.document.plan, drag.furniture);
@@ -912,7 +908,7 @@ export function detailMarkup(type, item) {
       if (item.supportFit.overflowWidthCm > .001) overflow.push(`幅 ${item.supportFit.overflowWidthCm} cm`);
       if (item.supportFit.overflowDepthCm > .001) overflow.push(`奥行 ${item.supportFit.overflowDepthCm} cm`);
     }
-    warnings.push(`設置面からの超過: ${overflow.join("・")}（中央に固定）`);
+    warnings.push(`設置面からの超過: ${overflow.join("・")}（設置面と重なる範囲で移動可能）`);
   }
   if (type === "furniture" && item.conflicts?.length) warnings.push(`重なり: ${item.conflicts.map((conflict) => escapeHTML(conflict.name)).join("、")}`);
   const warning = warnings.length ? `<p class="placement-alert">${warnings.join("<br>")}</p>` : "";
