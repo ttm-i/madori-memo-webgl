@@ -1,4 +1,4 @@
-import { alignCurtainToOpening, alignFurnitureToSupport, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildKitchenComponentRects, findSupportItem, furnitureBounds, furnitureDescendantIds, furnitureRotationDegrees, furnitureWallMove, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, moveDimensionGuide, normalizeFurnitureProductUrl, previewFurnitureCandidate, QUALITY_LABELS, rotateFurnitureStack, snapToGrid, translateFurnitureDescendants } from "./model.js?v=147";
+import { alignCurtainToOpening, alignFurnitureToSupport, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildKitchenComponentRects, findSupportItem, furnitureBounds, furnitureDescendantIds, furnitureRotationDegrees, furnitureWallMove, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, moveDimensionGuide, normalizeFurnitureProductUrl, previewFurnitureCandidate, QUALITY_LABELS, rotateFurnitureStack, snapToGrid, translateFurnitureDescendants } from "./model.js?v=148";
 
 const NS = "http://www.w3.org/2000/svg";
 
@@ -845,6 +845,10 @@ export class PlanRenderer {
 
 export function detailMarkup(type, item) {
   const escapeHTML = (value) => String(value).replace(/[&<>'"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[character]);
+  const formatCm = (value) => Math.round(value * 10) / 10;
+  const openingWidthCm = type === "opening"
+    ? item.widthCm ?? (item.from && item.to ? Math.hypot(item.to.x - item.from.x, item.to.y - item.from.y) : null)
+    : null;
   const values = [];
   if (type === "room") {
     if (item.areaLabel) values.push(["面積", item.areaLabel]);
@@ -881,9 +885,19 @@ export function detailMarkup(type, item) {
       if (Number.isFinite(item.horizontalSegmentsCm?.stoveToLeftEdge)) values.push(["左端～コンロ", `${item.horizontalSegmentsCm.stoveToLeftEdge} cm`]);
       if (Number.isFinite(item.horizontalSegmentsCm?.rightEdgeToSink)) values.push(["シンク～右端", `${item.horizontalSegmentsCm.rightEdgeToSink} cm`]);
     } else {
-      if (Number.isFinite(item.widthCm)) values.push(["幅", `${item.widthCm} cm`]);
-      if (Number.isFinite(item.depthCm)) values.push(["奥行", `${item.depthCm} cm`]);
-      if (type === "furniture") values.push(["高さ", Number.isFinite(item.heightCm) ? `${item.heightCm} cm` : "未登録"]);
+      if (type === "opening" && item.roomName) values.push(["場所", item.roomName]);
+      if (Number.isFinite(type === "opening" ? openingWidthCm : item.widthCm)) values.push([type === "opening" ? "開口幅" : "幅", `${formatCm(type === "opening" ? openingWidthCm : item.widthCm)} cm`]);
+      if (Number.isFinite(item.depthCm)) values.push(["奥行", `${formatCm(item.depthCm)} cm`]);
+      if (type === "opening" && Number.isFinite(item.heightCm)) values.push(["開口高さ", `${formatCm(item.heightCm)} cm`]);
+      if (type === "opening" && String(item.kind ?? "").includes("window") && Number.isFinite(item.sillHeightCm)) {
+        values.push(["床から窓下端", `${formatCm(item.sillHeightCm)} cm`]);
+        if (Number.isFinite(item.heightCm)) values.push(["床から窓上端", `${formatCm(item.sillHeightCm + item.heightCm)} cm`]);
+      }
+      if (type === "furniture") {
+        values.push(["高さ", Number.isFinite(item.heightCm) ? `${formatCm(item.heightCm)} cm` : "未登録"]);
+        const displayHeight = item.vertical?.topCm - item.vertical?.bottomCm;
+        if (!Number.isFinite(item.heightCm) && Number.isFinite(displayHeight)) values.push(["3D表示高さ", `約${formatCm(displayHeight)} cm（種類別の模式値）`]);
+      }
       if (type === "furniture") values.push(["税込価格", Number.isInteger(item.priceYen) ? `${item.priceYen.toLocaleString("ja-JP")}円` : "未登録"]);
       if (!Number.isFinite(item.widthCm) && Number.isFinite(item.width)) values.push(["表示幅", `${item.width} cm`]);
       if (!Number.isFinite(item.depthCm) && Number.isFinite(item.height)) values.push(["表示奥行", `${item.height} cm`]);
@@ -894,13 +908,20 @@ export function detailMarkup(type, item) {
     if (type === "furniture" && item.furnitureKind === "curtain") {
       const colorLabels = { greige: "グレージュ", ivory: "アイボリー", gray: "グレー", blue: "ブルー", green: "グリーン", brown: "ブラウン" };
       values.push(["構成", "メイン＋レース＋レール"], ["メイン色", colorLabels[item.curtainColor] ?? "グレージュ"]);
+      if (Number.isFinite(item.openingWidthCm)) values.push(["窓の開口幅", `${formatCm(item.openingWidthCm)} cm`]);
+      if (Number.isFinite(item.openingHeightCm)) values.push(["窓の開口高さ", `${formatCm(item.openingHeightCm)} cm`]);
+      if (Number.isFinite(item.openingSillHeightCm)) {
+        values.push(["床から窓下端", `${formatCm(item.openingSillHeightCm)} cm`]);
+        if (Number.isFinite(item.openingHeightCm)) values.push(["床から窓上端", `${formatCm(item.openingSillHeightCm + item.openingHeightCm)} cm`]);
+      }
     }
     if (type === "furniture" && item.supportName) values.push(["設置面", `${item.supportName}の上`]);
     if (type === "furniture" && item.supportFit) {
       values.push(["設置面寸法", `${item.supportFit.supportWidthCm} × ${item.supportFit.supportDepthCm} cm`]);
       if (item.supportFit.fits) values.push(["面内の移動範囲", `横 ${item.supportFit.movementWidthCm} cm・奥行 ${item.supportFit.movementDepthCm} cm`]);
     }
-    if (type === "furniture" && item.vertical?.bottomCm > 0) values.push(["床から底面", `${item.vertical.bottomCm} cm`]);
+    if (type === "furniture" && Number.isFinite(item.vertical?.bottomCm)) values.push(["床から底面", `${formatCm(item.vertical.bottomCm)} cm`]);
+    if (type === "furniture" && Number.isFinite(item.vertical?.topCm)) values.push(["床から最上部", `${item.vertical.schematic ? "約" : ""}${formatCm(item.vertical.topCm)} cm${item.vertical.schematic ? "（模式値）" : ""}`]);
     if (type === "furniture" && item.deliveryDimensions) {
       const dimensions = item.deliveryDimensions;
       values.push(["搬入時の3辺", `${dimensions.sideACm} × ${dimensions.sideBCm} × ${dimensions.sideCCm} cm`]);

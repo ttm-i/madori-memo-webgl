@@ -362,6 +362,47 @@ test("furniture details render registered product links safely", () => {
   assert.doesNotMatch(detailMarkup("furniture", { productUrl: "javascript:alert(1)" }), /detail-product-link/);
 });
 
+test("furniture details include every body and installed-height dimension", () => {
+  const measured = detailMarkup("furniture", {
+    name: "テーブル", widthCm: 105, depthCm: 70, heightCm: 70,
+    vertical: { bottomCm: 40, topCm: 110, schematic: false }, quality: "measured",
+  });
+  assert.match(measured, /<dt>幅<\/dt><dd>105 cm<\/dd>/);
+  assert.match(measured, /<dt>奥行<\/dt><dd>70 cm<\/dd>/);
+  assert.match(measured, /<dt>高さ<\/dt><dd>70 cm<\/dd>/);
+  assert.match(measured, /<dt>床から底面<\/dt><dd>40 cm<\/dd>/);
+  assert.match(measured, /<dt>床から最上部<\/dt><dd>110 cm<\/dd>/);
+
+  const schematic = detailMarkup("furniture", {
+    name: "ソファ", widthCm: 180, depthCm: 85,
+    vertical: { bottomCm: 0, topCm: 80, schematic: true }, quality: "measured",
+  });
+  assert.match(schematic, /<dt>高さ<\/dt><dd>未登録<\/dd>/);
+  assert.match(schematic, /<dt>3D表示高さ<\/dt><dd>約80 cm（種類別の模式値）<\/dd>/);
+  assert.match(schematic, /<dt>床から底面<\/dt><dd>0 cm<\/dd>/);
+  assert.match(schematic, /<dt>床から最上部<\/dt><dd>約80 cm（模式値）<\/dd>/);
+});
+
+test("window and curtain details include opening dimensions needed for purchasing", () => {
+  const opening = detailMarkup("opening", {
+    name: "LDK側面窓", kind: "window", widthCm: 160, heightCm: 96.5, sillHeightCm: 88, quality: "measured",
+  });
+  assert.match(opening, /<dt>開口幅<\/dt><dd>160 cm<\/dd>/);
+  assert.match(opening, /<dt>開口高さ<\/dt><dd>96\.5 cm<\/dd>/);
+  assert.match(opening, /<dt>床から窓下端<\/dt><dd>88 cm<\/dd>/);
+  assert.match(opening, /<dt>床から窓上端<\/dt><dd>184\.5 cm<\/dd>/);
+
+  const curtain = detailMarkup("furniture", {
+    name: "カーテンセット", furnitureKind: "curtain", widthCm: 180, depthCm: 12, heightCm: 200,
+    openingName: "LDK側面窓", openingWidthCm: 160, openingHeightCm: 96.5, openingSillHeightCm: 88,
+    vertical: { bottomCm: 0, topCm: 200, schematic: false }, quality: "measured",
+  });
+  assert.match(curtain, /<dt>窓の開口幅<\/dt><dd>160 cm<\/dd>/);
+  assert.match(curtain, /<dt>窓の開口高さ<\/dt><dd>96\.5 cm<\/dd>/);
+  assert.match(curtain, /<dt>床から窓下端<\/dt><dd>88 cm<\/dd>/);
+  assert.match(curtain, /<dt>床から窓上端<\/dt><dd>184\.5 cm<\/dd>/);
+});
+
 test("furniture stack duplication preserves nested support relationships", () => {
   const stand = { id: "stand", name: "テレビ台", x: 100, y: 100, widthCm: 150, depthCm: 40 };
   const tv = { id: "tv", name: "テレビ", supportId: "stand", x: 120, y: 107.5, widthCm: 110, depthCm: 25, supportOffsetX: 20, supportOffsetY: 7.5 };

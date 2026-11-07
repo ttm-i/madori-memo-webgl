@@ -1,7 +1,7 @@
-import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=147";
-import { alignCurtainToOpening, alignCurtainsToOpenings, alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, applyFurnitureCandidate, buildElevationItems, buildFurnitureHierarchy, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, curtainOpening, DIMENSION_GROUP_LABELS, duplicateFurnitureStack, featureSupportRange, findSupportItem, furnitureDescendantIds as modelFurnitureDescendantIds, furniturePriceSummary, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, normalizeFurnitureProductUrl, previewFurnitureCandidate, QUALITY_LABELS, removeFurnitureStack, resolveFurnitureVerticalRange, rotateFurnitureStack, supportSurfaceSize, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=147";
-import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=147";
-import { createWebGLThreeView } from "./webgl-three.js?v=147";
+import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=148";
+import { alignCurtainToOpening, alignCurtainsToOpenings, alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, applyFurnitureCandidate, buildElevationItems, buildFurnitureHierarchy, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, curtainOpening, DIMENSION_GROUP_LABELS, duplicateFurnitureStack, featureSupportRange, findSupportItem, furnitureDescendantIds as modelFurnitureDescendantIds, furniturePriceSummary, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, normalizeFurnitureProductUrl, previewFurnitureCandidate, QUALITY_LABELS, removeFurnitureStack, resolveFurnitureVerticalRange, rotateFurnitureStack, supportSurfaceSize, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=148";
+import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=148";
+import { createWebGLThreeView } from "./webgl-three.js?v=148";
 
 const elements = Object.fromEntries([
   "menuButton", "dataMenu", "detailDialog", "detailType", "detailTitle", "detailBody", "fileInput",
@@ -960,13 +960,31 @@ function showDetail(type, item, { origin = activeView === "three" ? "three" : "p
   elements.detailDialog.classList.add(type === "room" ? "detail-room" : type === "dimension" ? "detail-dimension" : type === "furniture" ? "detail-furniture" : "detail-equipment");
   elements.detailType.textContent = typeLabels[type] ?? "DETAIL";
   elements.detailTitle.textContent = item.name;
-  const room = item.roomId ? activePlan.plan.rooms.find((candidate) => candidate.id === item.roomId) : null;
+  const roomIds = item.roomIds ?? (item.roomId ? [item.roomId] : []);
+  const relatedRooms = roomIds.map((roomId) => activePlan.plan.rooms.find((candidate) => candidate.id === roomId)).filter(Boolean);
+  const room = relatedRooms[0] ?? null;
+  const roomName = relatedRooms.map((candidate) => candidate.name).join("・");
   const support = type === "furniture" ? findSupportItem(activePlan.plan, item.supportId) : null;
   const curtainWindow = curtainAttached ? activePlan.plan.openings.find((opening) => opening.id === item.openingId) : null;
+  const curtainWindowWidth = curtainWindow?.widthCm ?? (curtainWindow?.from && curtainWindow?.to
+    ? Math.hypot(curtainWindow.to.x - curtainWindow.from.x, curtainWindow.to.y - curtainWindow.from.y)
+    : null);
   const vertical = type === "furniture" ? resolveFurnitureVerticalRange(activePlan.plan, item) : null;
   const detailItem = type === "furniture" && room
-    ? { ...item, roomName: room.name, openingName: curtainWindow?.name, supportName: support?.name, supportFit: curtainAttached ? null : analyzeFurnitureSupportFit(item, activePlan.plan), vertical, placement: curtainAttached ? { inside: true, boundaries: null } : analyzeFurniturePlacement(item, room), conflicts: analyzeFurnitureConflicts(item, activePlan.plan) }
-    : room ? { ...item, roomName: room.name } : item;
+    ? {
+      ...item,
+      roomName: roomName || room.name,
+      openingName: curtainWindow?.name,
+      openingWidthCm: curtainWindowWidth,
+      openingHeightCm: curtainWindow?.heightCm,
+      openingSillHeightCm: curtainWindow?.sillHeightCm,
+      supportName: support?.name,
+      supportFit: curtainAttached ? null : analyzeFurnitureSupportFit(item, activePlan.plan),
+      vertical,
+      placement: curtainAttached ? { inside: true, boundaries: null } : analyzeFurniturePlacement(item, room),
+      conflicts: analyzeFurnitureConflicts(item, activePlan.plan),
+    }
+    : room ? { ...item, roomName: roomName || room.name } : item;
   elements.detailBody.innerHTML = detailMarkup(type, detailItem);
   if (type === "furniture") {
     elements.furnitureRoomEdit.replaceChildren(...activePlan.plan.rooms.map((candidate) => new Option(candidate.name, candidate.id, false, candidate.id === item.roomId)));
