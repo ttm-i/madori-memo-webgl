@@ -1,7 +1,7 @@
-import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=143";
-import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, applyFurnitureCandidate, buildElevationItems, buildFurnitureHierarchy, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurnitureStack, featureSupportRange, findSupportItem, furnitureDescendantIds as modelFurnitureDescendantIds, furniturePriceSummary, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, normalizeFurnitureProductUrl, previewFurnitureCandidate, QUALITY_LABELS, removeFurnitureStack, resolveFurnitureVerticalRange, rotateFurnitureStack, supportSurfaceSize, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=143";
-import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=143";
-import { createWebGLThreeView } from "./webgl-three.js?v=143";
+import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=144";
+import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, applyFurnitureCandidate, buildElevationItems, buildFurnitureHierarchy, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurnitureStack, featureSupportRange, findSupportItem, furnitureDescendantIds as modelFurnitureDescendantIds, furniturePriceSummary, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, normalizeFurnitureProductUrl, previewFurnitureCandidate, QUALITY_LABELS, removeFurnitureStack, resolveFurnitureVerticalRange, rotateFurnitureStack, supportSurfaceSize, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=144";
+import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=144";
+import { createWebGLThreeView } from "./webgl-three.js?v=144";
 
 const elements = Object.fromEntries([
   "menuButton", "dataMenu", "detailDialog", "detailType", "detailTitle", "detailBody", "fileInput",
@@ -35,6 +35,22 @@ const elements = Object.fromEntries([
   "threeRoomFilter", "threeWallsToggle", "threeOpeningsToggle", "threeFeaturesToggle", "threeFurnitureToggle", "threeElectricalToggle",
   "threeZoomOut", "threeZoomReset", "threeZoomIn", "threeZoomValue", "threeZoomHint", "threeCameraControls", "threeOverviewMode", "threeIndoorMode", "threeIndoorViewpointGroup", "threeIndoorViewpoint",
 ].map((id) => [id, document.getElementById(id)]));
+
+let dialogPageScrollY = 0;
+function syncDialogPageScrollLock() {
+  const shouldLock = Boolean(document.querySelector("dialog[open]"));
+  const locked = document.body.classList.contains("dialog-scroll-locked");
+  if (shouldLock && !locked) {
+    dialogPageScrollY = window.scrollY;
+    document.body.style.top = `-${dialogPageScrollY}px`;
+    document.body.classList.add("dialog-scroll-locked");
+  } else if (!shouldLock && locked) {
+    document.body.classList.remove("dialog-scroll-locked");
+    document.body.style.top = "";
+    window.scrollTo(0, dialogPageScrollY);
+  }
+}
+new MutationObserver(syncDialogPageScrollLock).observe(document.body, { subtree: true, attributes: true, attributeFilter: ["open"] });
 
 let activePlan = null;
 let toastTimer = null;

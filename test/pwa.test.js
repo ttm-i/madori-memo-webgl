@@ -321,3 +321,14 @@ test("candidate dialogs keep their close action in the heading and prevent needl
   assert.match(styles, /\.field-row \{[^}]*minmax\(0, 1fr\)/);
   assert.match(styles, /\.candidate-delivery-fields \{[^}]*min-width: 0/);
 });
+
+test("candidate date input fits mobile dialogs and open dialogs lock background scrolling", () => {
+  const html = readFileSync(new URL("../dist/index.html", import.meta.url), "utf8");
+  const app = readFileSync(new URL("../dist/app.js", import.meta.url), "utf8");
+  const styles = readFileSync(new URL("../dist/styles.css", import.meta.url), "utf8");
+  assert.match(html, /class="field-row candidate-price-row"[\s\S]*id="candidatePriceCheckedAt"/);
+  assert.match(styles, /\.candidate-price-row \{[^}]*grid-template-columns: minmax\(0, 1fr\)/);
+  assert.match(styles, /body\.dialog-scroll-locked \{[^}]*position: fixed[^}]*overflow: hidden/);
+  assert.match(styles, /dialog\[open\] \{[^}]*overscroll-behavior: contain/);
+  assert.match(app, /function syncDialogPageScrollLock\(\)[\s\S]*new MutationObserver\(syncDialogPageScrollLock\)/);
+});
