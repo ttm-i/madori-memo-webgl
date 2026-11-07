@@ -959,7 +959,8 @@ export function furnitureEighthTurns(furniture) {
 }
 
 export function furnitureRotationDegrees(furniture) {
-  return furnitureEighthTurns(furniture) % 2 ? 45 : 0;
+  const eighthTurns = furnitureEighthTurns(furniture);
+  return inferFurnitureKind(furniture) === "curtain" ? eighthTurns * 45 : eighthTurns % 2 ? 45 : 0;
 }
 
 function axisAlignedPolygon(item) {
