@@ -327,6 +327,8 @@ dialog::backdrop { background: rgba(32,36,31,.42); backdrop-filter: blur(2px); }
 .detail-list { display: grid; grid-template-columns: 1fr auto; gap: 8px 14px; margin: 0; }
 .detail-list dt { color: var(--muted); }
 .detail-list dd { margin: 0; color: var(--ink); font-weight: 700; }
+.detail-product-link { display: flex; align-items: center; justify-content: center; gap: 7px; min-height: 46px; margin-top: 14px; border: 1px solid rgba(49,112,94,.35); border-radius: 12px; background: var(--accent-soft); color: var(--accent); font-weight: 800; text-decoration: none; }
+.detail-product-link:hover, .detail-product-link:focus { border-color: var(--accent); background: #dceee7; }
 .detail-actions { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 18px; }
 .detail-view-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 16px; }
 .detail-view-actions.single-action { grid-template-columns: 1fr; }
@@ -346,7 +348,10 @@ dialog::backdrop { background: rgba(32,36,31,.42); backdrop-filter: blur(2px); }
 .furniture-list-empty { margin: 24px 0; color: var(--muted); text-align: center; }
 .furniture-list-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 7px; padding-left: var(--tree-indent, 0px); }
 .furniture-list-row.is-nested .furniture-list-item { border-left: 3px solid #9bb7ae; }
+.furniture-list-actions { display: grid; gap: 7px; align-content: start; }
 .furniture-list-item { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; width: 100%; min-width: 0; padding: 13px 14px; border: 1px solid var(--line); border-radius: 13px; background: white; text-align: left; }
+.furniture-list-product-link { display: grid; place-items: center; width: 42px; min-height: 42px; border: 1px solid rgba(49,112,94,.35); border-radius: 12px; background: var(--accent-soft); color: var(--accent); font-size: 1.15rem; font-weight: 900; text-decoration: none; }
+.furniture-list-product-link:hover, .furniture-list-product-link:focus { border-color: var(--accent); background: #dceee7; }
 .furniture-list-collapse { width: 42px; min-height: 42px; align-self: stretch; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--accent); font-size: 1.25rem; font-weight: 800; }
 .furniture-list-item strong { color: var(--ink); }
 .furniture-list-item span { color: var(--muted); font-size: .75rem; }

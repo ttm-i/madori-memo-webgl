@@ -1,7 +1,7 @@
-import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=135";
-import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildElevationItems, buildFurnitureHierarchy, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurnitureStack, featureSupportRange, findSupportItem, furnitureDescendantIds as modelFurnitureDescendantIds, furniturePriceSummary, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, QUALITY_LABELS, removeFurnitureStack, resolveFurnitureVerticalRange, rotateFurnitureStack, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=135";
-import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=135";
-import { createWebGLThreeView } from "./webgl-three.js?v=135";
+import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=136";
+import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildElevationItems, buildFurnitureHierarchy, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurnitureStack, featureSupportRange, findSupportItem, furnitureDescendantIds as modelFurnitureDescendantIds, furniturePriceSummary, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, normalizeFurnitureProductUrl, QUALITY_LABELS, removeFurnitureStack, resolveFurnitureVerticalRange, rotateFurnitureStack, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=136";
+import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=136";
+import { createWebGLThreeView } from "./webgl-three.js?v=136";
 
 const elements = Object.fromEntries([
   "menuButton", "dataMenu", "detailDialog", "detailType", "detailTitle", "detailBody", "fileInput",
@@ -15,7 +15,7 @@ const elements = Object.fromEntries([
   "furnitureMenuButton", "furnitureMenu", "snapToggle",
   "summaryTitle", "roomCount", "measuredCount", "uncertainCount", "connectionBadge", "saveStatus", "toast",
   "furnitureButton", "furnitureDialog", "furnitureForm", "cancelFurnitureButton",
-  "furnitureName", "furnitureWidth", "furnitureDepth", "furnitureHeight", "furniturePrice", "furnitureRoom", "furniturePreset", "furnitureSupport", "furnitureSupportHelp",
+  "furnitureName", "furnitureWidth", "furnitureDepth", "furnitureHeight", "furniturePrice", "furnitureProductUrl", "furnitureRoom", "furniturePreset", "furnitureSupport", "furnitureSupportHelp",
   "furnitureViewActions", "showFurnitureInPlanButton", "showFurnitureInThreeButton", "furnitureActions", "rotateFurnitureButton", "duplicateFurnitureButton", "deleteFurnitureButton",
   "furnitureRoomEditGroup", "furnitureRoomEdit",
   "editFurnitureButton", "furnitureDialogTitle", "furnitureSubmitButton",
@@ -1303,6 +1303,19 @@ function renderFurnitureList() {
       showDetail("furniture", furniture, { origin: "list" });
     });
     wrapper.append(row);
+    const actions = document.createElement("div");
+    actions.className = "furniture-list-actions";
+    const productUrl = normalizeFurnitureProductUrl(furniture.productUrl);
+    if (productUrl) {
+      const productLink = document.createElement("a");
+      productLink.className = "furniture-list-product-link";
+      productLink.href = productUrl;
+      productLink.target = "_blank";
+      productLink.rel = "noopener noreferrer";
+      productLink.textContent = "↗";
+      productLink.setAttribute("aria-label", `${furniture.name}の商品ページを開く`);
+      actions.append(productLink);
+    }
     const childIds = childIdsByParent.get(furniture.id) ?? [];
     if (childIds.length) {
       const toggle = document.createElement("button");
@@ -1317,8 +1330,9 @@ function renderFurnitureList() {
         else collapsedFurnitureIds.add(furniture.id);
         renderFurnitureList();
       });
-      wrapper.append(toggle);
+      actions.append(toggle);
     }
+    if (actions.childElementCount) wrapper.append(actions);
     return wrapper;
   });
   elements.furnitureList.replaceChildren(...rows);
@@ -1467,6 +1481,7 @@ elements.furnitureButton.addEventListener("click", () => {
   elements.furnitureDepth.value = "50";
   elements.furnitureHeight.value = "";
   elements.furniturePrice.value = "";
+  elements.furnitureProductUrl.value = "";
   elements.furnitureName.value = "家具";
   elements.furniturePreset.value = "custom";
   updateFurnitureSupportOptions();
@@ -1547,9 +1562,12 @@ elements.furnitureForm.addEventListener("submit", async (event) => {
   const heightCm = heightText === "" ? null : Number(heightText);
   const priceText = elements.furniturePrice.value.trim();
   const priceYen = priceText === "" ? null : Number(priceText);
+  const productUrlText = elements.furnitureProductUrl.value.trim();
+  const productUrl = normalizeFurnitureProductUrl(productUrlText);
   if (!Number.isFinite(widthCm) || !Number.isFinite(depthCm) || widthCm <= 0 || depthCm <= 0) return showToast("家具寸法を確認してください");
   if (heightCm !== null && (!Number.isFinite(heightCm) || heightCm <= 0)) return showToast("家具の高さを確認してください");
   if (priceYen !== null && (!Number.isInteger(priceYen) || priceYen < 0 || priceYen > 999999999)) return showToast("家具の税込価格を1円単位で確認してください");
+  if (productUrlText && !productUrl) return showToast("商品ページURLは http:// または https:// から入力してください");
   const name = elements.furnitureName.value.trim() || "家具";
   const supportId = elements.furnitureSupport.value || null;
   if (editingFurnitureId) {
@@ -1557,7 +1575,7 @@ elements.furnitureForm.addEventListener("submit", async (event) => {
     if (!furniture) return showToast("編集する家具が見つかりません");
     pushHistory();
     const furnitureKind = elements.furniturePreset.value === "custom" ? null : elements.furniturePreset.value;
-    updateFurniture(furniture, { name, roomId: room.id, widthCm, depthCm, heightCm, priceYen, supportId, furnitureKind });
+    updateFurniture(furniture, { name, roomId: room.id, widthCm, depthCm, heightCm, priceYen, productUrl, supportId, furnitureKind });
     alignFurnitureToSupport(activePlan.plan, furniture);
     alignSupportedFurniture(activePlan.plan);
     renderer.render(activePlan);
@@ -1586,6 +1604,7 @@ elements.furnitureForm.addEventListener("submit", async (event) => {
   if (elements.furniturePreset.value !== "custom") furniture.furnitureKind = elements.furniturePreset.value;
   if (heightCm !== null) furniture.heightCm = heightCm;
   if (priceYen !== null) furniture.priceYen = priceYen;
+  if (productUrl) furniture.productUrl = productUrl;
   if (supportId) furniture.supportId = supportId;
   alignFurnitureToSupport(activePlan.plan, furniture);
   activePlan.plan.furniture.push(furniture);
@@ -1606,6 +1625,7 @@ elements.editFurnitureButton.addEventListener("click", () => {
   elements.furnitureDepth.value = String(furniture.depthCm);
   elements.furnitureHeight.value = Number.isFinite(furniture.heightCm) ? String(furniture.heightCm) : "";
   elements.furniturePrice.value = Number.isInteger(furniture.priceYen) ? String(furniture.priceYen) : "";
+  elements.furnitureProductUrl.value = furniture.productUrl ?? "";
   elements.furnitureRoom.replaceChildren(...activePlan.plan.rooms.map((room) => new Option(room.name, room.id, false, room.id === furniture.roomId)));
   updateFurnitureSupportOptions(furniture.supportId ?? "");
   elements.furnitureSupport.dispatchEvent(new Event("change"));

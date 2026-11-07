@@ -1,4 +1,4 @@
-import { alignFurnitureToSupport, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildKitchenComponentRects, findSupportItem, furnitureBounds, furnitureDescendantIds, furnitureRotationDegrees, furnitureWallMove, getDimensionGroup, getElectricalPlanPosition, moveDimensionGuide, QUALITY_LABELS, rotateFurnitureStack, snapToGrid, translateFurnitureDescendants } from "./model.js?v=135";
+import { alignFurnitureToSupport, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildKitchenComponentRects, findSupportItem, furnitureBounds, furnitureDescendantIds, furnitureRotationDegrees, furnitureWallMove, getDimensionGroup, getElectricalPlanPosition, moveDimensionGuide, normalizeFurnitureProductUrl, QUALITY_LABELS, rotateFurnitureStack, snapToGrid, translateFurnitureDescendants } from "./model.js?v=136";
 
 const NS = "http://www.w3.org/2000/svg";
 
@@ -916,9 +916,13 @@ export function detailMarkup(type, item) {
   }
   if (type === "furniture" && item.conflicts?.length) warnings.push(`重なり: ${item.conflicts.map((conflict) => escapeHTML(conflict.name)).join("、")}`);
   const warning = warnings.length ? `<p class="placement-alert">${warnings.join("<br>")}</p>` : "";
+  const productUrl = type === "furniture" ? normalizeFurnitureProductUrl(item.productUrl) : null;
+  const productLink = productUrl
+    ? `<a class="detail-product-link" href="${escapeHTML(productUrl)}" target="_blank" rel="noopener noreferrer">商品ページを開く <span aria-hidden="true">↗</span></a>`
+    : "";
   const qualityTags = type === "feature"
     ? `<div class="quality-tags"><span class="quality-tag ${escapeHTML(quality)}">寸法: ${safeQuality}</span><span class="quality-tag placement ${escapeHTML(item.placementQuality ?? (item.uncertain ? "approximate" : "confirmed"))}">配置: ${item.placementQuality === "confirmed" || (!item.placementQuality && !item.uncertain) ? "確認済み" : "要確認"}</span></div>`
     : `<span class="quality-tag ${escapeHTML(quality)}">${safeQuality}</span>`;
-  return `${list}${warning}${qualityTags}${item.note ? `<p>${escapeHTML(item.note)}</p>` : ""}`;
+  return `${list}${productLink}${warning}${qualityTags}${item.note ? `<p>${escapeHTML(item.note)}</p>` : ""}`;
 }
 

@@ -49,6 +49,18 @@ test("furniture prices are optional and summarized in the furniture list", () =>
   assert.match(app, /価格未登録/);
 });
 
+test("furniture product links are optional, editable and available from details and the furniture list", () => {
+  const html = readFileSync(new URL("../dist/index.html", import.meta.url), "utf8");
+  const app = readFileSync(new URL("../dist/app.js", import.meta.url), "utf8");
+  const renderer = readFileSync(new URL("../dist/renderer.js", import.meta.url), "utf8");
+  assert.match(html, /id="furnitureProductUrl"[^>]*type="url"/);
+  assert.match(app, /normalizeFurnitureProductUrl\(productUrlText\)/);
+  assert.match(app, /productLink\.target = "_blank"/);
+  assert.match(app, /productLink\.rel = "noopener noreferrer"/);
+  assert.match(app, /className = "furniture-list-product-link"/);
+  assert.match(renderer, /class="detail-product-link"[^>]*target="_blank" rel="noopener noreferrer"/);
+});
+
 test("the furniture list can show only furniture with no registered price", () => {
   const html = readFileSync(new URL("../dist/index.html", import.meta.url), "utf8");
   const app = readFileSync(new URL("../dist/app.js", import.meta.url), "utf8");

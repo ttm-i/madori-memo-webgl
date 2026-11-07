@@ -7,6 +7,17 @@ export const QUALITY_LABELS = {
   unmeasured: "未測定",
 };
 
+export function normalizeFurnitureProductUrl(value) {
+  if (value == null || value === "") return null;
+  if (typeof value !== "string" || !value.trim()) return null;
+  try {
+    const url = new URL(value.trim());
+    return url.protocol === "http:" || url.protocol === "https:" ? url.href : null;
+  } catch {
+    return null;
+  }
+}
+
 export const DIMENSION_GROUP_LABELS = {
   wet: "水回り",
   hall: "玄関・廊下",
@@ -41,6 +52,11 @@ export function validatePlan(input) {
   for (const furniture of input.plan.furniture) {
     if (furniture.priceYen != null && (!Number.isInteger(furniture.priceYen) || furniture.priceYen < 0 || furniture.priceYen > 999999999)) {
       throw new Error(`${furniture.name ?? "家具"}の価格が不正です`);
+    }
+    if (furniture.productUrl != null) {
+      const productUrl = normalizeFurnitureProductUrl(furniture.productUrl);
+      if (!productUrl) throw new Error(`${furniture.name ?? "家具"}の商品URLが不正です`);
+      furniture.productUrl = productUrl;
     }
   }
   for (const room of input.plan.rooms) {
@@ -692,6 +708,9 @@ export function updateFurniture(furniture, values) {
   else delete furniture.heightCm;
   if (Number.isInteger(values.priceYen) && values.priceYen >= 0) furniture.priceYen = values.priceYen;
   else delete furniture.priceYen;
+  const productUrl = normalizeFurnitureProductUrl(values.productUrl);
+  if (productUrl) furniture.productUrl = productUrl;
+  else delete furniture.productUrl;
   if (values.furnitureKind && Object.hasOwn(FURNITURE_PRESETS, values.furnitureKind)) furniture.furnitureKind = values.furnitureKind;
   else delete furniture.furnitureKind;
   const supportChanged = furniture.supportId !== values.supportId;
