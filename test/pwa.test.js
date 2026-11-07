@@ -246,6 +246,15 @@ test("desk and chair models are refined and a pedal bin preset is available", ()
   assert.match(webgl, /kind === "desk"[\s\S]*backY[\s\S]*kind === "chair"[\s\S]*rearY[\s\S]*kind === "trash-bin"/);
 });
 
+test("dresser is available with a mirror, cabinet and stool model", () => {
+  const html = readFileSync(new URL("../dist/index.html", import.meta.url), "utf8");
+  const model = readFileSync(new URL("../dist/model.js", import.meta.url), "utf8");
+  const webgl = readFileSync(new URL("../dist/webgl-three.js", import.meta.url), "utf8");
+  assert.match(html, /value="dresser">ドレッサー 60×40×130/);
+  assert.match(model, /dresser: \{ name: "ドレッサー", width: 60, depth: 40, height: 130 \}/);
+  assert.match(webgl, /kind === "dresser"[\s\S]*cabinetWidth[\s\S]*mirrorWidth[\s\S]*stoolWidth[\s\S]*kind === "chair"/);
+});
+
 test("2D selection uses an in-plan summary, wall clearances and origin-aware detail actions", () => {
   const html = readFileSync(new URL("../dist/index.html", import.meta.url), "utf8");
   const app = readFileSync(new URL("../dist/app.js", import.meta.url), "utf8");

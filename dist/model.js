@@ -198,6 +198,7 @@ export const FURNITURE_PRESETS = {
   bed: { name: "ダブルベッド", width: 140, depth: 195, height: 45 },
   "single-bed": { name: "シングルベッド", width: 97, depth: 195, height: 45 },
   desk: { name: "デスク", width: 95, depth: 48, height: 72 },
+  dresser: { name: "ドレッサー", width: 60, depth: 40, height: 130 },
   chair: { name: "椅子", width: 45, depth: 50, height: 80 },
   "tv-board": { name: "テレビ台", width: 150, depth: 40, height: 45 },
   tv: { name: "テレビ", width: 110, depth: 25, height: 65 },

@@ -1,6 +1,6 @@
 import * as THREE from "./vendor/three/three.module.js";
-import { buildKitchenCabinetLayout, buildKitchenComponentRects, furnitureEighthTurns, inferFurnitureKind, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=136";
-import { bayWindowFootprint, cabinetDoorPanelCount, cabinetThreePlacement, clampIndoorPitch, clampWebGLPan, closetThreePlacement, cycleThreeSelectionCandidate, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, roomInteriorViewpoint, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRelatedSelectionStyle, threeRoomBounds, threeSelectionKey, threeSelectionStyle, threeSelectionXrayStyle, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=136";
+import { buildKitchenCabinetLayout, buildKitchenComponentRects, furnitureEighthTurns, inferFurnitureKind, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=137";
+import { bayWindowFootprint, cabinetDoorPanelCount, cabinetThreePlacement, clampIndoorPitch, clampWebGLPan, closetThreePlacement, cycleThreeSelectionCandidate, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, roomInteriorViewpoint, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRelatedSelectionStyle, threeRoomBounds, threeSelectionKey, threeSelectionStyle, threeSelectionXrayStyle, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=137";
 
 const WALL_THICKNESS = 6;
 const DEFAULT_WALL_HEIGHT = 220;
@@ -259,6 +259,50 @@ function detailedFurnitureAssembly(item, vertical) {
     const backY = itemY + tube;
     furnitureBeam(group, { x: itemX + tube, y: backY, z: bottom + 10 }, { x: itemX + width - tube, y: backY, z: legTop - 8 }, 1.6, frameColor, frameOutline);
     furnitureBeam(group, { x: itemX + width - tube, y: backY, z: bottom + 10 }, { x: itemX + tube, y: backY, z: legTop - 8 }, 1.6, frameColor, frameOutline);
+  } else if (kind === "dresser") {
+    const vanityWhite = 0xf0efeb;
+    const vanityShade = 0xd8d7d2;
+    const vanityOutline = 0x777b78;
+    const frontY = itemY + depth + 1.1;
+    const deskTop = bottom + height * .55;
+    const topThickness = Math.max(3, height * .028);
+    furniturePart(group, width, topThickness, depth, cx, deskTop - topThickness / 2, cy, vanityWhite, vanityOutline);
+
+    const cabinetWidth = width * .32;
+    const cabinetCenterX = itemX + width - cabinetWidth / 2;
+    furniturePart(group, cabinetWidth, deskTop - bottom, depth, cabinetCenterX, bottom + (deskTop - bottom) / 2, cy, vanityWhite, vanityOutline);
+    furniturePart(group, cabinetWidth - 3, (deskTop - bottom) * .68, 2.2,
+      cabinetCenterX, bottom + (deskTop - bottom) * .34, frontY, vanityShade, vanityOutline);
+    furniturePart(group, width - cabinetWidth - 3, Math.max(11, height * .095), 2.4,
+      itemX + (width - cabinetWidth) / 2, deskTop - height * .06, frontY, vanityShade, vanityOutline);
+    const sideThickness = Math.max(2.4, width * .045);
+    furniturePart(group, sideThickness, deskTop - bottom, depth,
+      itemX + sideThickness / 2, bottom + (deskTop - bottom) / 2, cy, vanityWhite, vanityOutline);
+
+    const mirrorBottom = deskTop + 5;
+    const mirrorTop = top - 2;
+    const mirrorWidth = width * .82;
+    const mirrorHeight = mirrorTop - mirrorBottom;
+    const mirrorY = itemY + 2.2;
+    furniturePart(group, mirrorWidth + 3.5, mirrorHeight + 3.5, 3,
+      cx, mirrorBottom + mirrorHeight / 2, mirrorY, vanityWhite, vanityOutline);
+    furniturePart(group, mirrorWidth - 2, mirrorHeight - 3, 1.8,
+      cx, mirrorBottom + mirrorHeight / 2 + .5, mirrorY + 2, 0xc7d5d7, 0x687476);
+    furniturePart(group, width * .18, 3, 3.5,
+      itemX + width * .78, mirrorBottom + 3, mirrorY + 4, 0x373b3a, 0x222524);
+
+    const stoolWidth = Math.min(width * .43, 30);
+    const stoolDepth = Math.min(depth * .65, 28);
+    const stoolHeight = Math.min(46, deskTop - bottom - 8);
+    const stoolCenterX = itemX + (width - cabinetWidth) * .48;
+    const stoolCenterY = cy + depth * .08;
+    furniturePart(group, stoolWidth, 5, stoolDepth,
+      stoolCenterX, bottom + stoolHeight, stoolCenterY, 0xe6e3dc, vanityOutline);
+    const stoolLeg = Math.max(2.4, stoolWidth * .085);
+    for (const dx of [-1, 1]) for (const dy of [-1, 1]) furniturePart(group,
+      stoolLeg, stoolHeight - 2.5, stoolLeg,
+      stoolCenterX + dx * (stoolWidth / 2 - stoolLeg), bottom + (stoolHeight - 2.5) / 2,
+      stoolCenterY + dy * (stoolDepth / 2 - stoolLeg), vanityWhite, vanityOutline);
   } else if (kind === "chair") {
     const chairWhite = 0xe9e9e4;
     const chairOutline = 0x777c79;
