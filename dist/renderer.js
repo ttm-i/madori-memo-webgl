@@ -1,4 +1,4 @@
-import { alignFurnitureToSupport, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildKitchenComponentRects, findSupportItem, furnitureBounds, furnitureDescendantIds, furnitureRotationDegrees, furnitureWallMove, getDimensionGroup, getElectricalPlanPosition, moveDimensionGuide, QUALITY_LABELS, rotateFurnitureStack, snapToGrid, translateFurnitureDescendants } from "./model.js?v=134";
+import { alignFurnitureToSupport, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildKitchenComponentRects, findSupportItem, furnitureBounds, furnitureDescendantIds, furnitureRotationDegrees, furnitureWallMove, getDimensionGroup, getElectricalPlanPosition, moveDimensionGuide, QUALITY_LABELS, rotateFurnitureStack, snapToGrid, translateFurnitureDescendants } from "./model.js?v=135";
 
 const NS = "http://www.w3.org/2000/svg";
 
@@ -124,6 +124,7 @@ export class PlanRenderer {
     this.layer.append(defs);
 
     const content = svg("g", { class: "plan-content" });
+    const furnitureControlsLayer = svg("g", { class: "furniture-controls-layer", "aria-label": "選択中の家具の操作" });
     for (const room of documentData.plan.rooms) {
       const group = svg("g", { class: this.isSelectable("room") ? "" : "not-selectable", "data-id": room.id });
       const polygon = svg("polygon", { class: `room-shape ${room.uncertain ? "uncertain" : ""}`, points: pointsValue(room.points), fill: room.color ?? "#eee8d9" });
@@ -261,9 +262,10 @@ export class PlanRenderer {
       const supportDepth = support?.depthCm ?? support?.height;
       const supportedMovable = support && supportFit?.fits !== false;
       const supportOverflow = supportFit?.fits === false;
+      const anotherFurnitureSelected = Boolean(this.selectedFurnitureId && !selected);
       const bounds = furnitureBounds(furniture);
       const rotationDegrees = furnitureRotationDegrees(furniture);
-      const group = svg("g", { class: `furniture-group ${furniture.supportId ? "is-supported" : ""} ${furniture.supportId && !supportedMovable ? "is-supported-fixed" : ""} ${supportOverflow ? "support-overflow" : ""} ${this.isSelectable("furniture") ? "" : "not-selectable"} ${selected ? "selected" : ""} ${placement.inside ? "" : "out-of-room"} ${conflicts.length ? "has-conflict" : ""}`, "data-furniture-id": furniture.id, tabindex: 0, role: "button", "aria-label": `${furniture.name}${furniture.supportId ? " 上置き" : ""}${supportOverflow ? " 設置面からはみ出し" : ""}${placement.inside ? "" : " 部屋外"}${conflicts.length ? " 重なりあり" : ""}` });
+      const group = svg("g", { class: `furniture-group ${furniture.supportId ? "is-supported" : ""} ${furniture.supportId && !supportedMovable ? "is-supported-fixed" : ""} ${supportOverflow ? "support-overflow" : ""} ${this.isSelectable("furniture") ? "" : "not-selectable"} ${anotherFurnitureSelected ? "move-disabled" : ""} ${selected ? "selected" : ""} ${placement.inside ? "" : "out-of-room"} ${conflicts.length ? "has-conflict" : ""}`, "data-furniture-id": furniture.id, tabindex: 0, role: "button", "aria-label": `${furniture.name}${furniture.supportId ? " 上置き" : ""}${supportOverflow ? " 設置面からはみ出し" : ""}${placement.inside ? "" : " 部屋外"}${conflicts.length ? " 重なりあり" : ""}` });
       const centerX = furniture.x + furniture.widthCm / 2;
       const centerY = furniture.y + furniture.depthCm / 2;
       const rectAttributes = { class: "furniture-shape", x: furniture.x, y: furniture.y, width: furniture.widthCm, height: furniture.depthCm, rx: 5 };
@@ -299,8 +301,10 @@ export class PlanRenderer {
         const warning = `⚠ ${reasons.join("・")}`;
         group.append(svg("text", { class: "placement-warning", x: centerX, y: bounds.top - 10 }, warning));
       }
+      let directControls = null;
       if (selected && !this.locked) {
         const controls = svg("g", { class: "furniture-direct-controls", "aria-label": `${furniture.name}の直接操作` });
+        directControls = controls;
         const operate = (action) => {
           const destination = action === "rotate" ? null : furnitureWallMove(furniture, room, action, documentData.plan);
           if (action !== "rotate" && (!destination || destination.distance < .05)) return;
@@ -338,7 +342,7 @@ export class PlanRenderer {
           addControl("up", "↑", centerX, bounds.top - 20, "上の壁・設備・家具まで移動");
           addControl("down", "↓", centerX, bounds.bottom + 20, "下の壁・設備・家具まで移動");
         }
-        group.append(controls);
+        furnitureControlsLayer.append(controls);
       }
       group.addEventListener("click", (event) => {
         event.stopPropagation();
@@ -349,15 +353,16 @@ export class PlanRenderer {
         if (this.isSelectable("furniture")) this.onSelect("furniture", furniture);
       });
       group.addEventListener("pointerdown", (event) => {
-        if (this.locked || (furniture.supportId && !supportedMovable) || !this.isSelectable("furniture")) return;
+        if (this.locked || !this.isSelectable("furniture")) return;
         event.stopPropagation();
+        if (anotherFurnitureSelected || (furniture.supportId && !supportedMovable)) return;
         event.currentTarget.setPointerCapture?.(event.pointerId);
         const descendantGroups = [...furnitureDescendantIds(documentData.plan, furniture.id)]
           .map((id) => this.svg.querySelector(`.furniture-group[data-furniture-id="${id}"]`))
           .filter(Boolean);
         this.draggingFurniture = {
           furniture, rect, label, sizeLabel, supportLabel, support, rotationDegrees,
-          directControls: event.currentTarget.querySelector(".furniture-direct-controls"),
+          directControls,
           descendantGroups,
           clientX: event.clientX, clientY: event.clientY,
           startX: furniture.x, startY: furniture.y,
@@ -419,6 +424,7 @@ export class PlanRenderer {
       });
       content.append(group);
     }
+    content.append(furnitureControlsLayer);
     if (this.measurementMode) content.append(this.createMeasurementOverlay());
     this.layer.append(content);
     this.applyTransform();

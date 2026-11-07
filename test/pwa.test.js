@@ -189,13 +189,17 @@ test("edit mode exposes direct rotate and wall-move controls", () => {
   const styles = readFileSync(new URL("../dist/styles.css", import.meta.url), "utf8");
   assert.match(html, /id="rotateFurnitureButton"[^>]*>45°回転/);
   assert.match(renderer, /class: "furniture-direct-controls"/);
+  assert.match(renderer, /class: "furniture-controls-layer"/);
+  assert.match(renderer, /furnitureControlsLayer\.append\(controls\)/);
+  assert.match(renderer, /content\.append\(furnitureControlsLayer\)/);
   assert.match(renderer, /addControl\("rotate", "↻"/);
   assert.match(renderer, /45度回転/);
   assert.match(renderer, /furnitureRotationDegrees/);
   assert.match(renderer, /addControl\("left", "←"[\s\S]*addControl\("right", "→"[\s\S]*addControl\("up", "↑"[\s\S]*addControl\("down", "↓"/);
   assert.match(renderer, /furnitureWallMove\(furniture, room, action, documentData\.plan\)/);
   assert.match(renderer, /左の壁・設備・家具まで移動[\s\S]*右の壁・設備・家具まで移動[\s\S]*上の壁・設備・家具まで移動[\s\S]*下の壁・設備・家具まで移動/);
-  assert.match(renderer, /directControls: event\.currentTarget\.querySelector\("\.furniture-direct-controls"\)/);
+  assert.match(renderer, /if \(anotherFurnitureSelected \|\| \(furniture\.supportId && !supportedMovable\)\) return/);
+  assert.match(renderer, /directControls,/);
   assert.match(renderer, /drag\.directControls\?\.setAttribute\("transform", `translate\(\$\{stackDeltaX} \$\{stackDeltaY}\)`\)/);
   assert.match(styles, /\.furniture-direct-control-bg/);
 });

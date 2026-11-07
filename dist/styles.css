@@ -410,6 +410,9 @@ dialog::backdrop { background: rgba(32,36,31,.42); backdrop-filter: blur(2px); }
 .placement-alert { padding: 10px 12px; border-radius: 10px; background: #f7dfdb; color: var(--danger); font-weight: 750; }
 .editing .furniture-group { cursor: grab; }
 .editing .furniture-group:active { cursor: grabbing; }
+.editing .furniture-group.move-disabled,
+.editing .furniture-group.move-disabled:active { cursor: pointer; }
+.furniture-controls-layer { pointer-events: none; }
 .furniture-direct-controls { pointer-events: all; }
 .furniture-direct-control { cursor: pointer; }
 .furniture-direct-control-bg { fill: rgba(255,255,255,.96); stroke: var(--accent); stroke-width: 2.5; vector-effect: non-scaling-stroke; filter: drop-shadow(0 2px 3px rgba(45,53,48,.2)); }
@@ -441,7 +444,7 @@ dialog::backdrop { background: rgba(32,36,31,.42); backdrop-filter: blur(2px); }
 .dimension.scope-hidden { display: none; }
 .room-labels-hidden .room-label, .room-labels-hidden .room-area { display: none; }
 .features-hidden .feature { display: none; }
-.furniture-hidden .furniture-group { display: none; }
+.furniture-hidden .furniture-group, .furniture-hidden .furniture-controls-layer { display: none; }
 .electrical-hidden .electrical-marker { display: none; }
 .not-selectable { pointer-events: none; }
 .form-dialog form { padding: 18px; }
