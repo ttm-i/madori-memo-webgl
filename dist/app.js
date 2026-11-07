@@ -1,7 +1,7 @@
-import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=142";
-import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, applyFurnitureCandidate, buildElevationItems, buildFurnitureHierarchy, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurnitureStack, featureSupportRange, findSupportItem, furnitureDescendantIds as modelFurnitureDescendantIds, furniturePriceSummary, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, normalizeFurnitureProductUrl, previewFurnitureCandidate, QUALITY_LABELS, removeFurnitureStack, resolveFurnitureVerticalRange, rotateFurnitureStack, supportSurfaceSize, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=142";
-import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=142";
-import { createWebGLThreeView } from "./webgl-three.js?v=142";
+import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=143";
+import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, applyFurnitureCandidate, buildElevationItems, buildFurnitureHierarchy, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurnitureStack, featureSupportRange, findSupportItem, furnitureDescendantIds as modelFurnitureDescendantIds, furniturePriceSummary, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, normalizeFurnitureProductUrl, previewFurnitureCandidate, QUALITY_LABELS, removeFurnitureStack, resolveFurnitureVerticalRange, rotateFurnitureStack, supportSurfaceSize, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=143";
+import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=143";
+import { createWebGLThreeView } from "./webgl-three.js?v=143";
 
 const elements = Object.fromEntries([
   "menuButton", "dataMenu", "detailDialog", "detailType", "detailTitle", "detailBody", "fileInput",

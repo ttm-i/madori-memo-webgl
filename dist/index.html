@@ -10,7 +10,7 @@
     <meta name="description" content="間取りと家具寸法を端末内だけで確認するオフラインPWA" />
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./icon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="./styles.css?v=142" />
+    <link rel="stylesheet" href="./styles.css?v=143" />
     <title>間取りメモ WebGL試作版</title>
   </head>
   <body>
@@ -431,7 +431,7 @@
 
       <dialog id="candidateGroupDialog" class="detail-dialog form-dialog">
         <form id="candidateGroupForm">
-          <div class="dialog-heading">
+          <div class="sheet-heading">
             <div><p class="eyebrow">COMPARISON GROUP</p><h2 id="candidateGroupDialogTitle">比較グループを追加</h2></div>
             <button id="cancelCandidateGroupButton" class="icon-button" type="button" aria-label="閉じる">×</button>
           </div>
@@ -444,7 +444,7 @@
 
       <dialog id="candidateDialog" class="detail-dialog form-dialog">
         <form id="candidateForm">
-          <div class="dialog-heading">
+          <div class="sheet-heading">
             <div><p class="eyebrow">PRODUCT CANDIDATE</p><h2 id="candidateDialogTitle">商品候補を追加</h2></div>
             <button id="cancelCandidateButton" class="icon-button" type="button" aria-label="閉じる">×</button>
           </div>
@@ -480,7 +480,7 @@
       <input id="fileInput" type="file" accept="application/json,.json" hidden />
       <div id="toast" class="toast" role="status" aria-live="polite"></div>
     </div>
-    <script type="module" src="./app.js?v=142"></script>
+    <script type="module" src="./app.js?v=143"></script>
   </body>
 </html>
 

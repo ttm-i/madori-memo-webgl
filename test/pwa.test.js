@@ -310,3 +310,14 @@ test("furniture candidates live under Other and support comparison, preview, ado
   assert.match(renderer, /for \(const furniture of documentData\.plan\.furniture[\s\S]*furniture-candidate-preview/);
   assert.match(renderer, /setCandidatePreview\(preview\)/);
 });
+
+test("candidate dialogs keep their close action in the heading and prevent needless horizontal scrolling", () => {
+  const html = readFileSync(new URL("../dist/index.html", import.meta.url), "utf8");
+  const styles = readFileSync(new URL("../dist/styles.css", import.meta.url), "utf8");
+  assert.match(html, /id="candidateGroupForm"[\s\S]*class="sheet-heading"[\s\S]*id="cancelCandidateGroupButton"/);
+  assert.match(html, /id="candidateForm"[\s\S]*class="sheet-heading"[\s\S]*id="cancelCandidateButton"/);
+  assert.doesNotMatch(html, /class="dialog-heading"/);
+  assert.match(styles, /\.sheet-dialog, \.detail-dialog \{[^}]*overflow-x: hidden/);
+  assert.match(styles, /\.field-row \{[^}]*minmax\(0, 1fr\)/);
+  assert.match(styles, /\.candidate-delivery-fields \{[^}]*min-width: 0/);
+});
