@@ -10,7 +10,7 @@
     <meta name="description" content="間取りと家具寸法を端末内だけで確認するオフラインPWA" />
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./icon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="./styles.css?v=144" />
+    <link rel="stylesheet" href="./styles.css?v=145" />
     <title>間取りメモ WebGL試作版</title>
   </head>
   <body>
@@ -458,7 +458,7 @@
             <label class="field-label">奥行（cm）<input id="candidateDepth" type="number" min="1" max="1000" step="0.1" inputmode="decimal" required /></label>
             <label class="field-label">高さ（cm）<input id="candidateHeight" type="number" min="1" max="1000" step="0.1" inputmode="decimal" required /></label>
           </div>
-          <div class="field-row candidate-price-row">
+          <div class="field-row">
             <label class="field-label">税込価格（円）<input id="candidatePrice" type="number" min="0" max="999999999" step="1" inputmode="numeric" /></label>
             <label class="field-label">価格確認日<input id="candidatePriceCheckedAt" type="date" /></label>
           </div>
@@ -480,7 +480,7 @@
       <input id="fileInput" type="file" accept="application/json,.json" hidden />
       <div id="toast" class="toast" role="status" aria-live="polite"></div>
     </div>
-    <script type="module" src="./app.js?v=144"></script>
+    <script type="module" src="./app.js?v=145"></script>
   </body>
 </html>
 

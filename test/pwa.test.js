@@ -322,12 +322,14 @@ test("candidate dialogs keep their close action in the heading and prevent needl
   assert.match(styles, /\.candidate-delivery-fields \{[^}]*min-width: 0/);
 });
 
-test("candidate date input fits mobile dialogs and open dialogs lock background scrolling", () => {
+test("iOS date input avoids padded width overflow and open dialogs lock background scrolling", () => {
   const html = readFileSync(new URL("../dist/index.html", import.meta.url), "utf8");
   const app = readFileSync(new URL("../dist/app.js", import.meta.url), "utf8");
   const styles = readFileSync(new URL("../dist/styles.css", import.meta.url), "utf8");
-  assert.match(html, /class="field-row candidate-price-row"[\s\S]*id="candidatePriceCheckedAt"/);
-  assert.match(styles, /\.candidate-price-row \{[^}]*grid-template-columns: minmax\(0, 1fr\)/);
+  assert.match(html, /class="field-row"[\s\S]*id="candidatePriceCheckedAt"/);
+  assert.doesNotMatch(html, /candidate-price-row/);
+  assert.match(styles, /input\[type="date"\] \{[^}]*padding-inline: 0/);
+  assert.match(styles, /input\[type="date"\]::-webkit-date-and-time-value \{[^}]*padding-inline: 12px 4px/);
   assert.match(styles, /body\.dialog-scroll-locked \{[^}]*position: fixed[^}]*overflow: hidden/);
   assert.match(styles, /dialog\[open\] \{[^}]*overscroll-behavior: contain/);
   assert.match(app, /function syncDialogPageScrollLock\(\)[\s\S]*new MutationObserver\(syncDialogPageScrollLock\)/);

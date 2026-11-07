@@ -468,6 +468,9 @@ dialog::backdrop { background: rgba(32,36,31,.42); backdrop-filter: blur(2px); }
 .form-dialog form { width: 100%; min-width: 0; padding: 18px; overflow-x: hidden; }
 .field-label { display: grid; gap: 7px; margin: 14px 0; color: var(--muted); font-size: .76rem; font-weight: 700; }
 .field-label input, .field-label select, .field-label textarea { width: 100%; min-width: 0; max-width: 100%; min-height: 46px; padding: 0 12px; border: 1px solid var(--line); border-radius: 11px; background: white; color: var(--ink); font-size: 16px; }
+.field-label input[type="date"] { padding-inline: 0; }
+.field-label input[type="date"]::-webkit-date-and-time-value { min-width: 0; padding-inline: 12px 4px; text-align: left; }
+.field-label input[type="date"]::-webkit-calendar-picker-indicator { margin-inline-end: 8px; }
 .field-label textarea { padding-top: 11px; resize: vertical; }
 .field-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; min-width: 0; }
 .field-row > * { min-width: 0; }
@@ -527,7 +530,6 @@ dialog::backdrop { background: rgba(32,36,31,.42); backdrop-filter: blur(2px); }
   .wall-canvas { height: 520px; border-radius: 18px; }
   .candidate-dimension-row { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
   .candidate-dimension-row .field-label { font-size: .65rem; }
-  .candidate-price-row { grid-template-columns: minmax(0, 1fr); gap: 0; }
   .candidate-preview-bar { grid-template-columns: 1fr auto; }
   .candidate-preview-bar button:last-child { grid-column: 2; }
 }
