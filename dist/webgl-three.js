@@ -1,6 +1,6 @@
 import * as THREE from "./vendor/three/three.module.js";
-import { buildKitchenCabinetLayout, buildKitchenComponentRects, inferFurnitureKind, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=132";
-import { bayWindowFootprint, cabinetDoorPanelCount, cabinetThreePlacement, clampIndoorPitch, clampWebGLPan, closetThreePlacement, cycleThreeSelectionCandidate, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, roomInteriorViewpoint, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRelatedSelectionStyle, threeRoomBounds, threeSelectionKey, threeSelectionStyle, threeSelectionXrayStyle, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=132";
+import { buildKitchenCabinetLayout, buildKitchenComponentRects, furnitureEighthTurns, inferFurnitureKind, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=133";
+import { bayWindowFootprint, cabinetDoorPanelCount, cabinetThreePlacement, clampIndoorPitch, clampWebGLPan, closetThreePlacement, cycleThreeSelectionCandidate, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, roomInteriorViewpoint, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRelatedSelectionStyle, threeRoomBounds, threeSelectionKey, threeSelectionStyle, threeSelectionXrayStyle, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=133";
 
 const WALL_THICKNESS = 6;
 const DEFAULT_WALL_HEIGHT = 220;
@@ -117,8 +117,13 @@ function boxObject(item, vertical, color, type) {
   if (![item.x, item.y, width, depth, vertical.bottomCm, vertical.topCm].every(Number.isFinite)) return null;
   const height = Math.max(1.5, vertical.topCm - vertical.bottomCm);
   const displayColor = vertical.schematic ? new THREE.Color(color).lerp(new THREE.Color(0xffffff), .28) : color;
-  const mesh = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), material(displayColor));
+  const eighthTurns = type === "furniture" ? furnitureEighthTurns(item) : 0;
+  const cardinalTurns = Math.floor(eighthTurns / 2);
+  const geometryWidth = cardinalTurns % 2 ? depth : width;
+  const geometryDepth = cardinalTurns % 2 ? width : depth;
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(geometryWidth, height, geometryDepth), material(displayColor));
   mesh.position.set(item.x + width / 2, vertical.bottomCm + height / 2, item.y + depth / 2);
+  mesh.rotation.y = eighthTurns * Math.PI / 4;
   mesh.castShadow = true;
   mesh.receiveShadow = true;
   addOutline(mesh, type === "furniture" ? 0x815c45 : 0x326b5e, .72);
@@ -159,9 +164,10 @@ function detailedFurnitureAssembly(item, vertical) {
   const kind = inferFurnitureKind(item);
   if (kind === "custom") return boxObject(item, vertical, 0xc48d68, "furniture");
   const group = markSelectable(new THREE.Group(), "furniture", item);
-  const quarterTurns = ((item.rotationQuarterTurns ?? 0) % 4 + 4) % 4;
-  const width = quarterTurns % 2 ? footprintDepth : footprintWidth;
-  const depth = quarterTurns % 2 ? footprintWidth : footprintDepth;
+  const eighthTurns = furnitureEighthTurns(item);
+  const cardinalTurns = Math.floor(eighthTurns / 2);
+  const width = cardinalTurns % 2 ? footprintDepth : footprintWidth;
+  const depth = cardinalTurns % 2 ? footprintWidth : footprintDepth;
   const worldCenterX = item.x + footprintWidth / 2;
   const worldCenterY = item.y + footprintDepth / 2;
   const itemX = -width / 2;
@@ -173,7 +179,7 @@ function detailedFurnitureAssembly(item, vertical) {
   const cx = 0;
   const cy = 0;
   group.position.set(worldCenterX, 0, worldCenterY);
-  group.rotation.y = quarterTurns * Math.PI / 2;
+  group.rotation.y = eighthTurns * Math.PI / 4;
   const wood = 0xb8815f;
   const fabric = 0xd4b29e;
   const light = 0xe8e6e1;

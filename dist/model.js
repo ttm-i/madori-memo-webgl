@@ -83,11 +83,15 @@ export function analyzeFurnitureSupportFit(furniture, plan) {
   if (Number.isFinite(support.x) && Number.isFinite(support.y)) {
     const furnitureX = Number.isFinite(furniture.x) ? furniture.x : support.x + fallbackOffsetX;
     const furnitureY = Number.isFinite(furniture.y) ? furniture.y : support.y + fallbackOffsetY;
+    const furnitureBox = furnitureBounds({ ...furniture, x: furnitureX, y: furnitureY });
+    const supportBox = Number.isFinite(support.widthCm)
+      ? furnitureBounds(support)
+      : { left: support.x, right: support.x + supportWidthCm, top: support.y, bottom: support.y + supportDepthCm };
     overflowEdgesCm = {
-      left: Math.max(0, support.x - furnitureX),
-      right: Math.max(0, furnitureX + furniture.widthCm - (support.x + supportWidthCm)),
-      top: Math.max(0, support.y - furnitureY),
-      bottom: Math.max(0, furnitureY + furniture.depthCm - (support.y + supportDepthCm)),
+      left: Math.max(0, supportBox.left - furnitureBox.left),
+      right: Math.max(0, furnitureBox.right - supportBox.right),
+      top: Math.max(0, supportBox.top - furnitureBox.top),
+      bottom: Math.max(0, furnitureBox.bottom - supportBox.bottom),
     };
   }
   return {
@@ -98,8 +102,8 @@ export function analyzeFurnitureSupportFit(furniture, plan) {
     overflowWidthCm,
     overflowDepthCm,
     overflowEdgesCm,
-    movementWidthCm: Math.max(0, supportWidthCm - furniture.widthCm),
-    movementDepthCm: Math.max(0, supportDepthCm - furniture.depthCm),
+    movementWidthCm: Math.max(0, availableX),
+    movementDepthCm: Math.max(0, availableY),
   };
 }
 
@@ -245,6 +249,23 @@ export function alignFurnitureToSupport(plan, furniture) {
   furniture.supportOffsetY = offsetY;
   furniture.x = support.x + offsetX;
   furniture.y = support.y + offsetY;
+  const box = furnitureBounds(furniture);
+  const supportRight = support.x + width;
+  const supportBottom = support.y + depth;
+  if (box.width <= width) {
+    if (box.left < support.x) furniture.x += support.x - box.left;
+    else if (box.right > supportRight) furniture.x -= box.right - supportRight;
+  } else {
+    furniture.x += support.x + width / 2 - (box.left + box.right) / 2;
+  }
+  if (box.height <= depth) {
+    if (box.top < support.y) furniture.y += support.y - box.top;
+    else if (box.bottom > supportBottom) furniture.y -= box.bottom - supportBottom;
+  } else {
+    furniture.y += support.y + depth / 2 - (box.top + box.bottom) / 2;
+  }
+  furniture.supportOffsetX = furniture.x - support.x;
+  furniture.supportOffsetY = furniture.y - support.y;
   if (support.roomId) furniture.roomId = support.roomId;
   return furniture;
 }
@@ -510,8 +531,10 @@ export function wallDisplayWidth(lengthCm, referenceLengthCm, maximumWidth = 840
 export function rotateFurniture(furniture) {
   const centerX = furniture.x + furniture.widthCm / 2;
   const centerY = furniture.y + furniture.depthCm / 2;
-  [furniture.widthCm, furniture.depthCm] = [furniture.depthCm, furniture.widthCm];
-  furniture.rotationQuarterTurns = ((furniture.rotationQuarterTurns ?? 0) + 1) % 4;
+  const nextEighthTurns = (furnitureEighthTurns(furniture) + 1) % 8;
+  if (nextEighthTurns % 2 === 0) [furniture.widthCm, furniture.depthCm] = [furniture.depthCm, furniture.widthCm];
+  furniture.rotationEighthTurns = nextEighthTurns;
+  furniture.rotationQuarterTurns = Math.floor(nextEighthTurns / 2) % 4;
   furniture.x = centerX - furniture.widthCm / 2;
   furniture.y = centerY - furniture.depthCm / 2;
   return furniture;
@@ -543,9 +566,10 @@ export function rotateFurnitureStack(plan, furniture) {
     for (const child of children) {
       const relativeX = child.center.x - center.x;
       const relativeY = child.center.y - center.y;
+      const radians = Math.PI / 4;
       rotateNode(child.item, {
-        x: rotatedCenter.x + relativeY,
-        y: rotatedCenter.y - relativeX,
+        x: rotatedCenter.x + relativeX * Math.cos(radians) + relativeY * Math.sin(radians),
+        y: rotatedCenter.y - relativeX * Math.sin(radians) + relativeY * Math.cos(radians),
       });
       child.item.supportOffsetX = child.item.x - item.x;
       child.item.supportOffsetY = child.item.y - item.y;
@@ -792,6 +816,140 @@ export function pointInPolygon(point, points) {
   return inside;
 }
 
+export function furnitureEighthTurns(furniture) {
+  const explicit = Number.isFinite(furniture?.rotationEighthTurns)
+    ? Math.round(furniture.rotationEighthTurns)
+    : Math.round(furniture?.rotationQuarterTurns ?? 0) * 2;
+  return ((explicit % 8) + 8) % 8;
+}
+
+export function furnitureRotationDegrees(furniture) {
+  return furnitureEighthTurns(furniture) % 2 ? 45 : 0;
+}
+
+function axisAlignedPolygon(item) {
+  const width = item?.widthCm ?? item?.width;
+  const depth = item?.depthCm ?? item?.height;
+  if (![item?.x, item?.y, width, depth].every(Number.isFinite)) return [];
+  return [
+    { x: item.x, y: item.y },
+    { x: item.x + width, y: item.y },
+    { x: item.x + width, y: item.y + depth },
+    { x: item.x, y: item.y + depth },
+  ];
+}
+
+export function furniturePolygon(furniture) {
+  const points = axisAlignedPolygon(furniture);
+  const degrees = furnitureRotationDegrees(furniture);
+  if (!points.length || !degrees) return points;
+  const centerX = furniture.x + furniture.widthCm / 2;
+  const centerY = furniture.y + furniture.depthCm / 2;
+  const radians = degrees * Math.PI / 180;
+  const cosine = Math.cos(radians);
+  const sine = Math.sin(radians);
+  return points.map((point) => {
+    const dx = point.x - centerX;
+    const dy = point.y - centerY;
+    return {
+      x: centerX + dx * cosine - dy * sine,
+      y: centerY + dx * sine + dy * cosine,
+    };
+  });
+}
+
+export function furnitureBounds(furniture) {
+  const points = furniturePolygon(furniture);
+  if (!points.length) return { left: NaN, right: NaN, top: NaN, bottom: NaN, width: NaN, height: NaN };
+  const left = Math.min(...points.map((point) => point.x));
+  const right = Math.max(...points.map((point) => point.x));
+  const top = Math.min(...points.map((point) => point.y));
+  const bottom = Math.max(...points.map((point) => point.y));
+  return { left, right, top, bottom, width: right - left, height: bottom - top };
+}
+
+function pointStrictlyInPolygon(point, points) {
+  for (let index = 0; index < points.length; index += 1) {
+    if (pointOnSegment(point, points[index], points[(index + 1) % points.length])) return false;
+  }
+  return pointInPolygon(point, points);
+}
+
+function properSegmentsCross(a, b, c, d, epsilon = 0.001) {
+  const orientation = (first, second, third) => (second.x - first.x) * (third.y - first.y) - (second.y - first.y) * (third.x - first.x);
+  return orientation(a, b, c) * orientation(a, b, d) < -epsilon
+    && orientation(c, d, a) * orientation(c, d, b) < -epsilon;
+}
+
+function polygonIsConvex(points, epsilon = 0.001) {
+  let sign = 0;
+  for (let index = 0; index < points.length; index += 1) {
+    const a = points[index];
+    const b = points[(index + 1) % points.length];
+    const c = points[(index + 2) % points.length];
+    const cross = (b.x - a.x) * (c.y - b.y) - (b.y - a.y) * (c.x - b.x);
+    if (Math.abs(cross) <= epsilon) continue;
+    const nextSign = Math.sign(cross);
+    if (sign && sign !== nextSign) return false;
+    sign = nextSign;
+  }
+  return true;
+}
+
+function convexPolygonsOverlap(first, second, epsilon = 0.001) {
+  for (const polygon of [first, second]) {
+    for (let index = 0; index < polygon.length; index += 1) {
+      const from = polygon[index];
+      const to = polygon[(index + 1) % polygon.length];
+      const axis = { x: -(to.y - from.y), y: to.x - from.x };
+      const length = Math.hypot(axis.x, axis.y) || 1;
+      axis.x /= length;
+      axis.y /= length;
+      const project = (points) => points.map((point) => point.x * axis.x + point.y * axis.y);
+      const firstValues = project(first);
+      const secondValues = project(second);
+      if (Math.max(...firstValues) <= Math.min(...secondValues) + epsilon
+        || Math.max(...secondValues) <= Math.min(...firstValues) + epsilon) return false;
+    }
+  }
+  return true;
+}
+
+function polygonsOverlap(first, second, epsilon = 0.001) {
+  if (first.length < 3 || second.length < 3) return false;
+  if (polygonIsConvex(first, epsilon) && polygonIsConvex(second, epsilon)) return convexPolygonsOverlap(first, second, epsilon);
+  for (let firstIndex = 0; firstIndex < first.length; firstIndex += 1) {
+    for (let secondIndex = 0; secondIndex < second.length; secondIndex += 1) {
+      if (properSegmentsCross(
+        first[firstIndex], first[(firstIndex + 1) % first.length],
+        second[secondIndex], second[(secondIndex + 1) % second.length], epsilon,
+      )) return true;
+    }
+  }
+  return first.some((point) => pointStrictlyInPolygon(point, second))
+    || second.some((point) => pointStrictlyInPolygon(point, first));
+}
+
+function polygonInsideRoom(points, roomPoints) {
+  if (points.length < 3 || roomPoints.length < 3) return false;
+  const samples = [...points];
+  for (let index = 0; index < points.length; index += 1) {
+    const next = points[(index + 1) % points.length];
+    samples.push({ x: (points[index].x + next.x) / 2, y: (points[index].y + next.y) / 2 });
+  }
+  samples.push(points.reduce((center, point) => ({ x: center.x + point.x / points.length, y: center.y + point.y / points.length }), { x: 0, y: 0 }));
+  if (!samples.every((point) => pointInPolygon(point, roomPoints))) return false;
+  for (let firstIndex = 0; firstIndex < points.length; firstIndex += 1) {
+    for (let secondIndex = 0; secondIndex < roomPoints.length; secondIndex += 1) {
+      if (properSegmentsCross(
+        points[firstIndex], points[(firstIndex + 1) % points.length],
+        roomPoints[secondIndex], roomPoints[(secondIndex + 1) % roomPoints.length],
+      )) return false;
+    }
+  }
+  return true;
+}
+
 function isAxisAlignedRectangle(points) {
   const normalized = points.length > 1
     && Math.abs(points[0].x - points.at(-1).x) < .001
@@ -807,14 +965,12 @@ function isAxisAlignedRectangle(points) {
 
 export function analyzeFurniturePlacement(furniture, room) {
   if (!room?.points?.length) return { inside: false, clearances: null, boundaries: null };
-  const left = furniture.x;
-  const right = furniture.x + furniture.widthCm;
-  const top = furniture.y;
-  const bottom = furniture.y + furniture.depthCm;
+  const polygon = furniturePolygon(furniture);
+  const bounds = furnitureBounds(furniture);
+  const { left, right, top, bottom } = bounds;
   const centerX = (left + right) / 2;
   const centerY = (top + bottom) / 2;
-  const corners = [{ x: left, y: top }, { x: right, y: top }, { x: right, y: bottom }, { x: left, y: bottom }];
-  const inside = corners.every((corner) => pointInPolygon(corner, room.points));
+  const inside = polygonInsideRoom(polygon, room.points);
   const roomXs = room.points.map((point) => point.x);
   const roomYs = room.points.map((point) => point.y);
   const roomBounds = { left: Math.min(...roomXs), right: Math.max(...roomXs), top: Math.min(...roomYs), bottom: Math.max(...roomYs) };
@@ -853,17 +1009,16 @@ export function furnitureWallMove(furniture, room, direction, plan = null) {
   const width = furniture.widthCm;
   const depth = furniture.depthCm;
   if (![furniture.x, furniture.y, width, depth].every(Number.isFinite)) return null;
-  const insideAt = (x, y) => [
-    { x, y }, { x: x + width, y }, { x: x + width, y: y + depth }, { x, y: y + depth },
-  ].every((corner) => pointInPolygon(corner, room.points));
+  const insideAt = (x, y) => polygonInsideRoom(furniturePolygon({ ...furniture, x, y }), room.points);
   if (!insideAt(furniture.x, furniture.y)) return null;
   const xs = room.points.map((point) => point.x);
   const ys = room.points.map((point) => point.y);
+  const box = furnitureBounds(furniture);
   const limits = {
-    left: furniture.x - Math.min(...xs),
-    right: Math.max(...xs) - (furniture.x + width),
-    up: furniture.y - Math.min(...ys),
-    down: Math.max(...ys) - (furniture.y + depth),
+    left: box.left - Math.min(...xs),
+    right: Math.max(...xs) - box.right,
+    up: box.top - Math.min(...ys),
+    down: Math.max(...ys) - box.bottom,
   };
   const maximum = Math.max(0, limits[direction] ?? 0);
   const vector = {
@@ -894,32 +1049,15 @@ export function furnitureWallMove(furniture, room, direction, plan = null) {
 }
 
 export function rectanglesOverlap(first, second, epsilon = 0.001) {
-  const firstRight = first.x + (first.widthCm ?? first.width);
-  const firstBottom = first.y + (first.depthCm ?? first.height);
-  const secondRight = second.x + (second.widthCm ?? second.width);
-  const secondBottom = second.y + (second.depthCm ?? second.height);
-  return first.x < secondRight - epsilon && firstRight > second.x + epsilon
-    && first.y < secondBottom - epsilon && firstBottom > second.y + epsilon;
+  const firstPolygon = Number.isFinite(first?.widthCm) ? furniturePolygon(first) : axisAlignedPolygon(first);
+  const secondPolygon = Number.isFinite(second?.widthCm) ? furniturePolygon(second) : axisAlignedPolygon(second);
+  return polygonsOverlap(firstPolygon, secondPolygon, epsilon);
 }
 
 export function rectangleIntersectsPolygon(rectangle, points, epsilon = 0.001) {
   if (!Array.isArray(points) || points.length < 3) return false;
-  const left = rectangle.x + epsilon;
-  const right = rectangle.x + (rectangle.widthCm ?? rectangle.width) - epsilon;
-  const top = rectangle.y + epsilon;
-  const bottom = rectangle.y + (rectangle.depthCm ?? rectangle.height) - epsilon;
-  if (!(right > left && bottom > top)) return false;
-  const corners = [{ x: left, y: top }, { x: right, y: top }, { x: right, y: bottom }, { x: left, y: bottom }];
-  if (corners.some((corner) => pointInPolygon(corner, points))) return true;
-  if (points.some((point) => point.x > left && point.x < right && point.y > top && point.y < bottom)) return true;
-  const rectangleEdges = corners.map((point, index) => [point, corners[(index + 1) % corners.length]]);
-  const orientation = (a, b, c) => (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
-  const crosses = (a, b, c, d) => orientation(a, b, c) * orientation(a, b, d) < -epsilon
-    && orientation(c, d, a) * orientation(c, d, b) < -epsilon;
-  return points.some((from, index) => {
-    const to = points[(index + 1) % points.length];
-    return rectangleEdges.some(([a, b]) => crosses(from, to, a, b));
-  });
+  const rectanglePolygon = Number.isFinite(rectangle?.widthCm) ? furniturePolygon(rectangle) : axisAlignedPolygon(rectangle);
+  return polygonsOverlap(rectanglePolygon, points, epsilon);
 }
 
 function wallBounds(wall) {

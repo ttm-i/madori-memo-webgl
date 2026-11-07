@@ -184,10 +184,14 @@ test("single bed is available with a representative default size and the bed mod
 });
 
 test("edit mode exposes direct rotate and wall-move controls", () => {
+  const html = readFileSync(new URL("../dist/index.html", import.meta.url), "utf8");
   const renderer = readFileSync(new URL("../dist/renderer.js", import.meta.url), "utf8");
   const styles = readFileSync(new URL("../dist/styles.css", import.meta.url), "utf8");
+  assert.match(html, /id="rotateFurnitureButton"[^>]*>45°回転/);
   assert.match(renderer, /class: "furniture-direct-controls"/);
   assert.match(renderer, /addControl\("rotate", "↻"/);
+  assert.match(renderer, /45度回転/);
+  assert.match(renderer, /furnitureRotationDegrees/);
   assert.match(renderer, /addControl\("left", "←"[\s\S]*addControl\("right", "→"[\s\S]*addControl\("up", "↑"[\s\S]*addControl\("down", "↓"/);
   assert.match(renderer, /furnitureWallMove\(furniture, room, action, documentData\.plan\)/);
   assert.match(renderer, /左の壁・設備・家具まで移動[\s\S]*右の壁・設備・家具まで移動[\s\S]*上の壁・設備・家具まで移動[\s\S]*下の壁・設備・家具まで移動/);

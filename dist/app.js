@@ -1,7 +1,7 @@
-import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=132";
-import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildElevationItems, buildFurnitureHierarchy, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurnitureStack, featureSupportRange, findSupportItem, furnitureDescendantIds as modelFurnitureDescendantIds, furniturePriceSummary, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, QUALITY_LABELS, removeFurnitureStack, resolveFurnitureVerticalRange, rotateFurnitureStack, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=132";
-import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=132";
-import { createWebGLThreeView } from "./webgl-three.js?v=132";
+import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=133";
+import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildElevationItems, buildFurnitureHierarchy, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurnitureStack, featureSupportRange, findSupportItem, furnitureDescendantIds as modelFurnitureDescendantIds, furniturePriceSummary, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, QUALITY_LABELS, removeFurnitureStack, resolveFurnitureVerticalRange, rotateFurnitureStack, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=133";
+import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=133";
+import { createWebGLThreeView } from "./webgl-three.js?v=133";
 
 const elements = Object.fromEntries([
   "menuButton", "dataMenu", "detailDialog", "detailType", "detailTitle", "detailBody", "fileInput",
@@ -1621,7 +1621,7 @@ elements.rotateFurnitureButton.addEventListener("click", async () => {
   pushHistory();
   rotateFurnitureStack(activePlan.plan, furniture);
   const supportedCount = furnitureDescendantIds(furniture.id).size;
-  await commitFurnitureChange(supportedCount ? "上に載せた家具と一緒に90°回転しました" : "家具を90°回転しました");
+  await commitFurnitureChange(supportedCount ? "上に載せた家具と一緒に45°回転しました" : "家具を45°回転しました");
 });
 elements.duplicateFurnitureButton.addEventListener("click", async () => {
   if (locked) return;

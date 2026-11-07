@@ -1,4 +1,4 @@
-import { analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildKitchenComponentRects, findSupportItem, furnitureDescendantIds, furnitureWallMove, getDimensionGroup, getElectricalPlanPosition, moveDimensionGuide, QUALITY_LABELS, rotateFurnitureStack, snapToGrid, translateFurnitureDescendants } from "./model.js?v=132";
+import { alignFurnitureToSupport, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildKitchenComponentRects, findSupportItem, furnitureBounds, furnitureDescendantIds, furnitureRotationDegrees, furnitureWallMove, getDimensionGroup, getElectricalPlanPosition, moveDimensionGuide, QUALITY_LABELS, rotateFurnitureStack, snapToGrid, translateFurnitureDescendants } from "./model.js?v=133";
 
 const NS = "http://www.w3.org/2000/svg";
 
@@ -259,23 +259,27 @@ export class PlanRenderer {
       const supportFit = analyzeFurnitureSupportFit(furniture, documentData.plan);
       const supportWidth = support?.widthCm ?? support?.width;
       const supportDepth = support?.depthCm ?? support?.height;
-      const supportedMovable = support && supportWidth >= furniture.widthCm && supportDepth >= furniture.depthCm;
+      const supportedMovable = support && supportFit?.fits !== false;
       const supportOverflow = supportFit?.fits === false;
+      const bounds = furnitureBounds(furniture);
+      const rotationDegrees = furnitureRotationDegrees(furniture);
       const group = svg("g", { class: `furniture-group ${furniture.supportId ? "is-supported" : ""} ${furniture.supportId && !supportedMovable ? "is-supported-fixed" : ""} ${supportOverflow ? "support-overflow" : ""} ${this.isSelectable("furniture") ? "" : "not-selectable"} ${selected ? "selected" : ""} ${placement.inside ? "" : "out-of-room"} ${conflicts.length ? "has-conflict" : ""}`, "data-furniture-id": furniture.id, tabindex: 0, role: "button", "aria-label": `${furniture.name}${furniture.supportId ? " 上置き" : ""}${supportOverflow ? " 設置面からはみ出し" : ""}${placement.inside ? "" : " 部屋外"}${conflicts.length ? " 重なりあり" : ""}` });
-      const rect = svg("rect", { class: "furniture-shape", x: furniture.x, y: furniture.y, width: furniture.widthCm, height: furniture.depthCm, rx: 5 });
+      const centerX = furniture.x + furniture.widthCm / 2;
+      const centerY = furniture.y + furniture.depthCm / 2;
+      const rectAttributes = { class: "furniture-shape", x: furniture.x, y: furniture.y, width: furniture.widthCm, height: furniture.depthCm, rx: 5 };
+      if (rotationDegrees) rectAttributes.transform = `rotate(${rotationDegrees} ${centerX} ${centerY})`;
+      const rect = svg("rect", rectAttributes);
       const label = svg("text", { class: "furniture-label", x: furniture.x + furniture.widthCm / 2, y: furniture.y + furniture.depthCm / 2 - 7 }, furniture.name);
       const sizeLabel = svg("text", { class: "furniture-size-label", x: furniture.x + furniture.widthCm / 2, y: furniture.y + furniture.depthCm / 2 + 10 }, `${furniture.widthCm}×${furniture.depthCm}`);
       group.append(rect, label, sizeLabel);
-      const supportLabel = furniture.supportId ? svg("text", { class: "furniture-support-label", x: furniture.x + furniture.widthCm / 2, y: furniture.y + furniture.depthCm - 6 }, "上置き") : null;
+      const supportLabel = furniture.supportId ? svg("text", { class: "furniture-support-label", x: centerX, y: bounds.bottom - 6 }, "上置き") : null;
       if (supportLabel) group.append(supportLabel);
       if (selected && placement.inside && placement.boundaries) {
-        const centerX = furniture.x + furniture.widthCm / 2;
-        const centerY = furniture.y + furniture.depthCm / 2;
         const guides = [
-          [placement.boundaries.left, centerY, furniture.x, centerY, placement.clearances.left, "horizontal"],
-          [furniture.x + furniture.widthCm, centerY, placement.boundaries.right, centerY, placement.clearances.right, "horizontal"],
-          [centerX, placement.boundaries.top, centerX, furniture.y, placement.clearances.top, "vertical"],
-          [centerX, furniture.y + furniture.depthCm, centerX, placement.boundaries.bottom, placement.clearances.bottom, "vertical"],
+          [placement.boundaries.left, centerY, bounds.left, centerY, placement.clearances.left, "horizontal"],
+          [bounds.right, centerY, placement.boundaries.right, centerY, placement.clearances.right, "horizontal"],
+          [centerX, placement.boundaries.top, centerX, bounds.top, placement.clearances.top, "vertical"],
+          [centerX, bounds.bottom, centerX, placement.boundaries.bottom, placement.clearances.bottom, "vertical"],
         ];
         for (const [x1, y1, x2, y2, distance, direction] of guides) {
           if (![x1, y1, x2, y2, distance].every(Number.isFinite)) continue;
@@ -293,7 +297,7 @@ export class PlanRenderer {
         if (supportOverflow) reasons.push("設置面超過");
         if (conflicts.length) reasons.push("重なり");
         const warning = `⚠ ${reasons.join("・")}`;
-        group.append(svg("text", { class: "placement-warning", x: furniture.x + furniture.widthCm / 2, y: furniture.y - 10 }, warning));
+        group.append(svg("text", { class: "placement-warning", x: centerX, y: bounds.top - 10 }, warning));
       }
       if (selected && !this.locked) {
         const controls = svg("g", { class: "furniture-direct-controls", "aria-label": `${furniture.name}の直接操作` });
@@ -327,12 +331,12 @@ export class PlanRenderer {
           });
           controls.append(control);
         };
-        addControl("rotate", "↻", furniture.x + furniture.widthCm + 18, furniture.y - 18, "90度回転");
+        addControl("rotate", "↻", bounds.right + 18, bounds.top - 18, "45度回転");
         if (!furniture.supportId && placement.inside) {
-          addControl("left", "←", furniture.x - 20, furniture.y + furniture.depthCm / 2, "左の壁・設備・家具まで移動");
-          addControl("right", "→", furniture.x + furniture.widthCm + 20, furniture.y + furniture.depthCm / 2, "右の壁・設備・家具まで移動");
-          addControl("up", "↑", furniture.x + furniture.widthCm / 2, furniture.y - 20, "上の壁・設備・家具まで移動");
-          addControl("down", "↓", furniture.x + furniture.widthCm / 2, furniture.y + furniture.depthCm + 20, "下の壁・設備・家具まで移動");
+          addControl("left", "←", bounds.left - 20, centerY, "左の壁・設備・家具まで移動");
+          addControl("right", "→", bounds.right + 20, centerY, "右の壁・設備・家具まで移動");
+          addControl("up", "↑", centerX, bounds.top - 20, "上の壁・設備・家具まで移動");
+          addControl("down", "↓", centerX, bounds.bottom + 20, "下の壁・設備・家具まで移動");
         }
         group.append(controls);
       }
@@ -352,7 +356,7 @@ export class PlanRenderer {
           .map((id) => this.svg.querySelector(`.furniture-group[data-furniture-id="${id}"]`))
           .filter(Boolean);
         this.draggingFurniture = {
-          furniture, rect, label, sizeLabel, supportLabel, support,
+          furniture, rect, label, sizeLabel, supportLabel, support, rotationDegrees,
           directControls: event.currentTarget.querySelector(".furniture-direct-controls"),
           descendantGroups,
           clientX: event.clientX, clientY: event.clientY,
@@ -680,6 +684,7 @@ export class PlanRenderer {
           drag.furniture.y = Math.max(drag.support.y, Math.min(drag.support.y + supportDepth - drag.furniture.depthCm, drag.startY + dy));
           drag.furniture.supportOffsetX = drag.furniture.x - drag.support.x;
           drag.furniture.supportOffsetY = drag.furniture.y - drag.support.y;
+          alignFurnitureToSupport(this.document.plan, drag.furniture);
         } else {
           drag.furniture.x = this.snapEnabled ? snapToGrid(drag.startX + dx) : drag.startX + dx;
           drag.furniture.y = this.snapEnabled ? snapToGrid(drag.startY + dy) : drag.startY + dy;
@@ -691,13 +696,15 @@ export class PlanRenderer {
         drag.directControls?.setAttribute("transform", `translate(${stackDeltaX} ${stackDeltaY})`);
         drag.rect.setAttribute("x", drag.furniture.x);
         drag.rect.setAttribute("y", drag.furniture.y);
+        if (drag.rotationDegrees) drag.rect.setAttribute("transform", `rotate(${drag.rotationDegrees} ${drag.furniture.x + drag.furniture.widthCm / 2} ${drag.furniture.y + drag.furniture.depthCm / 2})`);
         drag.label.setAttribute("x", drag.furniture.x + drag.furniture.widthCm / 2);
         drag.label.setAttribute("y", drag.furniture.y + drag.furniture.depthCm / 2 - 7);
         drag.sizeLabel.setAttribute("x", drag.furniture.x + drag.furniture.widthCm / 2);
         drag.sizeLabel.setAttribute("y", drag.furniture.y + drag.furniture.depthCm / 2 + 10);
         if (drag.supportLabel) {
+          const dragBounds = furnitureBounds(drag.furniture);
           drag.supportLabel.setAttribute("x", drag.furniture.x + drag.furniture.widthCm / 2);
-          drag.supportLabel.setAttribute("y", drag.furniture.y + drag.furniture.depthCm - 6);
+          drag.supportLabel.setAttribute("y", dragBounds.bottom - 6);
         }
         return;
       }

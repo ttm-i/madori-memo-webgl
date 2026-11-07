@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildElevationItems, buildFurnitureHierarchy, buildKitchenCabinetLayout, buildKitchenComponentRects, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, duplicateFurniture, duplicateFurnitureStack, findDeliveryDoorPath, fitsRectangle, FORMAT, furnitureDescendantIds, furniturePriceSummary, FURNITURE_PRESETS, furnitureDisplayHeight, furnitureWallMove, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, kitchenComponentVerticalRange, moveDimensionGuide, pointInPolygon, rectangleIntersectsPolygon, rectanglesOverlap, removeFurnitureStack, resolveFurnitureElevationPlacement, resolveFurnitureVerticalRange, rotateFurniture, rotateFurnitureStack, snapToGrid, translateFurnitureDescendants, updateFurniture, validatePlan, wallDisplayWidth } from "../dist/model.js";
+import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildElevationItems, buildFurnitureHierarchy, buildKitchenCabinetLayout, buildKitchenComponentRects, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, duplicateFurniture, duplicateFurnitureStack, findDeliveryDoorPath, fitsRectangle, FORMAT, furnitureBounds, furnitureDescendantIds, furnitureEighthTurns, furniturePolygon, furniturePriceSummary, FURNITURE_PRESETS, furnitureDisplayHeight, furnitureWallMove, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, kitchenComponentVerticalRange, moveDimensionGuide, pointInPolygon, rectangleIntersectsPolygon, rectanglesOverlap, removeFurnitureStack, resolveFurnitureElevationPlacement, resolveFurnitureVerticalRange, rotateFurniture, rotateFurnitureStack, snapToGrid, translateFurnitureDescendants, updateFurniture, validatePlan, wallDisplayWidth } from "../dist/model.js";
 import { detailMarkup, gestureExceedsTapThreshold, measurementMetrics, PlanRenderer, snapMeasurementPoint, zoomTransformAround } from "../dist/renderer.js";
 import { bayWindowFootprint, cabinetDoorPanelCount, cabinetThreePlacement, clampIndoorPitch, clampWebGLPan, closetDoorPanelCount, closetThreePlacement, cycleThreeSelectionCandidate, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, projectThreeDepth, projectThreePoint, roomEdgeWallHeight, roomInteriorViewpoint, splitWallFace, subdivideVerticalRange, subdivideWallRectangle, subdivideWallRectangleTiles, subdivideWallSegment, threeItemBelongsToRoom, threeItemFootprint, threeLayerEnabled, threeRelatedSelectionStyle, threeRoomBounds, threeSelectableType, threeSelectionKey, threeSelectionStyle, threeSelectionXrayStyle, threeViewportBox, threeWallBelongsToRoom, visibleBoxSideIndexes, wallFeatureThreePlacement, yawToQuarterTurn } from "../dist/three.js";
 
@@ -247,11 +247,22 @@ test("custom elevations can replace a room edge and omit a non-wall opening", ()
 test("furniture rotates around its center", () => {
   const furniture = { id: "f1", name: "テーブル", x: 100, y: 200, widthCm: 140, depthCm: 80 };
   rotateFurniture(furniture);
-  assert.deepEqual(furniture, { id: "f1", name: "テーブル", x: 130, y: 170, widthCm: 80, depthCm: 140, rotationQuarterTurns: 1 });
+  assert.deepEqual(furniture, { id: "f1", name: "テーブル", x: 100, y: 200, widthCm: 140, depthCm: 80, rotationEighthTurns: 1, rotationQuarterTurns: 0 });
   rotateFurniture(furniture);
-  rotateFurniture(furniture);
-  rotateFurniture(furniture);
-  assert.deepEqual(furniture, { id: "f1", name: "テーブル", x: 100, y: 200, widthCm: 140, depthCm: 80, rotationQuarterTurns: 0 });
+  assert.deepEqual(furniture, { id: "f1", name: "テーブル", x: 130, y: 170, widthCm: 80, depthCm: 140, rotationEighthTurns: 2, rotationQuarterTurns: 1 });
+  for (let count = 0; count < 6; count += 1) rotateFurniture(furniture);
+  assert.deepEqual(furniture, { id: "f1", name: "テーブル", x: 100, y: 200, widthCm: 140, depthCm: 80, rotationEighthTurns: 0, rotationQuarterTurns: 0 });
+});
+
+test("legacy quarter-turn data maps to eight directions and diagonal bounds", () => {
+  assert.equal(furnitureEighthTurns({ rotationQuarterTurns: 3 }), 6);
+  const furniture = { x: 50, y: 90, widthCm: 100, depthCm: 20, rotationEighthTurns: 1 };
+  const bounds = furnitureBounds(furniture);
+  assert.ok(Math.abs(bounds.left - 57.5736) < 0.001);
+  assert.ok(Math.abs(bounds.right - 142.4264) < 0.001);
+  assert.ok(Math.abs(bounds.top - 57.5736) < 0.001);
+  assert.ok(Math.abs(bounds.bottom - 142.4264) < 0.001);
+  assert.equal(furniturePolygon(furniture).length, 4);
 });
 
 test("rotating a support keeps stacked furniture aligned and facing the same way", () => {
@@ -259,10 +270,12 @@ test("rotating a support keeps stacked furniture aligned and facing the same way
   const tv = { id: "tv", name: "テレビ", supportId: "stand", x: 120, y: 107.5, widthCm: 110, depthCm: 25, supportOffsetX: 20, supportOffsetY: 7.5 };
   const plan = { furniture: [stand, tv] };
   rotateFurnitureStack(plan, stand);
-  assert.deepEqual(stand, { id: "stand", name: "テレビ台", x: 155, y: 45, widthCm: 40, depthCm: 150, rotationQuarterTurns: 1 });
-  assert.deepEqual(tv, { id: "tv", name: "テレビ", supportId: "stand", x: 162.5, y: 65, widthCm: 25, depthCm: 110, supportOffsetX: 7.5, supportOffsetY: 20, rotationQuarterTurns: 1 });
+  assert.deepEqual(stand, { id: "stand", name: "テレビ台", x: 100, y: 100, widthCm: 150, depthCm: 40, rotationEighthTurns: 1, rotationQuarterTurns: 0 });
+  assert.deepEqual(tv, { id: "tv", name: "テレビ", supportId: "stand", x: 120, y: 107.5, widthCm: 110, depthCm: 25, supportOffsetX: 20, supportOffsetY: 7.5, rotationEighthTurns: 1, rotationQuarterTurns: 0 });
+  assert.equal(analyzeFurnitureSupportFit(tv, plan).fits, true);
+  assert.deepEqual(analyzeFurnitureSupportFit(tv, plan).overflowEdgesCm, { left: 0, right: 0, top: 0, bottom: 0 });
   alignSupportedFurniture(plan);
-  assert.deepEqual({ x: tv.x, y: tv.y }, { x: 162.5, y: 65 });
+  assert.deepEqual({ x: tv.x, y: tv.y }, { x: 120, y: 107.5 });
 });
 
 test("rotating stacked furniture itself preserves its new position on the support", () => {
@@ -270,9 +283,9 @@ test("rotating stacked furniture itself preserves its new position on the suppor
   const tv = { id: "tv", name: "テレビ", supportId: "stand", x: 120, y: 107.5, widthCm: 110, depthCm: 25, supportOffsetX: 20, supportOffsetY: 7.5 };
   const plan = { furniture: [stand, tv] };
   rotateFurnitureStack(plan, tv);
-  assert.deepEqual(tv, { id: "tv", name: "テレビ", supportId: "stand", x: 162.5, y: 65, widthCm: 25, depthCm: 110, supportOffsetX: 62.5, supportOffsetY: -35, rotationQuarterTurns: 1 });
+  assert.deepEqual(tv, { id: "tv", name: "テレビ", supportId: "stand", x: 120, y: 107.5, widthCm: 110, depthCm: 25, supportOffsetX: 20, supportOffsetY: 7.5, rotationEighthTurns: 1, rotationQuarterTurns: 0 });
   alignSupportedFurniture(plan);
-  assert.deepEqual({ x: tv.x, y: tv.y }, { x: 162.5, y: 65 });
+  assert.deepEqual({ x: tv.x, y: tv.y }, { x: 120, y: 107.5 });
 });
 
 test("furniture duplication preserves size and offsets position", () => {
@@ -457,6 +470,13 @@ test("furniture placement warns when a corner is outside the room", () => {
   assert.equal(result.crossesIrregularBoundary, false);
 });
 
+test("diagonal furniture placement uses its rotated corners", () => {
+  const room = { points: [{ x: 0, y: 0 }, { x: 200, y: 0 }, { x: 200, y: 200 }, { x: 0, y: 200 }] };
+  const result = analyzeFurniturePlacement({ x: 0, y: 0, widthCm: 100, depthCm: 20, rotationEighthTurns: 1 }, room);
+  assert.equal(result.inside, false);
+  assert.ok(result.overflow.top > 32 && result.overflow.top < 33);
+});
+
 test("furniture placement distinguishes a recessed room boundary from outer-bounds overflow", () => {
   const room = { points: [{ x: 0, y: 0 }, { x: 300, y: 0 }, { x: 300, y: 200 }, { x: 180, y: 200 }, { x: 180, y: 100 }, { x: 0, y: 100 }] };
   const result = analyzeFurniturePlacement({ x: 150, y: 80, widthCm: 60, depthCm: 40 }, room);
@@ -481,6 +501,13 @@ test("touching furniture edges are not treated as overlap", () => {
     { x: 0, y: 0, widthCm: 100, depthCm: 50 },
     { x: 100, y: 0, widthCm: 40, depthCm: 40 },
   ), false);
+});
+
+test("diagonal furniture collisions use rotated shapes instead of unrotated rectangles", () => {
+  const diagonal = { x: 50, y: 90, widthCm: 100, depthCm: 20, rotationEighthTurns: 1 };
+  const other = { x: 125, y: 125, widthCm: 10, depthCm: 10 };
+  assert.equal(rectanglesOverlap({ ...diagonal, rotationEighthTurns: 0 }, other), false);
+  assert.equal(rectanglesOverlap(diagonal, other), true);
 });
 
 test("polygon walls preserve a recessed counter niche in conflict checks", () => {
