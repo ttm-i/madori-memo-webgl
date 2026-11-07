@@ -261,6 +261,15 @@ test("sofa, dining table and chair match the reference styles and dimensions", (
   assert.match(webgl, /kind === "chair"[\s\S]*chairWood[\s\S]*stretcherZ[\s\S]*rearY[\s\S]*kind === "tv-board"/);
 });
 
+test("counter chair is available with a dedicated pedestal and upholstered model", () => {
+  const html = readFileSync(new URL("../dist/index.html", import.meta.url), "utf8");
+  const model = readFileSync(new URL("../dist/model.js", import.meta.url), "utf8");
+  const webgl = readFileSync(new URL("../dist/webgl-three.js", import.meta.url), "utf8");
+  assert.match(html, /value="counter-chair">カウンターチェア 41\.5×45\.5×98/);
+  assert.match(model, /"counter-chair": \{ name: "カウンターチェア", width: 41\.5, depth: 45\.5, height: 98 \}/);
+  assert.match(webgl, /kind === "counter-chair"[\s\S]*baseRadius[\s\S]*furnitureCylinder[\s\S]*furnitureRing[\s\S]*backHeight[\s\S]*kind === "tv-board"/);
+});
+
 test("dresser is available with a mirror, cabinet and stool model", () => {
   const html = readFileSync(new URL("../dist/index.html", import.meta.url), "utf8");
   const model = readFileSync(new URL("../dist/model.js", import.meta.url), "utf8");

@@ -206,6 +206,7 @@ export const FURNITURE_PRESETS = {
   desk: { name: "デスク", width: 95, depth: 48, height: 72 },
   dresser: { name: "ドレッサー", width: 60, depth: 40, height: 130 },
   chair: { name: "椅子", width: 40, depth: 47.5, height: 80.5 },
+  "counter-chair": { name: "カウンターチェア", width: 41.5, depth: 45.5, height: 98 },
   "tv-board": { name: "テレビ台", width: 150, depth: 40, height: 45 },
   tv: { name: "テレビ", width: 110, depth: 25, height: 65 },
   shelf: { name: "本棚・収納棚", width: 90, depth: 30, height: 180 },

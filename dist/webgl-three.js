@@ -1,6 +1,6 @@
 import * as THREE from "./vendor/three/three.module.js";
-import { buildKitchenCabinetLayout, buildKitchenComponentRects, furnitureEighthTurns, inferFurnitureKind, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=139";
-import { bayWindowFootprint, cabinetDoorPanelCount, cabinetThreePlacement, clampIndoorPitch, clampWebGLPan, closetThreePlacement, cycleThreeSelectionCandidate, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, roomInteriorViewpoint, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRelatedSelectionStyle, threeRoomBounds, threeSelectionKey, threeSelectionStyle, threeSelectionXrayStyle, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=139";
+import { buildKitchenCabinetLayout, buildKitchenComponentRects, furnitureEighthTurns, inferFurnitureKind, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=140";
+import { bayWindowFootprint, cabinetDoorPanelCount, cabinetThreePlacement, clampIndoorPitch, clampWebGLPan, closetThreePlacement, cycleThreeSelectionCandidate, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, roomInteriorViewpoint, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRelatedSelectionStyle, threeRoomBounds, threeSelectionKey, threeSelectionStyle, threeSelectionXrayStyle, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=140";
 
 const WALL_THICKNESS = 6;
 const DEFAULT_WALL_HEIGHT = 220;
@@ -160,6 +160,32 @@ function furnitureBeam(group, from, to, thickness, color, outline = 0x262a29) {
   mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction.normalize());
   mesh.castShadow = true;
   addOutline(mesh, outline, .7);
+  group.add(mesh);
+  return mesh;
+}
+
+function furnitureCylinder(group, topRadius, bottomRadius, height, x, z, y, color, outline = 0x5f6664) {
+  const mesh = new THREE.Mesh(
+    new THREE.CylinderGeometry(topRadius, bottomRadius, height, 28),
+    material(color, { roughness: .3, metalness: .62 }),
+  );
+  mesh.position.set(x, z, y);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  addOutline(mesh, outline, .62);
+  group.add(mesh);
+  return mesh;
+}
+
+function furnitureRing(group, radius, tube, x, z, y, color, outline = 0x5f6664) {
+  const mesh = new THREE.Mesh(
+    new THREE.TorusGeometry(radius, tube, 10, 32),
+    material(color, { roughness: .28, metalness: .7 }),
+  );
+  mesh.rotation.x = Math.PI / 2;
+  mesh.position.set(x, z, y);
+  mesh.castShadow = true;
+  addOutline(mesh, outline, .6);
   group.add(mesh);
   return mesh;
 }
@@ -387,6 +413,46 @@ function detailedFurnitureAssembly(item, vertical) {
       leg, chairWhite, chairOutline);
     furniturePart(group, width * .82, Math.max(13, height * .17), 4,
       cx, top - height * .11, rearY, chairWood, chairWoodOutline);
+  } else if (kind === "counter-chair") {
+    const upholstery = 0x242526;
+    const upholsteryShade = 0x171819;
+    const upholsteryOutline = 0x0e0f10;
+    const chrome = 0xaeb5b5;
+    const chromeOutline = 0x5d6665;
+    const baseRadius = Math.min(width, depth) * .43;
+    const baseHeight = Math.max(2.5, height * .028);
+    furnitureCylinder(group, baseRadius * .82, baseRadius, baseHeight,
+      cx, bottom + baseHeight / 2, cy, chrome, chromeOutline);
+
+    const seatTop = bottom + height * .64;
+    const columnBottom = bottom + baseHeight;
+    const columnRadius = Math.max(2.1, width * .052);
+    furnitureCylinder(group, columnRadius, columnRadius * 1.12, seatTop - columnBottom,
+      cx, columnBottom + (seatTop - columnBottom) / 2, cy, chrome, chromeOutline);
+    furnitureCylinder(group, columnRadius * 1.8, columnRadius * 1.28, Math.max(5, height * .06),
+      cx, bottom + baseHeight + height * .055, cy, chrome, chromeOutline);
+    furnitureRing(group, Math.min(width, depth) * .29, Math.max(1.1, width * .027),
+      cx, bottom + height * .34, cy + depth * .02, chrome, chromeOutline);
+    furnitureBeam(group,
+      { x: cx, y: cy, z: bottom + height * .34 },
+      { x: cx, y: itemY + depth * .14, z: bottom + height * .34 },
+      Math.max(1.5, width * .035), chrome, chromeOutline);
+
+    furnitureAngledPart(group, width * .9, Math.max(5, height * .06), depth * .62,
+      cx, seatTop, cy + depth * .06, upholstery, upholsteryOutline, { x: -.04 });
+    const backHeight = height * .37;
+    const backCenterZ = seatTop + backHeight * .47;
+    const backY = itemY + depth * .17;
+    furnitureAngledPart(group, width * .84, backHeight, Math.max(4.5, depth * .1),
+      cx, backCenterZ, backY, upholstery, upholsteryOutline, { x: -.11 });
+    for (let index = 1; index < 6; index += 1) furnitureAngledPart(group,
+      width * .78, 1.7, Math.max(5, depth * .11),
+      cx, seatTop + backHeight * index / 6, backY + index * .18,
+      upholsteryShade, upholsteryOutline, { x: -.11 });
+    furnitureBeam(group,
+      { x: itemX + width * .18, y: cy + depth * .03, z: seatTop - 2 },
+      { x: itemX + width * .05, y: cy + depth * .11, z: seatTop - 4 },
+      1.5, chrome, chromeOutline);
   } else if (kind === "tv-board") {
     furniturePart(group, width, height, depth, cx, bottom + height / 2, cy, wood);
     const frontY = itemY + depth + 1.1;
