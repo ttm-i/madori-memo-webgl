@@ -77,11 +77,19 @@ export function findSupportItem(plan, supportId) {
     ?? null;
 }
 
+export function supportSurfaceSize(support) {
+  if (!support) return { widthCm: null, depthCm: null };
+  const furnitureSurface = Number.isFinite(support.widthCm);
+  return {
+    widthCm: furnitureSurface ? support.widthCm : support.width,
+    depthCm: furnitureSurface ? support.depthCm : support.height,
+  };
+}
+
 export function analyzeFurnitureSupportFit(furniture, plan) {
   const support = findSupportItem(plan, furniture?.supportId);
   if (!support) return null;
-  const supportWidthCm = support.widthCm ?? support.width;
-  const supportDepthCm = support.depthCm ?? support.height;
+  const { widthCm: supportWidthCm, depthCm: supportDepthCm } = supportSurfaceSize(support);
   if (![supportWidthCm, supportDepthCm, furniture?.widthCm, furniture?.depthCm].every(Number.isFinite)) return null;
   const overflowWidthCm = Math.max(0, furniture.widthCm - supportWidthCm);
   const overflowDepthCm = Math.max(0, furniture.depthCm - supportDepthCm);
@@ -256,8 +264,7 @@ export function resolveFurnitureVerticalRange(plan, furniture, visited = new Set
 export function alignFurnitureToSupport(plan, furniture) {
   const support = findSupportItem(plan, furniture?.supportId);
   if (!support || support.id === furniture.id) return furniture;
-  const width = support.widthCm ?? support.width;
-  const depth = support.depthCm ?? support.height;
+  const { widthCm: width, depthCm: depth } = supportSurfaceSize(support);
   if (![support.x, support.y, width, depth].every(Number.isFinite)) return furniture;
   const availableX = width - furniture.widthCm;
   const availableY = depth - furniture.depthCm;

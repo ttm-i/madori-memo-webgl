@@ -1,7 +1,7 @@
-import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=140";
-import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildElevationItems, buildFurnitureHierarchy, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurnitureStack, featureSupportRange, findSupportItem, furnitureDescendantIds as modelFurnitureDescendantIds, furniturePriceSummary, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, normalizeFurnitureProductUrl, QUALITY_LABELS, removeFurnitureStack, resolveFurnitureVerticalRange, rotateFurnitureStack, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=140";
-import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=140";
-import { createWebGLThreeView } from "./webgl-three.js?v=140";
+import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=141";
+import { alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildElevationItems, buildFurnitureHierarchy, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, DIMENSION_GROUP_LABELS, duplicateFurnitureStack, featureSupportRange, findSupportItem, furnitureDescendantIds as modelFurnitureDescendantIds, furniturePriceSummary, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, normalizeFurnitureProductUrl, QUALITY_LABELS, removeFurnitureStack, resolveFurnitureVerticalRange, rotateFurnitureStack, supportSurfaceSize, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=141";
+import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=141";
+import { createWebGLThreeView } from "./webgl-three.js?v=141";
 
 const elements = Object.fromEntries([
   "menuButton", "dataMenu", "detailDialog", "detailType", "detailTitle", "detailBody", "fileInput",
@@ -347,8 +347,7 @@ function updateFurnitureSupportHelp() {
     elements.furnitureSupportHelp.classList.remove("warning");
     return;
   }
-  const supportWidth = support.widthCm ?? support.width;
-  const supportDepth = support.depthCm ?? support.height;
+  const { widthCm: supportWidth, depthCm: supportDepth } = supportSurfaceSize(support);
   const width = Number(elements.furnitureWidth.value);
   const depth = Number(elements.furnitureDepth.value);
   if (![supportWidth, supportDepth, width, depth].every(Number.isFinite)) {
