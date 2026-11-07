@@ -1,6 +1,6 @@
 import * as THREE from "./vendor/three/three.module.js";
-import { buildKitchenCabinetLayout, buildKitchenComponentRects, furnitureEighthTurns, inferFurnitureKind, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=137";
-import { bayWindowFootprint, cabinetDoorPanelCount, cabinetThreePlacement, clampIndoorPitch, clampWebGLPan, closetThreePlacement, cycleThreeSelectionCandidate, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, roomInteriorViewpoint, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRelatedSelectionStyle, threeRoomBounds, threeSelectionKey, threeSelectionStyle, threeSelectionXrayStyle, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=137";
+import { buildKitchenCabinetLayout, buildKitchenComponentRects, furnitureEighthTurns, inferFurnitureKind, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=138";
+import { bayWindowFootprint, cabinetDoorPanelCount, cabinetThreePlacement, clampIndoorPitch, clampWebGLPan, closetThreePlacement, cycleThreeSelectionCandidate, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, roomInteriorViewpoint, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRelatedSelectionStyle, threeRoomBounds, threeSelectionKey, threeSelectionStyle, threeSelectionXrayStyle, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=138";
 
 const WALL_THICKNESS = 6;
 const DEFAULT_WALL_HEIGHT = 220;
@@ -140,6 +140,12 @@ function furniturePart(group, width, height, depth, x, z, y, color, outline = 0x
   return mesh;
 }
 
+function furnitureAngledPart(group, width, height, depth, x, z, y, color, outline, rotation = {}) {
+  const mesh = furniturePart(group, width, height, depth, x, z, y, color, outline);
+  mesh.rotation.set(rotation.x ?? 0, rotation.y ?? 0, rotation.z ?? 0);
+  return mesh;
+}
+
 function furnitureBeam(group, from, to, thickness, color, outline = 0x262a29) {
   const start = new THREE.Vector3(from.x, from.z, from.y);
   const end = new THREE.Vector3(to.x, to.z, to.y);
@@ -233,16 +239,59 @@ function detailedFurnitureAssembly(item, vertical) {
     furniturePart(group, duvetWidth, duvetDrop, 4.5,
       cx, mattressTop - duvetDrop / 2 + .5, itemY + depth - 2.5, duvetColor, duvetOutline);
   } else if (kind === "sofa") {
-    const seatTop = bottom + height * .48;
-    furniturePart(group, width, height * .34, depth * .78, cx, bottom + height * .25, cy + depth * .08, fabric);
-    furniturePart(group, width * .9, height * .16, depth * .64, cx, seatTop, cy + depth * .12, 0xe0c2af);
-    furniturePart(group, width, height * .62, depth * .18, cx, bottom + height * .69, itemY + depth * .09, fabric);
-    for (const direction of [-1, 1]) furniturePart(group, Math.max(8, width * .08), height * .52, depth * .72, cx + direction * width * .46, bottom + height * .44, cy + depth * .1, fabric);
+    const sofaFabric = 0x687477;
+    const sofaShade = 0x566164;
+    const sofaOutline = 0x343b3d;
+    const sofaWood = 0xa8754d;
+    const legHeight = Math.max(11, height * .16);
+    const baseHeight = Math.max(16, height * .23);
+    const baseBottom = bottom + legHeight;
+    furniturePart(group, width * .94, baseHeight, depth * .76,
+      cx, baseBottom + baseHeight / 2, cy + depth * .07, sofaShade, sofaOutline);
+    const legThickness = Math.max(4, width * .026);
+    for (const dx of [-1, 1]) for (const dy of [-1, 1]) furnitureBeam(group,
+      { x: cx + dx * width * .41, y: cy + dy * depth * .31, z: bottom },
+      { x: cx + dx * width * .39, y: cy + dy * depth * .28, z: baseBottom + 1 },
+      legThickness, sofaWood, 0x5f422e);
+
+    const seatTop = baseBottom + baseHeight + Math.max(5, height * .07);
+    furniturePart(group, width * .82, Math.max(9, height * .12), depth * .58,
+      cx, seatTop, cy + depth * .13, 0x758184, sofaOutline);
+    const backHeight = Math.max(33, height * .46);
+    furnitureAngledPart(group, width * .74, backHeight, Math.max(8, depth * .11),
+      cx, seatTop + backHeight * .48, itemY + depth * .16,
+      sofaFabric, sofaOutline, { x: -.12 });
+    for (const side of [-1, 1]) {
+      furnitureAngledPart(group, width * .12, height * .39, depth * .62,
+        cx + side * width * .45, baseBottom + height * .31, cy + depth * .09,
+        sofaFabric, sofaOutline, { z: -side * .16 });
+      furnitureAngledPart(group, width * .24, height * .34, Math.max(8, depth * .12),
+        cx + side * width * .31, seatTop + height * .17, itemY + depth * .31,
+        0x647174, sofaOutline, { x: -.16, z: -side * .1 });
+    }
   } else if (kind === "dining") {
-    const topThickness = Math.min(5, height * .1);
-    furniturePart(group, width, topThickness, depth, cx, top - topThickness / 2, cy, wood);
-    const leg = Math.max(4, Math.min(7, Math.min(width, depth) * .08));
-    for (const dx of [-1, 1]) for (const dy of [-1, 1]) furniturePart(group, leg, height - topThickness, leg, cx + dx * (width / 2 - leg * 1.4), bottom + (height - topThickness) / 2, cy + dy * (depth / 2 - leg * 1.4), wood);
+    const tableWhite = 0xe9e9e5;
+    const tableOutline = 0x777c79;
+    const tabletopWood = 0xb8a68a;
+    const tabletopOutline = 0x756652;
+    const topThickness = Math.max(4, Math.min(6, height * .075));
+    furniturePart(group, width, topThickness, depth, cx, top - topThickness / 2, cy, tabletopWood, tabletopOutline);
+    const leg = Math.max(4, Math.min(6, Math.min(width, depth) * .075));
+    const legTop = top - topThickness;
+    const inset = leg * 1.25;
+    for (const dx of [-1, 1]) for (const dy of [-1, 1]) furniturePart(group,
+      leg, legTop - bottom, leg,
+      cx + dx * (width / 2 - inset), bottom + (legTop - bottom) / 2,
+      cy + dy * (depth / 2 - inset), tableWhite, tableOutline);
+    const apronHeight = Math.max(6, height * .09);
+    furniturePart(group, width - inset * 2, apronHeight, 3,
+      cx, legTop - apronHeight / 2, itemY + 2.5, tableWhite, tableOutline);
+    furniturePart(group, width - inset * 2, apronHeight, 3,
+      cx, legTop - apronHeight / 2, itemY + depth - 2.5, tableWhite, tableOutline);
+    furniturePart(group, 3, apronHeight, depth - inset * 2,
+      itemX + 2.5, legTop - apronHeight / 2, cy, tableWhite, tableOutline);
+    furniturePart(group, 3, apronHeight, depth - inset * 2,
+      itemX + width - 2.5, legTop - apronHeight / 2, cy, tableWhite, tableOutline);
   } else if (kind === "desk") {
     const frameColor = 0xe7e8e4;
     const frameOutline = 0x7e8581;
@@ -304,25 +353,40 @@ function detailedFurnitureAssembly(item, vertical) {
       stoolCenterX + dx * (stoolWidth / 2 - stoolLeg), bottom + (stoolHeight - 2.5) / 2,
       stoolCenterY + dy * (stoolDepth / 2 - stoolLeg), vanityWhite, vanityOutline);
   } else if (kind === "chair") {
-    const chairWhite = 0xe9e9e4;
+    const chairWhite = 0xebebe7;
     const chairOutline = 0x777c79;
-    const seatTop = bottom + Math.min(45, height * .57);
-    const seatThickness = Math.max(4, height * .065);
-    furniturePart(group, width * .94, seatThickness, depth * .82, cx, seatTop, cy + depth * .04, chairWhite, chairOutline);
+    const chairWood = 0xb8a68a;
+    const chairWoodOutline = 0x756652;
+    const seatTop = bottom + Math.min(43, height * .54);
+    const seatThickness = Math.max(4, height * .06);
+    furniturePart(group, width * .98, seatThickness, depth * .84, cx, seatTop, cy + depth * .03, chairWood, chairWoodOutline);
     const leg = Math.max(3, Math.min(4.5, Math.min(width, depth) * .085));
     for (const dx of [-1, 1]) for (const dy of [-1, 1]) {
       const upper = { x: cx + dx * width * .38, y: cy + dy * depth * .32, z: seatTop - seatThickness / 2 };
       const lower = { x: cx + dx * width * .46, y: cy + dy * depth * .42, z: bottom };
       furnitureBeam(group, lower, upper, leg, chairWhite, chairOutline);
     }
+    const stretcherZ = bottom + Math.min(11, height * .14);
+    furnitureBeam(group,
+      { x: cx - width * .42, y: cy + depth * .36, z: stretcherZ },
+      { x: cx + width * .42, y: cy + depth * .36, z: stretcherZ },
+      2.6, chairWhite, chairOutline);
+    furnitureBeam(group,
+      { x: cx - width * .42, y: cy - depth * .36, z: stretcherZ },
+      { x: cx + width * .42, y: cy - depth * .36, z: stretcherZ },
+      2.6, chairWhite, chairOutline);
+    for (const side of [-1, 1]) furnitureBeam(group,
+      { x: cx + side * width * .42, y: cy - depth * .36, z: stretcherZ },
+      { x: cx + side * width * .42, y: cy + depth * .36, z: stretcherZ },
+      2.6, chairWhite, chairOutline);
     const rearY = itemY + depth * .11;
     const postInset = width * .39;
     for (const dx of [-1, 1]) furnitureBeam(group,
       { x: cx + dx * postInset, y: rearY, z: seatTop },
       { x: cx + dx * postInset, y: rearY, z: top - 3 },
       leg, chairWhite, chairOutline);
-    furniturePart(group, width * .88, Math.max(9, height * .13), 4, cx, top - height * .09, rearY, chairWhite, chairOutline);
-    furniturePart(group, width * .72, Math.max(4, height * .055), 3.5, cx, seatTop + (top - seatTop) * .42, rearY, chairWhite, chairOutline);
+    furniturePart(group, width * .82, Math.max(13, height * .17), 4,
+      cx, top - height * .11, rearY, chairWood, chairWoodOutline);
   } else if (kind === "tv-board") {
     furniturePart(group, width, height, depth, cx, bottom + height / 2, cy, wood);
     const frontY = itemY + depth + 1.1;
