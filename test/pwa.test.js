@@ -200,6 +200,12 @@ test("edit mode exposes direct rotate and wall-move controls", () => {
   assert.match(styles, /\.furniture-direct-control-bg/);
 });
 
+test("WebGL furniture rotation follows the clockwise direction used by the 2D plan", () => {
+  const webgl = readFileSync(new URL("../dist/webgl-three.js", import.meta.url), "utf8");
+  assert.match(webgl, /mesh\.rotation\.y = -eighthTurns \* Math\.PI \/ 4/);
+  assert.match(webgl, /group\.rotation\.y = -eighthTurns \* Math\.PI \/ 4/);
+});
+
 test("cupboard, floor mirror, drying rack and plant have dedicated furniture models", () => {
   const html = readFileSync(new URL("../dist/index.html", import.meta.url), "utf8");
   const webgl = readFileSync(new URL("../dist/webgl-three.js", import.meta.url), "utf8");

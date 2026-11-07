@@ -1,6 +1,6 @@
 import * as THREE from "./vendor/three/three.module.js";
-import { buildKitchenCabinetLayout, buildKitchenComponentRects, furnitureEighthTurns, inferFurnitureKind, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=133";
-import { bayWindowFootprint, cabinetDoorPanelCount, cabinetThreePlacement, clampIndoorPitch, clampWebGLPan, closetThreePlacement, cycleThreeSelectionCandidate, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, roomInteriorViewpoint, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRelatedSelectionStyle, threeRoomBounds, threeSelectionKey, threeSelectionStyle, threeSelectionXrayStyle, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=133";
+import { buildKitchenCabinetLayout, buildKitchenComponentRects, furnitureEighthTurns, inferFurnitureKind, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=134";
+import { bayWindowFootprint, cabinetDoorPanelCount, cabinetThreePlacement, clampIndoorPitch, clampWebGLPan, closetThreePlacement, cycleThreeSelectionCandidate, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, roomInteriorViewpoint, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRelatedSelectionStyle, threeRoomBounds, threeSelectionKey, threeSelectionStyle, threeSelectionXrayStyle, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=134";
 
 const WALL_THICKNESS = 6;
 const DEFAULT_WALL_HEIGHT = 220;
@@ -123,7 +123,7 @@ function boxObject(item, vertical, color, type) {
   const geometryDepth = cardinalTurns % 2 ? width : depth;
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(geometryWidth, height, geometryDepth), material(displayColor));
   mesh.position.set(item.x + width / 2, vertical.bottomCm + height / 2, item.y + depth / 2);
-  mesh.rotation.y = eighthTurns * Math.PI / 4;
+  mesh.rotation.y = -eighthTurns * Math.PI / 4;
   mesh.castShadow = true;
   mesh.receiveShadow = true;
   addOutline(mesh, type === "furniture" ? 0x815c45 : 0x326b5e, .72);
@@ -179,7 +179,7 @@ function detailedFurnitureAssembly(item, vertical) {
   const cx = 0;
   const cy = 0;
   group.position.set(worldCenterX, 0, worldCenterY);
-  group.rotation.y = eighthTurns * Math.PI / 4;
+  group.rotation.y = -eighthTurns * Math.PI / 4;
   const wood = 0xb8815f;
   const fabric = 0xd4b29e;
   const light = 0xe8e6e1;
