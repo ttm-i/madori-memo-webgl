@@ -219,6 +219,7 @@ test("plan styles can independently hide each display layer", () => {
   assert.match(css, /dimensions-hidden/);
   assert.match(css, /features-hidden/);
   assert.match(css, /furniture-hidden/);
+  assert.match(css, /curtains-hidden \.furniture-group\.is-curtain/);
   assert.match(css, /electrical-hidden/);
   assert.match(css, /\.field-label input, \.field-label select[^}]*font-size:\s*16px/);
 });

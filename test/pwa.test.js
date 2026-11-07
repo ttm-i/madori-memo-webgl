@@ -31,6 +31,15 @@ test("the redundant current-plan summary stays out of the 2D layout", () => {
   assert.match(html, /<section class="summary-card"[^>]*\bhidden\b/);
 });
 
+test("2D display settings can hide curtains without hiding other furniture", () => {
+  const html = readFileSync(new URL("../dist/index.html", import.meta.url), "utf8");
+  const app = readFileSync(new URL("../dist/app.js", import.meta.url), "utf8");
+  const renderer = readFileSync(new URL("../dist/renderer.js", import.meta.url), "utf8");
+  assert.match(html, /id="displayFurnitureToggle"[\s\S]*id="displayCurtainsToggle"[^>]*checked[^>]*\/> カーテン/);
+  assert.match(app, /displayCurtainsToggle[\s\S]*renderer\.setCurtainsVisible/);
+  assert.match(renderer, /windowAttached \? "is-curtain"[\s\S]*setCurtainsVisible\(value\)/);
+});
+
 test("furniture details use one concise 2D action for both location and wall clearances", () => {
   const html = readFileSync(new URL("../dist/index.html", import.meta.url), "utf8");
   const app = readFileSync(new URL("../dist/app.js", import.meta.url), "utf8");

@@ -1,4 +1,4 @@
-import { alignCurtainToOpening, alignFurnitureToSupport, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildKitchenComponentRects, findSupportItem, furnitureBounds, furnitureDescendantIds, furnitureRotationDegrees, furnitureWallMove, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, moveDimensionGuide, normalizeFurnitureProductUrl, previewFurnitureCandidate, QUALITY_LABELS, rotateFurnitureStack, snapToGrid, translateFurnitureDescendants } from "./model.js?v=148";
+import { alignCurtainToOpening, alignFurnitureToSupport, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildKitchenComponentRects, findSupportItem, furnitureBounds, furnitureDescendantIds, furnitureRotationDegrees, furnitureWallMove, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, moveDimensionGuide, normalizeFurnitureProductUrl, previewFurnitureCandidate, QUALITY_LABELS, rotateFurnitureStack, snapToGrid, translateFurnitureDescendants } from "./model.js?v=149";
 
 const NS = "http://www.w3.org/2000/svg";
 
@@ -265,7 +265,7 @@ export class PlanRenderer {
       const anotherFurnitureSelected = Boolean(this.selectedFurnitureId && !selected);
       const bounds = furnitureBounds(furniture);
       const rotationDegrees = furnitureRotationDegrees(furniture);
-      const group = svg("g", { class: `furniture-group ${furniture.supportId ? "is-supported" : ""} ${furniture.supportId && !supportedMovable ? "is-supported-fixed" : ""} ${supportOverflow ? "support-overflow" : ""} ${this.isSelectable("furniture") ? "" : "not-selectable"} ${anotherFurnitureSelected ? "move-disabled" : ""} ${selected ? "selected" : ""} ${placement.inside ? "" : "out-of-room"} ${conflicts.length ? "has-conflict" : ""}`, "data-furniture-id": furniture.id, tabindex: 0, role: "button", "aria-label": `${furniture.name}${furniture.supportId ? " 上置き" : ""}${supportOverflow ? " 設置面からはみ出し" : ""}${placement.inside ? "" : " 部屋外"}${conflicts.length ? " 重なりあり" : ""}` });
+      const group = svg("g", { class: `furniture-group ${windowAttached ? "is-curtain" : ""} ${furniture.supportId ? "is-supported" : ""} ${furniture.supportId && !supportedMovable ? "is-supported-fixed" : ""} ${supportOverflow ? "support-overflow" : ""} ${this.isSelectable("furniture") ? "" : "not-selectable"} ${anotherFurnitureSelected ? "move-disabled" : ""} ${selected ? "selected" : ""} ${placement.inside ? "" : "out-of-room"} ${conflicts.length ? "has-conflict" : ""}`, "data-furniture-id": furniture.id, tabindex: 0, role: "button", "aria-label": `${furniture.name}${furniture.supportId ? " 上置き" : ""}${supportOverflow ? " 設置面からはみ出し" : ""}${placement.inside ? "" : " 部屋外"}${conflicts.length ? " 重なりあり" : ""}` });
       const centerX = furniture.x + furniture.widthCm / 2;
       const centerY = furniture.y + furniture.depthCm / 2;
       const rectAttributes = { class: "furniture-shape", x: furniture.x, y: furniture.y, width: furniture.widthCm, height: furniture.depthCm, rx: 5 };
@@ -526,6 +526,7 @@ export class PlanRenderer {
   setDimensionsVisible(value) { this.svg.classList.toggle("dimensions-hidden", !value); }
   setFeaturesVisible(value) { this.svg.classList.toggle("features-hidden", !value); }
   setFurnitureVisible(value) { this.svg.classList.toggle("furniture-hidden", !value); }
+  setCurtainsVisible(value) { this.svg.classList.toggle("curtains-hidden", !value); }
   setElectricalVisible(value) { this.svg.classList.toggle("electrical-hidden", !value); }
   setMeasurementMode(value) {
     this.measurementMode = value;

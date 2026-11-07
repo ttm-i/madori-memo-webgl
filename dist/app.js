@@ -1,7 +1,7 @@
-import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=148";
-import { alignCurtainToOpening, alignCurtainsToOpenings, alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, applyFurnitureCandidate, buildElevationItems, buildFurnitureHierarchy, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, curtainOpening, DIMENSION_GROUP_LABELS, duplicateFurnitureStack, featureSupportRange, findSupportItem, furnitureDescendantIds as modelFurnitureDescendantIds, furniturePriceSummary, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, normalizeFurnitureProductUrl, previewFurnitureCandidate, QUALITY_LABELS, removeFurnitureStack, resolveFurnitureVerticalRange, rotateFurnitureStack, supportSurfaceSize, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=148";
-import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=148";
-import { createWebGLThreeView } from "./webgl-three.js?v=148";
+import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=149";
+import { alignCurtainToOpening, alignCurtainsToOpenings, alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, applyFurnitureCandidate, buildElevationItems, buildFurnitureHierarchy, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, curtainOpening, DIMENSION_GROUP_LABELS, duplicateFurnitureStack, featureSupportRange, findSupportItem, furnitureDescendantIds as modelFurnitureDescendantIds, furniturePriceSummary, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, normalizeFurnitureProductUrl, previewFurnitureCandidate, QUALITY_LABELS, removeFurnitureStack, resolveFurnitureVerticalRange, rotateFurnitureStack, supportSurfaceSize, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=149";
+import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=149";
+import { createWebGLThreeView } from "./webgl-three.js?v=149";
 
 const elements = Object.fromEntries([
   "menuButton", "dataMenu", "detailDialog", "detailType", "detailTitle", "detailBody", "fileInput",
@@ -10,7 +10,7 @@ const elements = Object.fromEntries([
   "planSelectionStatus", "planSelectionSummary", "planSelectionDetailsButton",
   "candidatePreviewBar", "candidatePreviewLabel", "adoptCandidatePreviewButton", "clearCandidatePreviewButton",
   "displayMenuButton", "displayMenu", "displayRoomLabelsToggle", "displayFeaturesToggle",
-  "displayFurnitureToggle", "displayElectricalToggle", "displayDimensionsToggle",
+  "displayFurnitureToggle", "displayCurtainsToggle", "displayElectricalToggle", "displayDimensionsToggle",
   "dimensionFilters", "dimensionFilterList", "selectionMenuButton", "selectionMenu", "selectionModeHint",
   "measureButton", "measurementPanel", "measurementStatus", "measurementClearButton", "measurementEndButton",
   "furnitureMenuButton", "furnitureMenu", "snapToggle",
@@ -1026,6 +1026,7 @@ elements.showFurnitureInPlanButton.addEventListener("click", () => {
   preserveFurnitureSelectionOnClose = true;
   clearThreeSelection();
   setFurnitureVisible(true);
+  if (inferFurnitureKind(furniture) === "curtain") setCurtainsVisible(true);
   document.querySelector('.tab[data-view="plan"]').click();
   setPlanSelectionPresentation("furniture", furniture, { focus: true });
   elements.detailDialog.close();
@@ -1736,6 +1737,11 @@ function setFurnitureVisible(value) {
   renderer.setFurnitureVisible(value);
 }
 
+function setCurtainsVisible(value) {
+  elements.displayCurtainsToggle.checked = value;
+  renderer.setCurtainsVisible(value);
+}
+
 function closeToolMenus(except = null) {
   for (const [button, menu] of [[elements.displayMenuButton, elements.displayMenu], [elements.selectionMenuButton, elements.selectionMenu], [elements.furnitureMenuButton, elements.furnitureMenu]]) {
     if (menu === except) continue;
@@ -2105,6 +2111,7 @@ elements.furnitureForm.addEventListener("submit", async (event) => {
   const anchor = room.label ?? room.points[0];
   pushHistory();
   setFurnitureVisible(true);
+  if (furnitureKind === "curtain") setCurtainsVisible(true);
   const furniture = {
     id: crypto.randomUUID(),
     name,
@@ -2243,6 +2250,7 @@ elements.snapToggle.addEventListener("change", () => renderer.setSnapEnabled(ele
 elements.displayRoomLabelsToggle.addEventListener("change", () => renderer.setRoomLabelsVisible(elements.displayRoomLabelsToggle.checked));
 elements.displayFeaturesToggle.addEventListener("change", () => renderer.setFeaturesVisible(elements.displayFeaturesToggle.checked));
 elements.displayFurnitureToggle.addEventListener("change", () => renderer.setFurnitureVisible(elements.displayFurnitureToggle.checked));
+elements.displayCurtainsToggle.addEventListener("change", () => renderer.setCurtainsVisible(elements.displayCurtainsToggle.checked));
 elements.displayElectricalToggle.addEventListener("change", () => renderer.setElectricalVisible(elements.displayElectricalToggle.checked));
 elements.displayDimensionsToggle.addEventListener("change", () => {
   renderer.setDimensionsVisible(elements.displayDimensionsToggle.checked);
