@@ -1,6 +1,6 @@
 import * as THREE from "./vendor/three/three.module.js";
-import { buildKitchenCabinetLayout, buildKitchenComponentRects, furnitureEighthTurns, inferFurnitureKind, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=150";
-import { bayWindowFootprint, cabinetDoorPanelCount, cabinetThreePlacement, clampIndoorPitch, clampWebGLPan, closetThreePlacement, cycleThreeSelectionCandidate, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, roomInteriorViewpoint, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRelatedSelectionStyle, threeRoomBounds, threeSelectionKey, threeSelectionStyle, threeSelectionXrayStyle, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=150";
+import { buildKitchenCabinetLayout, buildKitchenComponentRects, furnitureEighthTurns, inferFurnitureKind, kitchenComponentVerticalRange, resolveFurnitureVerticalRange } from "./model.js?v=151";
+import { bayWindowFootprint, cabinetDoorPanelCount, cabinetThreePlacement, clampIndoorPitch, clampWebGLPan, closetThreePlacement, cycleThreeSelectionCandidate, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, roomEdgeWallHeight, roomInteriorViewpoint, splitWallFace, threeItemBelongsToRoom, threeItemFootprint, threeRelatedSelectionStyle, threeRoomBounds, threeSelectionKey, threeSelectionStyle, threeSelectionXrayStyle, threeWallBelongsToRoom, wallFeatureThreePlacement, yawToQuarterTurn } from "./three.js?v=151";
 
 const WALL_THICKNESS = 6;
 const DEFAULT_WALL_HEIGHT = 220;
@@ -177,6 +177,20 @@ function furnitureCylinder(group, topRadius, bottomRadius, height, x, z, y, colo
   return mesh;
 }
 
+function furnitureOval(group, width, height, depth, x, z, y, color, outline = 0x756652) {
+  const mesh = new THREE.Mesh(
+    new THREE.CylinderGeometry(.5, .5, Math.max(.8, height), 48),
+    material(color, { roughness: .66 }),
+  );
+  mesh.scale.set(Math.max(.8, width), 1, Math.max(.8, depth));
+  mesh.position.set(x, z, y);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  addOutline(mesh, outline, .58);
+  group.add(mesh);
+  return mesh;
+}
+
 function furnitureRing(group, radius, tube, x, z, y, color, outline = 0x5f6664) {
   const mesh = new THREE.Mesh(
     new THREE.TorusGeometry(radius, tube, 10, 32),
@@ -337,6 +351,19 @@ function detailedFurnitureAssembly(item, vertical) {
         cx + side * width * .31, seatTop + height * .17, itemY + depth * .31,
         0x647174, sofaOutline, { x: -.16, z: -side * .1 });
     }
+  } else if (kind === "dining-round") {
+    const tabletopWood = 0xb8a68a;
+    const tabletopOutline = 0x756652;
+    const tableWhite = 0xe9e9e5;
+    const tableOutline = 0x777c79;
+    const topThickness = Math.max(4, Math.min(6, height * .075));
+    furnitureOval(group, width, topThickness, depth, cx, top - topThickness / 2, cy, tabletopWood, tabletopOutline);
+    const columnTop = top - topThickness;
+    const columnRadius = Math.max(5, Math.min(width, depth) * .065);
+    furnitureCylinder(group, columnRadius, columnRadius * 1.1, columnTop - bottom - 3,
+      cx, bottom + 3 + (columnTop - bottom - 3) / 2, cy, tableWhite, tableOutline);
+    furnitureOval(group, Math.min(width * .5, 54), 3.5, Math.min(depth * .5, 54),
+      cx, bottom + 1.75, cy, tableWhite, tableOutline);
   } else if (kind === "dining") {
     const tableWhite = 0xe9e9e5;
     const tableOutline = 0x777c79;

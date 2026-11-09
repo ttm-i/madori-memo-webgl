@@ -229,7 +229,8 @@ export function kitchenComponentVerticalRange(feature) {
 }
 
 export const FURNITURE_PRESETS = {
-  dining: { name: "ダイニングテーブル", width: 105, depth: 70, height: 70 },
+  dining: { name: "ダイニングテーブル（長方形）", width: 105, depth: 70, height: 70 },
+  "dining-round": { name: "ダイニングテーブル（円形・楕円形）", width: 105, depth: 105, height: 70 },
   sofa: { name: "ソファ", width: 180, depth: 85, height: 80 },
   bed: { name: "ダブルベッド", width: 140, depth: 195, height: 45 },
   "single-bed": { name: "シングルベッド", width: 97, depth: 195, height: 45 },

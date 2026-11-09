@@ -1,4 +1,4 @@
-import { alignCurtainToOpening, alignFurnitureToSupport, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildKitchenComponentRects, findSupportItem, furnitureBounds, furnitureDescendantIds, furnitureRotationDegrees, furnitureWallMove, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, moveDimensionGuide, normalizeFurnitureProductUrl, previewFurnitureCandidate, QUALITY_LABELS, rotateFurnitureStack, snapToGrid, translateFurnitureDescendants } from "./model.js?v=150";
+import { alignCurtainToOpening, alignFurnitureToSupport, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildKitchenComponentRects, findSupportItem, furnitureBounds, furnitureDescendantIds, furnitureRotationDegrees, furnitureWallMove, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, moveDimensionGuide, normalizeFurnitureProductUrl, previewFurnitureCandidate, QUALITY_LABELS, rotateFurnitureStack, snapToGrid, translateFurnitureDescendants } from "./model.js?v=151";
 
 const NS = "http://www.w3.org/2000/svg";
 
@@ -268,12 +268,15 @@ export class PlanRenderer {
       const group = svg("g", { class: `furniture-group ${windowAttached ? "is-curtain" : ""} ${furniture.supportId ? "is-supported" : ""} ${furniture.supportId && !supportedMovable ? "is-supported-fixed" : ""} ${supportOverflow ? "support-overflow" : ""} ${this.isSelectable("furniture") ? "" : "not-selectable"} ${anotherFurnitureSelected ? "move-disabled" : ""} ${selected ? "selected" : ""} ${placement.inside ? "" : "out-of-room"} ${conflicts.length ? "has-conflict" : ""}`, "data-furniture-id": furniture.id, tabindex: 0, role: "button", "aria-label": `${furniture.name}${furniture.supportId ? " 上置き" : ""}${supportOverflow ? " 設置面からはみ出し" : ""}${placement.inside ? "" : " 部屋外"}${conflicts.length ? " 重なりあり" : ""}` });
       const centerX = furniture.x + furniture.widthCm / 2;
       const centerY = furniture.y + furniture.depthCm / 2;
-      const rectAttributes = { class: "furniture-shape", x: furniture.x, y: furniture.y, width: furniture.widthCm, height: furniture.depthCm, rx: 5 };
-      if (rotationDegrees) rectAttributes.transform = `rotate(${rotationDegrees} ${centerX} ${centerY})`;
-      const rect = svg("rect", rectAttributes);
+      const roundTable = inferFurnitureKind(furniture) === "dining-round";
+      const shapeAttributes = roundTable
+        ? { class: "furniture-shape", cx: centerX, cy: centerY, rx: furniture.widthCm / 2, ry: furniture.depthCm / 2 }
+        : { class: "furniture-shape", x: furniture.x, y: furniture.y, width: furniture.widthCm, height: furniture.depthCm, rx: 5 };
+      if (rotationDegrees) shapeAttributes.transform = `rotate(${rotationDegrees} ${centerX} ${centerY})`;
+      const shape = svg(roundTable ? "ellipse" : "rect", shapeAttributes);
       const label = svg("text", { class: "furniture-label", x: furniture.x + furniture.widthCm / 2, y: furniture.y + furniture.depthCm / 2 - 7 }, furniture.name);
       const sizeLabel = svg("text", { class: "furniture-size-label", x: furniture.x + furniture.widthCm / 2, y: furniture.y + furniture.depthCm / 2 + 10 }, `${furniture.widthCm}×${furniture.depthCm}`);
-      group.append(rect, label, sizeLabel);
+      group.append(shape, label, sizeLabel);
       const supportLabel = furniture.supportId ? svg("text", { class: "furniture-support-label", x: centerX, y: bounds.bottom - 6 }, "上置き") : null;
       if (supportLabel) group.append(supportLabel);
       if (selected && placement.inside && placement.boundaries) {
@@ -361,7 +364,7 @@ export class PlanRenderer {
           .map((id) => this.svg.querySelector(`.furniture-group[data-furniture-id="${id}"]`))
           .filter(Boolean);
         this.draggingFurniture = {
-          furniture, rect, label, sizeLabel, supportLabel, support, rotationDegrees,
+          furniture, rect: shape, label, sizeLabel, supportLabel, support, rotationDegrees,
           directControls,
           descendantGroups,
           clientX: event.clientX, clientY: event.clientY,
@@ -378,7 +381,10 @@ export class PlanRenderer {
           const previewCenterY = preview.y + preview.depthCm / 2;
           const previewRotation = furnitureRotationDegrees(preview);
           const previewGroup = svg("g", { class: "furniture-candidate-preview", "aria-label": `${this.candidatePreview.label ?? "商品候補"}の配置プレビュー` });
-          const previewRect = svg("rect", { x: preview.x, y: preview.y, width: preview.widthCm, height: preview.depthCm, rx: 6 });
+          const previewRoundTable = inferFurnitureKind(preview) === "dining-round";
+          const previewRect = previewRoundTable
+            ? svg("ellipse", { cx: previewCenterX, cy: previewCenterY, rx: preview.widthCm / 2, ry: preview.depthCm / 2 })
+            : svg("rect", { x: preview.x, y: preview.y, width: preview.widthCm, height: preview.depthCm, rx: 6 });
           if (previewRotation) previewRect.setAttribute("transform", `rotate(${previewRotation} ${previewCenterX} ${previewCenterY})`);
           previewGroup.append(
             previewRect,
@@ -721,8 +727,13 @@ export class PlanRenderer {
         const stackDeltaY = drag.furniture.y - drag.startY;
         for (const descendantGroup of drag.descendantGroups) descendantGroup.setAttribute("transform", `translate(${stackDeltaX} ${stackDeltaY})`);
         drag.directControls?.setAttribute("transform", `translate(${stackDeltaX} ${stackDeltaY})`);
-        drag.rect.setAttribute("x", drag.furniture.x);
-        drag.rect.setAttribute("y", drag.furniture.y);
+        if (drag.rect.tagName === "ellipse") {
+          drag.rect.setAttribute("cx", drag.furniture.x + drag.furniture.widthCm / 2);
+          drag.rect.setAttribute("cy", drag.furniture.y + drag.furniture.depthCm / 2);
+        } else {
+          drag.rect.setAttribute("x", drag.furniture.x);
+          drag.rect.setAttribute("y", drag.furniture.y);
+        }
         if (drag.rotationDegrees) drag.rect.setAttribute("transform", `rotate(${drag.rotationDegrees} ${drag.furniture.x + drag.furniture.widthCm / 2} ${drag.furniture.y + drag.furniture.depthCm / 2})`);
         drag.label.setAttribute("x", drag.furniture.x + drag.furniture.widthCm / 2);
         drag.label.setAttribute("y", drag.furniture.y + drag.furniture.depthCm / 2 - 7);

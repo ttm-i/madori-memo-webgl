@@ -79,7 +79,7 @@ button { color: inherit; touch-action: manipulation; }
 .candidate-preview-bar button { min-height: 34px; padding: 0 11px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); font-size: .68rem; font-weight: 800; }
 .candidate-preview-bar button:first-of-type { border-color: var(--accent); background: var(--accent); color: white; }
 .furniture-candidate-preview { pointer-events: none; }
-.furniture-candidate-preview rect { fill: rgba(53,104,89,.16); stroke: var(--accent); stroke-width: 4; stroke-dasharray: 10 7; vector-effect: non-scaling-stroke; }
+.furniture-candidate-preview rect, .furniture-candidate-preview ellipse { fill: rgba(53,104,89,.16); stroke: var(--accent); stroke-width: 4; stroke-dasharray: 10 7; vector-effect: non-scaling-stroke; }
 .furniture-candidate-preview text { fill: var(--accent); font-size: 10px; font-weight: 850; text-anchor: middle; paint-order: stroke; stroke: var(--surface); stroke-width: 3px; }
 .undo-action { left: 12px; padding: 0; font-size: 1.55rem; line-height: 1; }
 .fit-action { right: 12px; }

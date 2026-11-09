@@ -276,15 +276,21 @@ test("desk and chair models are refined and a pedal bin preset is available", ()
   assert.match(webgl, /kind === "desk"[\s\S]*backY[\s\S]*kind === "chair"[\s\S]*rearY[\s\S]*kind === "trash-bin"/);
 });
 
-test("sofa, dining table and chair match the reference styles and dimensions", () => {
+test("sofa, rectangular and round dining tables, and chair match the reference styles and dimensions", () => {
   const html = readFileSync(new URL("../dist/index.html", import.meta.url), "utf8");
   const model = readFileSync(new URL("../dist/model.js", import.meta.url), "utf8");
+  const renderer = readFileSync(new URL("../dist/renderer.js", import.meta.url), "utf8");
   const webgl = readFileSync(new URL("../dist/webgl-three.js", import.meta.url), "utf8");
-  assert.match(html, /value="dining">ダイニングテーブル 105×70×70/);
+  assert.match(html, /value="dining">ダイニングテーブル（長方形）105×70×70/);
+  assert.match(html, /value="dining-round">ダイニングテーブル（円形・楕円形）105×105×70/);
   assert.match(html, /value="chair">椅子 40×47\.5×80\.5/);
-  assert.match(model, /dining: \{ name: "ダイニングテーブル", width: 105, depth: 70, height: 70 \}/);
+  assert.match(model, /dining: \{ name: "ダイニングテーブル（長方形）", width: 105, depth: 70, height: 70 \}/);
+  assert.match(model, /"dining-round": \{ name: "ダイニングテーブル（円形・楕円形）", width: 105, depth: 105, height: 70 \}/);
   assert.match(model, /chair: \{ name: "椅子", width: 40, depth: 47\.5, height: 80\.5 \}/);
+  assert.match(renderer, /roundTable[\s\S]*svg\(roundTable \? "ellipse" : "rect"/);
+  assert.match(renderer, /previewRoundTable[\s\S]*svg\("ellipse"/);
   assert.match(webgl, /kind === "sofa"[\s\S]*sofaFabric[\s\S]*sofaWood[\s\S]*furnitureAngledPart[\s\S]*kind === "dining"/);
+  assert.match(webgl, /kind === "dining-round"[\s\S]*furnitureOval[\s\S]*columnRadius[\s\S]*kind === "dining"/);
   assert.match(webgl, /kind === "dining"[\s\S]*tabletopWood[\s\S]*tableWhite[\s\S]*apronHeight[\s\S]*kind === "desk"/);
   assert.match(webgl, /kind === "chair"[\s\S]*chairWood[\s\S]*stretcherZ[\s\S]*rearY[\s\S]*kind === "tv-board"/);
 });
