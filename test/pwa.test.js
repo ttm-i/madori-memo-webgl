@@ -62,11 +62,15 @@ test("furniture product links are optional, editable and available from details 
   const html = readFileSync(new URL("../dist/index.html", import.meta.url), "utf8");
   const app = readFileSync(new URL("../dist/app.js", import.meta.url), "utf8");
   const renderer = readFileSync(new URL("../dist/renderer.js", import.meta.url), "utf8");
+  const styles = readFileSync(new URL("../dist/styles.css", import.meta.url), "utf8");
   assert.match(html, /id="furnitureProductUrl"[^>]*type="url"/);
   assert.match(app, /normalizeFurnitureProductUrl\(productUrlText\)/);
   assert.match(app, /productLink\.target = "_blank"/);
   assert.match(app, /productLink\.rel = "noopener noreferrer"/);
   assert.match(app, /className = "furniture-list-product-link"/);
+  assert.match(app, /row\.classList\.add\("has-product-link"\);\s*row\.append\(productLink\)/);
+  assert.match(styles, /\.furniture-list-item\.has-product-link \{ grid-template-columns: minmax\(0, 1fr\) auto 42px; \}/);
+  assert.match(styles, /\.furniture-list-product-link \{[^}]*grid-column: 3;[^}]*grid-row: 1 \/ span 5;/);
   assert.match(renderer, /class="detail-product-link"[^>]*target="_blank" rel="noopener noreferrer"/);
 });
 

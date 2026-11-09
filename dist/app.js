@@ -1,7 +1,7 @@
-import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=149";
-import { alignCurtainToOpening, alignCurtainsToOpenings, alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, applyFurnitureCandidate, buildElevationItems, buildFurnitureHierarchy, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, curtainOpening, DIMENSION_GROUP_LABELS, duplicateFurnitureStack, featureSupportRange, findSupportItem, furnitureDescendantIds as modelFurnitureDescendantIds, furniturePriceSummary, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, normalizeFurnitureProductUrl, previewFurnitureCandidate, QUALITY_LABELS, removeFurnitureStack, resolveFurnitureVerticalRange, rotateFurnitureStack, supportSurfaceSize, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=149";
-import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=149";
-import { createWebGLThreeView } from "./webgl-three.js?v=149";
+import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=150";
+import { alignCurtainToOpening, alignCurtainsToOpenings, alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, applyFurnitureCandidate, buildElevationItems, buildFurnitureHierarchy, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, curtainOpening, DIMENSION_GROUP_LABELS, duplicateFurnitureStack, featureSupportRange, findSupportItem, furnitureDescendantIds as modelFurnitureDescendantIds, furniturePriceSummary, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, normalizeFurnitureProductUrl, previewFurnitureCandidate, QUALITY_LABELS, removeFurnitureStack, resolveFurnitureVerticalRange, rotateFurnitureStack, supportSurfaceSize, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=150";
+import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=150";
+import { createWebGLThreeView } from "./webgl-three.js?v=150";
 
 const elements = Object.fromEntries([
   "menuButton", "dataMenu", "detailDialog", "detailType", "detailTitle", "detailBody", "fileInput",
@@ -1643,8 +1643,9 @@ function renderFurnitureList() {
     wrapper.className = "furniture-list-row";
     wrapper.classList.toggle("is-nested", depth > 0);
     wrapper.style.setProperty("--tree-indent", `${depth * 16}px`);
-    const row = document.createElement("button");
-    row.type = "button";
+    const row = document.createElement("div");
+    row.tabIndex = 0;
+    row.setAttribute("role", "button");
     row.className = `furniture-list-item ${!placement.inside ? "danger" : supportFit?.fits === false || conflicts.length ? "warning" : ""}`;
     const name = document.createElement("strong");
     name.textContent = `${depth > 0 ? "↳ " : ""}${furniture.name}`;
@@ -1680,10 +1681,16 @@ function renderFurnitureList() {
       row.append(issueLabel);
     }
     row.append(heightLabel, priceLabel, size);
-    row.addEventListener("click", () => {
+    const openFurnitureDetail = () => {
       elements.furnitureListDialog.close();
       setFurnitureVisible(true);
       showDetail("furniture", furniture, { origin: "list" });
+    };
+    row.addEventListener("click", openFurnitureDetail);
+    row.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      openFurnitureDetail();
     });
     wrapper.append(row);
     const actions = document.createElement("div");
@@ -1697,7 +1704,10 @@ function renderFurnitureList() {
       productLink.rel = "noopener noreferrer";
       productLink.textContent = "↗";
       productLink.setAttribute("aria-label", `${furniture.name}の商品ページを開く`);
-      actions.append(productLink);
+      productLink.addEventListener("click", (event) => event.stopPropagation());
+      productLink.addEventListener("keydown", (event) => event.stopPropagation());
+      row.classList.add("has-product-link");
+      row.append(productLink);
     }
     const childIds = childIdsByParent.get(furniture.id) ?? [];
     if (childIds.length) {
