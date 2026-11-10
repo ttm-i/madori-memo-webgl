@@ -18,6 +18,14 @@ export function normalizeFurnitureProductUrl(value) {
   }
 }
 
+const MAX_FURNITURE_IMAGE_DATA_URL_LENGTH = 1_500_000;
+
+export function normalizeFurnitureImageDataUrl(value) {
+  if (value == null || value === "") return null;
+  if (typeof value !== "string" || value.length > MAX_FURNITURE_IMAGE_DATA_URL_LENGTH) return null;
+  return /^data:image\/(?:jpeg|png|webp);base64,[a-z0-9+/=\s]+$/i.test(value) ? value : null;
+}
+
 export const DIMENSION_GROUP_LABELS = {
   wet: "水回り",
   hall: "玄関・廊下",
@@ -60,6 +68,11 @@ export function validatePlan(input) {
       if (!productUrl) throw new Error(`${furniture.name ?? "家具"}の商品URLが不正です`);
       furniture.productUrl = productUrl;
     }
+    if (furniture.imageDataUrl != null) {
+      const imageDataUrl = normalizeFurnitureImageDataUrl(furniture.imageDataUrl);
+      if (!imageDataUrl) throw new Error(`${furniture.name ?? "家具"}の画像データが不正です`);
+      furniture.imageDataUrl = imageDataUrl;
+    }
     if (furniture.furnitureKind === "curtain") {
       const opening = input.plan.openings.find((candidate) => candidate.id === furniture.openingId && String(candidate.kind ?? "").includes("window"));
       if (!opening) throw new Error(`${furniture.name ?? "カーテン"}の設置先窓が不正です`);
@@ -74,6 +87,11 @@ export function validatePlan(input) {
       candidate.productUrl = productUrl;
       if (![candidate.widthCm, candidate.depthCm, candidate.heightCm].every((value) => Number.isFinite(value) && value > 0)) throw new Error(`${candidate.productName || "商品候補"}の寸法が不正です`);
       if (candidate.priceYen != null && (!Number.isInteger(candidate.priceYen) || candidate.priceYen < 0 || candidate.priceYen > 999999999)) throw new Error(`${candidate.productName || "商品候補"}の価格が不正です`);
+      if (candidate.imageDataUrl != null) {
+        const imageDataUrl = normalizeFurnitureImageDataUrl(candidate.imageDataUrl);
+        if (!imageDataUrl) throw new Error(`${candidate.productName || "商品候補"}の画像データが不正です`);
+        candidate.imageDataUrl = imageDataUrl;
+      }
       if (candidate.deliveryDimensions) {
         const dimensions = candidate.deliveryDimensions;
         if (![dimensions.sideACm, dimensions.sideBCm, dimensions.sideCCm].every((value) => Number.isFinite(value) && value > 0)) throw new Error(`${candidate.productName || "商品候補"}の梱包寸法が不正です`);
@@ -763,6 +781,7 @@ export function previewFurnitureCandidate(furniture, candidate) {
     heightCm: height,
     ...(Number.isInteger(candidate.priceYen) ? { priceYen: candidate.priceYen } : {}),
     ...(normalizeFurnitureProductUrl(candidate.productUrl) ? { productUrl: normalizeFurnitureProductUrl(candidate.productUrl) } : {}),
+    ...(normalizeFurnitureImageDataUrl(candidate.imageDataUrl) ? { imageDataUrl: normalizeFurnitureImageDataUrl(candidate.imageDataUrl) } : {}),
     ...(candidate.deliveryDimensions ? { deliveryDimensions: structuredClone(candidate.deliveryDimensions) } : {}),
   };
 }
@@ -776,6 +795,9 @@ export function applyFurnitureCandidate(furniture, candidate, groupId = null) {
   const productUrl = normalizeFurnitureProductUrl(candidate.productUrl);
   if (productUrl) furniture.productUrl = productUrl;
   else delete furniture.productUrl;
+  const imageDataUrl = normalizeFurnitureImageDataUrl(candidate.imageDataUrl);
+  if (imageDataUrl) furniture.imageDataUrl = imageDataUrl;
+  else delete furniture.imageDataUrl;
   if (candidate.deliveryDimensions) furniture.deliveryDimensions = structuredClone(candidate.deliveryDimensions);
   else delete furniture.deliveryDimensions;
   furniture.appliedCandidateId = candidate.id;
@@ -828,6 +850,9 @@ export function updateFurniture(furniture, values) {
   const productUrl = normalizeFurnitureProductUrl(values.productUrl);
   if (productUrl) furniture.productUrl = productUrl;
   else delete furniture.productUrl;
+  const imageDataUrl = normalizeFurnitureImageDataUrl(values.imageDataUrl);
+  if (imageDataUrl) furniture.imageDataUrl = imageDataUrl;
+  else delete furniture.imageDataUrl;
   if (values.furnitureKind && Object.hasOwn(FURNITURE_PRESETS, values.furnitureKind)) furniture.furnitureKind = values.furnitureKind;
   else delete furniture.furnitureKind;
   const supportChanged = furniture.supportId !== values.supportId;

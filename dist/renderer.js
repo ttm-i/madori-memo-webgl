@@ -1,4 +1,4 @@
-import { alignCurtainToOpening, alignFurnitureToSupport, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildKitchenComponentRects, findSupportItem, furnitureBounds, furnitureDescendantIds, furnitureRotationDegrees, furnitureWallMove, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, moveDimensionGuide, normalizeFurnitureProductUrl, previewFurnitureCandidate, QUALITY_LABELS, rotateFurnitureStack, snapToGrid, translateFurnitureDescendants } from "./model.js?v=151";
+import { alignCurtainToOpening, alignFurnitureToSupport, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildKitchenComponentRects, findSupportItem, furnitureBounds, furnitureDescendantIds, furnitureRotationDegrees, furnitureWallMove, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, moveDimensionGuide, normalizeFurnitureImageDataUrl, normalizeFurnitureProductUrl, previewFurnitureCandidate, QUALITY_LABELS, rotateFurnitureStack, snapToGrid, translateFurnitureDescendants } from "./model.js?v=152";
 
 const NS = "http://www.w3.org/2000/svg";
 
@@ -978,9 +978,13 @@ export function detailMarkup(type, item) {
   const productLink = productUrl
     ? `<a class="detail-product-link" href="${escapeHTML(productUrl)}" target="_blank" rel="noopener noreferrer">商品ページを開く <span aria-hidden="true">↗</span></a>`
     : "";
+  const imageDataUrl = type === "furniture" ? normalizeFurnitureImageDataUrl(item.imageDataUrl) : null;
+  const registeredImage = imageDataUrl
+    ? `<figure class="detail-image"><img src="${escapeHTML(imageDataUrl)}" alt="${escapeHTML(item.name ?? "家具")}の登録画像" /></figure>`
+    : "";
   const qualityTags = type === "feature"
     ? `<div class="quality-tags"><span class="quality-tag ${escapeHTML(quality)}">寸法: ${safeQuality}</span><span class="quality-tag placement ${escapeHTML(item.placementQuality ?? (item.uncertain ? "approximate" : "confirmed"))}">配置: ${item.placementQuality === "confirmed" || (!item.placementQuality && !item.uncertain) ? "確認済み" : "要確認"}</span></div>`
     : `<span class="quality-tag ${escapeHTML(quality)}">${safeQuality}</span>`;
-  return `${list}${productLink}${warning}${qualityTags}${item.note ? `<p>${escapeHTML(item.note)}</p>` : ""}`;
+  return `${registeredImage}${list}${productLink}${warning}${qualityTags}${item.note ? `<p>${escapeHTML(item.note)}</p>` : ""}`;
 }
 

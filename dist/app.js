@@ -1,7 +1,7 @@
-import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=151";
-import { alignCurtainToOpening, alignCurtainsToOpenings, alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, applyFurnitureCandidate, buildElevationItems, buildFurnitureHierarchy, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, curtainOpening, DIMENSION_GROUP_LABELS, duplicateFurnitureStack, featureSupportRange, findSupportItem, furnitureDescendantIds as modelFurnitureDescendantIds, furniturePriceSummary, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, normalizeFurnitureProductUrl, previewFurnitureCandidate, QUALITY_LABELS, removeFurnitureStack, resolveFurnitureVerticalRange, rotateFurnitureStack, supportSurfaceSize, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=151";
-import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=151";
-import { createWebGLThreeView } from "./webgl-three.js?v=151";
+import { deleteActivePlan, loadActivePlan, saveActivePlan } from "./db.js?v=152";
+import { alignCurtainToOpening, alignCurtainsToOpenings, alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, applyFurnitureCandidate, buildElevationItems, buildFurnitureHierarchy, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, curtainOpening, DIMENSION_GROUP_LABELS, duplicateFurnitureStack, featureSupportRange, findSupportItem, furnitureDescendantIds as modelFurnitureDescendantIds, furniturePriceSummary, FURNITURE_PRESETS, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, normalizeFurnitureImageDataUrl, normalizeFurnitureProductUrl, previewFurnitureCandidate, QUALITY_LABELS, removeFurnitureStack, resolveFurnitureVerticalRange, rotateFurnitureStack, supportSurfaceSize, updateFurniture, validatePlan, wallDisplayWidth } from "./model.js?v=152";
+import { detailMarkup, measurementMetrics, PlanRenderer } from "./renderer.js?v=152";
+import { createWebGLThreeView } from "./webgl-three.js?v=152";
 
 const elements = Object.fromEntries([
   "menuButton", "dataMenu", "detailDialog", "detailType", "detailTitle", "detailBody", "fileInput",
@@ -16,7 +16,7 @@ const elements = Object.fromEntries([
   "furnitureMenuButton", "furnitureMenu", "snapToggle",
   "summaryTitle", "roomCount", "measuredCount", "uncertainCount", "connectionBadge", "saveStatus", "toast",
   "furnitureButton", "furnitureDialog", "furnitureForm", "cancelFurnitureButton",
-  "furnitureName", "furnitureWidth", "furnitureDepth", "furnitureHeight", "furniturePrice", "furnitureProductUrl", "furnitureRoom", "furniturePreset", "furnitureSupportGroup", "furnitureSupport", "furnitureSupportHelp", "furnitureCurtainFields", "furnitureCurtainOpening", "furnitureCurtainColor",
+  "furnitureName", "furnitureWidth", "furnitureDepth", "furnitureHeight", "furniturePrice", "furnitureProductUrl", "furnitureImageInput", "furnitureImagePreview", "furnitureImageEmpty", "removeFurnitureImageButton", "furnitureRoom", "furniturePreset", "furnitureSupportGroup", "furnitureSupport", "furnitureSupportHelp", "furnitureCurtainFields", "furnitureCurtainOpening", "furnitureCurtainColor",
   "furnitureViewActions", "showFurnitureInPlanButton", "showFurnitureInThreeButton", "furnitureActions", "rotateFurnitureButton", "duplicateFurnitureButton", "deleteFurnitureButton",
   "furnitureRoomEditGroup", "furnitureRoomEdit",
   "editFurnitureButton", "furnitureDialogTitle", "furnitureSubmitButton",
@@ -30,7 +30,7 @@ const elements = Object.fromEntries([
   "deliverySideA", "deliverySideB", "deliverySideC",
   "addCandidateGroupButton", "candidateEmpty", "candidateGroupList",
   "candidateGroupDialog", "candidateGroupForm", "candidateGroupDialogTitle", "candidateGroupName", "candidateGroupFurniture", "candidateGroupSubmitButton", "cancelCandidateGroupButton",
-  "candidateDialog", "candidateForm", "candidateDialogTitle", "candidateBrand", "candidateProductName", "candidateProductUrl", "candidateWidth", "candidateDepth", "candidateHeight", "candidatePrice", "candidatePriceCheckedAt", "candidateVariant", "candidateDeliverySideA", "candidateDeliverySideB", "candidateDeliverySideC", "candidateNote", "candidateSubmitButton", "cancelCandidateButton",
+  "candidateDialog", "candidateForm", "candidateDialogTitle", "candidateBrand", "candidateProductName", "candidateProductUrl", "candidateWidth", "candidateDepth", "candidateHeight", "candidatePrice", "candidatePriceCheckedAt", "candidateVariant", "candidateImageInput", "candidateImagePreview", "candidateImageEmpty", "removeCandidateImageButton", "candidateDeliverySideA", "candidateDeliverySideB", "candidateDeliverySideC", "candidateNote", "candidateSubmitButton", "cancelCandidateButton",
   "threeCanvas", "threeEmpty", "threeHeightNote", "threeSelectionStatus", "threeSelectionSummary", "threeSelectionDetailsButton", "threeCutawayToggle", "threeLabelsToggle",
   "threeRoomFilter", "threeWallsToggle", "threeOpeningsToggle", "threeFeaturesToggle", "threeFurnitureToggle", "threeElectricalToggle",
   "threeZoomOut", "threeZoomReset", "threeZoomIn", "threeZoomValue", "threeZoomHint", "threeCameraControls", "threeOverviewMode", "threeIndoorMode", "threeIndoorViewpointGroup", "threeIndoorViewpoint",
@@ -88,6 +88,8 @@ let activeOtherView = "wall";
 let editingCandidateGroupId = null;
 let editingCandidateId = null;
 let candidatePreview = null;
+let furnitureImageDataUrl = null;
+let candidateImageDataUrl = null;
 const threeLayers = { walls: true, openings: true, features: true, furniture: true, electrical: true };
 const selectableByMode = {
   view: new Set(["room", "dimension", "equipment", "electrical", "furniture"]),
@@ -97,6 +99,68 @@ const history = [];
 const renderer = new PlanRenderer(elements.planCanvas, elements.viewportLayer, handlePlanSelection, handleFurnitureEvent, handleViewChange, handleMeasurementChange);
 let persistQueue = Promise.resolve();
 let latestPersistTask = persistQueue;
+
+function setImageEditor(kind, value) {
+  const imageDataUrl = normalizeFurnitureImageDataUrl(value);
+  const preview = kind === "furniture" ? elements.furnitureImagePreview : elements.candidateImagePreview;
+  const empty = kind === "furniture" ? elements.furnitureImageEmpty : elements.candidateImageEmpty;
+  const removeButton = kind === "furniture" ? elements.removeFurnitureImageButton : elements.removeCandidateImageButton;
+  const input = kind === "furniture" ? elements.furnitureImageInput : elements.candidateImageInput;
+  if (kind === "furniture") furnitureImageDataUrl = imageDataUrl;
+  else candidateImageDataUrl = imageDataUrl;
+  preview.hidden = !imageDataUrl;
+  empty.hidden = Boolean(imageDataUrl);
+  removeButton.hidden = !imageDataUrl;
+  if (imageDataUrl) preview.src = imageDataUrl;
+  else preview.removeAttribute("src");
+  input.value = "";
+}
+
+function loadImageElement(file) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    image.onload = () => { URL.revokeObjectURL(objectUrl); resolve(image); };
+    image.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error("画像を読み込めませんでした")); };
+    image.src = objectUrl;
+  });
+}
+
+async function compressFurnitureImage(file) {
+  if (!file?.type?.startsWith("image/")) throw new Error("画像ファイルを選んでください");
+  if (file.size > 20 * 1024 * 1024) throw new Error("20MB以下の画像を選んでください");
+  const image = await loadImageElement(file);
+  const sourceWidth = image.naturalWidth || image.width;
+  const sourceHeight = image.naturalHeight || image.height;
+  if (!sourceWidth || !sourceHeight) throw new Error("画像サイズを確認できませんでした");
+  const canvas = document.createElement("canvas");
+  const context = canvas.getContext("2d", { alpha: false });
+  if (!context) throw new Error("この端末では画像を処理できません");
+  for (const [maximumEdge, quality] of [[1200, .8], [1000, .72], [800, .65]]) {
+    const scale = Math.min(1, maximumEdge / Math.max(sourceWidth, sourceHeight));
+    canvas.width = Math.max(1, Math.round(sourceWidth * scale));
+    canvas.height = Math.max(1, Math.round(sourceHeight * scale));
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    const dataUrl = canvas.toDataURL("image/jpeg", quality);
+    if (dataUrl.length <= 1_400_000) return dataUrl;
+  }
+  throw new Error("画像を十分に圧縮できませんでした。別の画像をお試しください");
+}
+
+async function handleImageInput(kind, input) {
+  const [file] = input.files ?? [];
+  if (!file) return;
+  try {
+    showToast("画像を端末内で圧縮しています…");
+    setImageEditor(kind, await compressFurnitureImage(file));
+    showToast("画像を登録しました。保存するとJSONにも含まれます");
+  } catch (error) {
+    input.value = "";
+    showToast(`画像の登録に失敗しました: ${error.message}`);
+  }
+}
 
 function updateThreeView() {
   elements.threeEmpty.hidden = Boolean(activePlan);
@@ -1412,6 +1476,7 @@ function openCandidateDialog(group, candidate = null) {
   elements.candidateDeliverySideB.value = candidate?.deliveryDimensions?.sideBCm ?? "";
   elements.candidateDeliverySideC.value = candidate?.deliveryDimensions?.sideCCm ?? "";
   elements.candidateNote.value = candidate?.note ?? "";
+  setImageEditor("candidate", candidate?.imageDataUrl ?? null);
   elements.candidateDialogTitle.textContent = candidate ? "商品候補を編集" : `${group.name}に商品を追加`;
   elements.candidateSubmitButton.textContent = candidate ? "変更を保存" : "追加する";
   elements.candidateDialog.showModal();
@@ -1465,6 +1530,14 @@ function renderCandidateGroups() {
       const item = document.createElement("article");
       item.className = "candidate-product-card";
       if (furniture?.appliedCandidateId === candidate.id) item.classList.add("is-applied");
+      const candidateImageDataUrl = normalizeFurnitureImageDataUrl(candidate.imageDataUrl);
+      if (candidateImageDataUrl) {
+        const image = document.createElement("img");
+        image.className = "candidate-product-image";
+        image.src = candidateImageDataUrl;
+        image.alt = `${candidate.brand} ${candidate.productName}`.trim();
+        item.append(image);
+      }
       const top = document.createElement("div");
       top.className = "candidate-product-top";
       const identity = document.createElement("div");
@@ -1647,6 +1720,15 @@ function renderFurnitureList() {
     row.tabIndex = 0;
     row.setAttribute("role", "button");
     row.className = `furniture-list-item ${!placement.inside ? "danger" : supportFit?.fits === false || conflicts.length ? "warning" : ""}`;
+    const furnitureImageDataUrl = normalizeFurnitureImageDataUrl(furniture.imageDataUrl);
+    if (furnitureImageDataUrl) {
+      const image = document.createElement("img");
+      image.className = "furniture-list-thumbnail";
+      image.src = furnitureImageDataUrl;
+      image.alt = "";
+      row.classList.add("has-image");
+      row.append(image);
+    }
     const name = document.createElement("strong");
     name.textContent = `${depth > 0 ? "↳ " : ""}${furniture.name}`;
     const roomLabel = document.createElement("span");
@@ -1894,6 +1976,7 @@ elements.furnitureButton.addEventListener("click", () => {
   elements.furnitureHeight.value = "";
   elements.furniturePrice.value = "";
   elements.furnitureProductUrl.value = "";
+  setImageEditor("furniture", null);
   elements.furnitureName.value = "家具";
   elements.furniturePreset.value = "custom";
   updateFurnitureSupportOptions();
@@ -1977,6 +2060,8 @@ elements.candidateForm.addEventListener("submit", async (event) => {
     note: elements.candidateNote.value.trim() || null,
     updatedAt: new Date().toISOString(),
   });
+  if (candidateImageDataUrl) candidate.imageDataUrl = candidateImageDataUrl;
+  else delete candidate.imageDataUrl;
   if (priceYen === null) delete candidate.priceYen;
   else candidate.priceYen = priceYen;
   if (deliveryTexts.every(Boolean)) candidate.deliveryDimensions = { sideACm: deliverySides[0], sideBCm: deliverySides[1], sideCCm: deliverySides[2], basis: "packed" };
@@ -2046,6 +2131,10 @@ elements.furnitureCurtainOpening.addEventListener("change", () => {
 elements.furnitureSupport.addEventListener("change", updateFurnitureSupportHelp);
 elements.furnitureWidth.addEventListener("input", updateFurnitureSupportHelp);
 elements.furnitureDepth.addEventListener("input", updateFurnitureSupportHelp);
+elements.furnitureImageInput.addEventListener("change", () => handleImageInput("furniture", elements.furnitureImageInput));
+elements.candidateImageInput.addEventListener("change", () => handleImageInput("candidate", elements.candidateImageInput));
+elements.removeFurnitureImageButton.addEventListener("click", () => setImageEditor("furniture", null));
+elements.removeCandidateImageButton.addEventListener("click", () => setImageEditor("candidate", null));
 elements.cancelFurnitureButton.addEventListener("click", () => {
   editingFurnitureId = null;
   elements.furnitureDialog.close();
@@ -2097,7 +2186,7 @@ elements.furnitureForm.addEventListener("submit", async (event) => {
     const furniture = activePlan.plan.furniture.find((item) => item.id === editingFurnitureId);
     if (!furniture) return showToast("編集する家具が見つかりません");
     pushHistory();
-    updateFurniture(furniture, { name, roomId: room.id, widthCm, depthCm, heightCm, priceYen, productUrl, supportId, furnitureKind });
+    updateFurniture(furniture, { name, roomId: room.id, widthCm, depthCm, heightCm, priceYen, productUrl, imageDataUrl: furnitureImageDataUrl, supportId, furnitureKind });
     if (furnitureKind === "curtain") {
       furniture.openingId = curtainOpeningId;
       furniture.curtainColor = elements.furnitureCurtainColor.value;
@@ -2136,6 +2225,7 @@ elements.furnitureForm.addEventListener("submit", async (event) => {
   if (heightCm !== null) furniture.heightCm = heightCm;
   if (priceYen !== null) furniture.priceYen = priceYen;
   if (productUrl) furniture.productUrl = productUrl;
+  if (furnitureImageDataUrl) furniture.imageDataUrl = furnitureImageDataUrl;
   if (supportId) furniture.supportId = supportId;
   if (furnitureKind === "curtain") {
     furniture.openingId = curtainOpeningId;
@@ -2161,6 +2251,7 @@ elements.editFurnitureButton.addEventListener("click", () => {
   elements.furnitureHeight.value = Number.isFinite(furniture.heightCm) ? String(furniture.heightCm) : "";
   elements.furniturePrice.value = Number.isInteger(furniture.priceYen) ? String(furniture.priceYen) : "";
   elements.furnitureProductUrl.value = furniture.productUrl ?? "";
+  setImageEditor("furniture", furniture.imageDataUrl ?? null);
   elements.furnitureRoom.replaceChildren(...activePlan.plan.rooms.map((room) => new Option(room.name, room.id, false, room.id === furniture.roomId)));
   updateFurnitureSupportOptions(furniture.supportId ?? "");
   elements.furnitureCurtainColor.value = furniture.curtainColor ?? "greige";

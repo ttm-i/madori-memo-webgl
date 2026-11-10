@@ -345,6 +345,26 @@ test("furniture candidates live under Other and support comparison, preview, ado
   assert.match(renderer, /setCandidatePreview\(preview\)/);
 });
 
+test("furniture and product candidates support one compressed local image", () => {
+  const html = readFileSync(new URL("../dist/index.html", import.meta.url), "utf8");
+  const app = readFileSync(new URL("../dist/app.js", import.meta.url), "utf8");
+  const model = readFileSync(new URL("../dist/model.js", import.meta.url), "utf8");
+  const renderer = readFileSync(new URL("../dist/renderer.js", import.meta.url), "utf8");
+  const styles = readFileSync(new URL("../dist/styles.css", import.meta.url), "utf8");
+  assert.match(html, /id="furnitureImageInput"[^>]*accept="image\/\*"/);
+  assert.match(html, /id="candidateImageInput"[^>]*accept="image\/\*"/);
+  assert.match(html, /id="removeFurnitureImageButton"[\s\S]*id="removeCandidateImageButton"/);
+  assert.match(app, /async function compressFurnitureImage[\s\S]*maximumEdge[\s\S]*canvas\.toDataURL\("image\/jpeg"/);
+  assert.match(app, /candidateImageDataUrl[\s\S]*candidate\.imageDataUrl/);
+  assert.match(app, /furnitureImageDataUrl[\s\S]*furniture\.imageDataUrl/);
+  assert.match(app, /candidate-product-image/);
+  assert.match(app, /furniture-list-thumbnail/);
+  assert.match(model, /export function normalizeFurnitureImageDataUrl/);
+  assert.match(model, /candidate\.imageDataUrl[\s\S]*furniture\.imageDataUrl = imageDataUrl/);
+  assert.match(renderer, /class="detail-image"/);
+  assert.match(styles, /\.image-editor-preview/);
+});
+
 test("candidate dialogs keep their close action in the heading and prevent needless horizontal scrolling", () => {
   const html = readFileSync(new URL("../dist/index.html", import.meta.url), "utf8");
   const styles = readFileSync(new URL("../dist/styles.css", import.meta.url), "utf8");
