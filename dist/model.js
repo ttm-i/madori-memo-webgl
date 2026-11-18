@@ -18,6 +18,38 @@ export function normalizeFurnitureProductUrl(value) {
   }
 }
 
+export function furniturePurchaseItems(furniture) {
+  if (!furniture || typeof furniture !== "object") return [];
+  if (Array.isArray(furniture.purchaseItems)) {
+    return furniture.purchaseItems.map((item, index) => ({
+      id: item?.id || `purchase-${index + 1}`,
+      label: typeof item?.label === "string" && item.label.trim() ? item.label.trim() : `商品${index + 1}`,
+      ...(Number.isInteger(item?.priceYen) && item.priceYen >= 0 ? { priceYen: item.priceYen } : {}),
+      ...(normalizeFurnitureProductUrl(item?.productUrl) ? { productUrl: normalizeFurnitureProductUrl(item.productUrl) } : {}),
+    })).filter((item) => Number.isInteger(item.priceYen) || item.productUrl);
+  }
+  const productUrl = normalizeFurnitureProductUrl(furniture.productUrl);
+  if (!Number.isInteger(furniture.priceYen) && !productUrl) return [];
+  return [{
+    id: "legacy-main-item",
+    label: "本体",
+    ...(Number.isInteger(furniture.priceYen) && furniture.priceYen >= 0 ? { priceYen: furniture.priceYen } : {}),
+    ...(productUrl ? { productUrl } : {}),
+  }];
+}
+
+export function furniturePurchaseSummary(furniture) {
+  const items = furniturePurchaseItems(furniture);
+  const pricedItems = items.filter((item) => Number.isInteger(item.priceYen));
+  return {
+    items,
+    itemCount: items.length,
+    pricedItemCount: pricedItems.length,
+    totalYen: pricedItems.reduce((total, item) => total + item.priceYen, 0),
+    hasRegisteredPrice: pricedItems.length > 0,
+  };
+}
+
 const MAX_FURNITURE_IMAGE_DATA_URL_LENGTH = 1_500_000;
 
 export function normalizeFurnitureImageDataUrl(value) {
@@ -67,6 +99,19 @@ export function validatePlan(input) {
       const productUrl = normalizeFurnitureProductUrl(furniture.productUrl);
       if (!productUrl) throw new Error(`${furniture.name ?? "家具"}の商品URLが不正です`);
       furniture.productUrl = productUrl;
+    }
+    if (furniture.purchaseItems != null) {
+      if (!Array.isArray(furniture.purchaseItems)) throw new Error(`${furniture.name ?? "家具"}の商品明細が不正です`);
+      for (const [index, item] of furniture.purchaseItems.entries()) {
+        if (!item?.id || typeof item.label !== "string" || !item.label.trim()) throw new Error(`${furniture.name ?? "家具"}の商品明細${index + 1}が不正です`);
+        if (item.priceYen != null && (!Number.isInteger(item.priceYen) || item.priceYen < 0 || item.priceYen > 999999999)) throw new Error(`${item.label}の価格が不正です`);
+        if (item.productUrl != null) {
+          const productUrl = normalizeFurnitureProductUrl(item.productUrl);
+          if (!productUrl) throw new Error(`${item.label}の商品URLが不正です`);
+          item.productUrl = productUrl;
+        }
+        if (item.priceYen == null && item.productUrl == null) throw new Error(`${item.label}には価格または商品URLを登録してください`);
+      }
     }
     if (furniture.imageDataUrl != null) {
       const imageDataUrl = normalizeFurnitureImageDataUrl(furniture.imageDataUrl);
@@ -753,9 +798,10 @@ export function buildFurnitureHierarchy(plan) {
 }
 
 export function furniturePriceSummary(furnitureItems = []) {
-  const registered = furnitureItems.filter((item) => Number.isInteger(item?.priceYen) && item.priceYen >= 0);
+  const summaries = furnitureItems.map((item) => furniturePurchaseSummary(item));
+  const registered = summaries.filter((summary) => summary.hasRegisteredPrice);
   return {
-    totalYen: registered.reduce((total, item) => total + item.priceYen, 0),
+    totalYen: registered.reduce((total, summary) => total + summary.totalYen, 0),
     registeredCount: registered.length,
     missingCount: furnitureItems.length - registered.length,
   };
@@ -795,6 +841,15 @@ export function applyFurnitureCandidate(furniture, candidate, groupId = null) {
   const productUrl = normalizeFurnitureProductUrl(candidate.productUrl);
   if (productUrl) furniture.productUrl = productUrl;
   else delete furniture.productUrl;
+  const purchaseItem = {
+    id: `candidate-${candidate.id}`,
+    label: [candidate.brand, candidate.productName].filter(Boolean).join(" ") || "採用品",
+    ...(Number.isInteger(candidate.priceYen) ? { priceYen: candidate.priceYen } : {}),
+    ...(productUrl ? { productUrl } : {}),
+  };
+  furniture.purchaseItems = Number.isInteger(purchaseItem.priceYen) || purchaseItem.productUrl ? [purchaseItem] : [];
+  delete furniture.priceYen;
+  delete furniture.productUrl;
   const imageDataUrl = normalizeFurnitureImageDataUrl(candidate.imageDataUrl);
   if (imageDataUrl) furniture.imageDataUrl = imageDataUrl;
   else delete furniture.imageDataUrl;
@@ -845,11 +900,22 @@ export function updateFurniture(furniture, values) {
   furniture.depthCm = values.depthCm;
   if (Number.isFinite(values.heightCm)) furniture.heightCm = values.heightCm;
   else delete furniture.heightCm;
-  if (Number.isInteger(values.priceYen) && values.priceYen >= 0) furniture.priceYen = values.priceYen;
-  else delete furniture.priceYen;
-  const productUrl = normalizeFurnitureProductUrl(values.productUrl);
-  if (productUrl) furniture.productUrl = productUrl;
-  else delete furniture.productUrl;
+  if (Array.isArray(values.purchaseItems)) {
+    furniture.purchaseItems = values.purchaseItems.map((item, index) => ({
+      id: item.id || `purchase-${index + 1}`,
+      label: item.label.trim(),
+      ...(Number.isInteger(item.priceYen) ? { priceYen: item.priceYen } : {}),
+      ...(normalizeFurnitureProductUrl(item.productUrl) ? { productUrl: normalizeFurnitureProductUrl(item.productUrl) } : {}),
+    }));
+    delete furniture.priceYen;
+    delete furniture.productUrl;
+  } else {
+    if (Number.isInteger(values.priceYen) && values.priceYen >= 0) furniture.priceYen = values.priceYen;
+    else delete furniture.priceYen;
+    const productUrl = normalizeFurnitureProductUrl(values.productUrl);
+    if (productUrl) furniture.productUrl = productUrl;
+    else delete furniture.productUrl;
+  }
   const imageDataUrl = normalizeFurnitureImageDataUrl(values.imageDataUrl);
   if (imageDataUrl) furniture.imageDataUrl = imageDataUrl;
   else delete furniture.imageDataUrl;

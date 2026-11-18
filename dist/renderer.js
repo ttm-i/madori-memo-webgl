@@ -1,4 +1,4 @@
-import { alignCurtainToOpening, alignFurnitureToSupport, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildKitchenComponentRects, findSupportItem, furnitureBounds, furnitureDescendantIds, furnitureRotationDegrees, furnitureWallMove, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, moveDimensionGuide, normalizeFurnitureImageDataUrl, normalizeFurnitureProductUrl, previewFurnitureCandidate, QUALITY_LABELS, rotateFurnitureStack, snapToGrid, translateFurnitureDescendants } from "./model.js?v=152";
+import { alignCurtainToOpening, alignFurnitureToSupport, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, buildKitchenComponentRects, findSupportItem, furnitureBounds, furnitureDescendantIds, furniturePurchaseSummary, furnitureRotationDegrees, furnitureWallMove, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, moveDimensionGuide, normalizeFurnitureImageDataUrl, previewFurnitureCandidate, QUALITY_LABELS, rotateFurnitureStack, snapToGrid, translateFurnitureDescendants } from "./model.js?v=153";
 
 const NS = "http://www.w3.org/2000/svg";
 
@@ -862,6 +862,7 @@ export function detailMarkup(type, item) {
     ? item.widthCm ?? (item.from && item.to ? Math.hypot(item.to.x - item.from.x, item.to.y - item.from.y) : null)
     : null;
   const values = [];
+  const purchaseSummary = type === "furniture" ? furniturePurchaseSummary(item) : null;
   if (type === "room") {
     if (item.areaLabel) values.push(["面積", item.areaLabel]);
     values.push(["頂点", `${item.points.length}点`]);
@@ -910,7 +911,7 @@ export function detailMarkup(type, item) {
         const displayHeight = item.vertical?.topCm - item.vertical?.bottomCm;
         if (!Number.isFinite(item.heightCm) && Number.isFinite(displayHeight)) values.push(["3D表示高さ", `約${formatCm(displayHeight)} cm（種類別の模式値）`]);
       }
-      if (type === "furniture") values.push(["税込価格", Number.isInteger(item.priceYen) ? `${item.priceYen.toLocaleString("ja-JP")}円` : "未登録"]);
+      if (type === "furniture") values.push(["税込合計", purchaseSummary.hasRegisteredPrice ? `${purchaseSummary.totalYen.toLocaleString("ja-JP")}円` : "未登録"]);
       if (!Number.isFinite(item.widthCm) && Number.isFinite(item.width)) values.push(["表示幅", `${item.width} cm`]);
       if (!Number.isFinite(item.depthCm) && Number.isFinite(item.height)) values.push(["表示奥行", `${item.height} cm`]);
     }
@@ -974,9 +975,8 @@ export function detailMarkup(type, item) {
   }
   if (type === "furniture" && item.conflicts?.length) warnings.push(`重なり: ${item.conflicts.map((conflict) => escapeHTML(conflict.name)).join("、")}`);
   const warning = warnings.length ? `<p class="placement-alert">${warnings.join("<br>")}</p>` : "";
-  const productUrl = type === "furniture" ? normalizeFurnitureProductUrl(item.productUrl) : null;
-  const productLink = productUrl
-    ? `<a class="detail-product-link" href="${escapeHTML(productUrl)}" target="_blank" rel="noopener noreferrer">商品ページを開く <span aria-hidden="true">↗</span></a>`
+  const purchaseDetails = purchaseSummary?.itemCount
+    ? `<section class="detail-purchases"><h3>商品内訳</h3>${purchaseSummary.items.map((purchase) => `<article><div><strong>${escapeHTML(purchase.label)}</strong><span>${Number.isInteger(purchase.priceYen) ? `${purchase.priceYen.toLocaleString("ja-JP")}円` : "価格未登録"}</span></div>${purchase.productUrl ? `<a class="detail-product-link" href="${escapeHTML(purchase.productUrl)}" target="_blank" rel="noopener noreferrer">商品ページ</a>` : ""}</article>`).join("")}</section>`
     : "";
   const imageDataUrl = type === "furniture" ? normalizeFurnitureImageDataUrl(item.imageDataUrl) : null;
   const registeredImage = imageDataUrl
@@ -985,6 +985,6 @@ export function detailMarkup(type, item) {
   const qualityTags = type === "feature"
     ? `<div class="quality-tags"><span class="quality-tag ${escapeHTML(quality)}">寸法: ${safeQuality}</span><span class="quality-tag placement ${escapeHTML(item.placementQuality ?? (item.uncertain ? "approximate" : "confirmed"))}">配置: ${item.placementQuality === "confirmed" || (!item.placementQuality && !item.uncertain) ? "確認済み" : "要確認"}</span></div>`
     : `<span class="quality-tag ${escapeHTML(quality)}">${safeQuality}</span>`;
-  return `${registeredImage}${list}${productLink}${warning}${qualityTags}${item.note ? `<p>${escapeHTML(item.note)}</p>` : ""}`;
+  return `${registeredImage}${list}${purchaseDetails}${warning}${qualityTags}${item.note ? `<p>${escapeHTML(item.note)}</p>` : ""}`;
 }
 

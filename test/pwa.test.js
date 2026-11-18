@@ -48,30 +48,39 @@ test("furniture details use one concise 2D action for both location and wall cle
   assert.doesNotMatch(app, /showFurnitureClearanceButton/);
 });
 
-test("furniture prices are optional and summarized in the furniture list", () => {
+test("furniture purchase items are optional and summarized in the furniture list", () => {
   const html = readFileSync(new URL("../dist/index.html", import.meta.url), "utf8");
   const app = readFileSync(new URL("../dist/app.js", import.meta.url), "utf8");
-  assert.match(html, /id="furniturePrice"/);
+  assert.match(html, /id="furniturePurchaseList"/);
+  assert.match(html, /id="addFurniturePurchaseButton"/);
+  assert.match(app, /function createFurniturePurchaseRow/);
+  assert.match(app, /function readFurniturePurchaseEditor/);
   assert.match(html, /id="furnitureListPriceSummary"/);
   assert.match(app, /登録済み合計/);
   assert.match(app, /価格登録済み/);
   assert.match(app, /価格未登録/);
 });
 
-test("furniture product links are optional, editable and available from details and the furniture list", () => {
+test("multiple labeled furniture product links are editable and available from details and the furniture list", () => {
   const html = readFileSync(new URL("../dist/index.html", import.meta.url), "utf8");
   const app = readFileSync(new URL("../dist/app.js", import.meta.url), "utf8");
+  const model = readFileSync(new URL("../dist/model.js", import.meta.url), "utf8");
   const renderer = readFileSync(new URL("../dist/renderer.js", import.meta.url), "utf8");
   const styles = readFileSync(new URL("../dist/styles.css", import.meta.url), "utf8");
-  assert.match(html, /id="furnitureProductUrl"[^>]*type="url"/);
-  assert.match(app, /normalizeFurnitureProductUrl\(productUrlText\)/);
+  assert.match(html, /商品・金額（任意）[\s\S]*商品明細を追加/);
+  assert.match(app, /data-purchase-field="label"/);
+  assert.match(app, /data-purchase-field="price"/);
+  assert.match(app, /data-purchase-field="url"/);
+  assert.match(model, /export function furniturePurchaseItems/);
+  assert.match(model, /export function furniturePurchaseSummary/);
   assert.match(app, /productLink\.target = "_blank"/);
   assert.match(app, /productLink\.rel = "noopener noreferrer"/);
   assert.match(app, /className = "furniture-list-product-link"/);
   assert.match(app, /row\.classList\.add\("has-product-link"\);\s*row\.append\(productLink\)/);
-  assert.match(styles, /\.furniture-list-item\.has-product-link \{ grid-template-columns: minmax\(0, 1fr\) auto 42px; \}/);
+  assert.match(app, /className = "furniture-list-product-link multiple"/);
+  assert.match(styles, /\.furniture-list-item\.has-product-link \{ grid-template-columns: minmax\(0, 1fr\) auto 58px; \}/);
   assert.match(styles, /\.furniture-list-product-link \{[^}]*grid-column: 3;[^}]*grid-row: 1 \/ span 5;/);
-  assert.match(renderer, /class="detail-product-link"[^>]*target="_blank" rel="noopener noreferrer"/);
+  assert.match(renderer, /class="detail-purchases"[\s\S]*purchase\.label[\s\S]*class="detail-product-link"[^>]*target="_blank" rel="noopener noreferrer"/);
 });
 
 test("the furniture list can show only furniture with no registered price", () => {

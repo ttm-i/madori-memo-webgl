@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { alignCurtainToOpening, alignCurtainsToOpenings, alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, applyFurnitureCandidate, buildElevationItems, buildFurnitureHierarchy, buildKitchenCabinetLayout, buildKitchenComponentRects, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, curtainOpening, duplicateFurniture, duplicateFurnitureStack, findDeliveryDoorPath, fitsRectangle, FORMAT, furnitureBounds, furnitureDescendantIds, furnitureEighthTurns, furniturePolygon, furniturePriceSummary, FURNITURE_PRESETS, furnitureDisplayHeight, furnitureRotationDegrees, furnitureWallMove, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, kitchenComponentVerticalRange, moveDimensionGuide, normalizeFurnitureImageDataUrl, normalizeFurnitureProductUrl, pointInPolygon, previewFurnitureCandidate, rectangleIntersectsPolygon, rectanglesOverlap, removeFurnitureStack, resolveFurnitureElevationPlacement, resolveFurnitureVerticalRange, rotateFurniture, rotateFurnitureStack, snapToGrid, supportSurfaceSize, translateFurnitureDescendants, updateFurniture, validatePlan, wallDisplayWidth } from "../dist/model.js";
+import { alignCurtainToOpening, alignCurtainsToOpenings, alignFurnitureToSupport, alignSupportedFurniture, analyzeDeliveryRoute, analyzeFurnitureConflicts, analyzeFurniturePlacement, analyzeFurnitureSupportFit, applyFurnitureCandidate, buildElevationItems, buildFurnitureHierarchy, buildKitchenCabinetLayout, buildKitchenComponentRects, buildRoomWalls, buildWallDiagram, countQualities, createSamplePlan, curtainOpening, duplicateFurniture, duplicateFurnitureStack, findDeliveryDoorPath, fitsRectangle, FORMAT, furnitureBounds, furnitureDescendantIds, furnitureEighthTurns, furniturePolygon, furniturePriceSummary, furniturePurchaseItems, furniturePurchaseSummary, FURNITURE_PRESETS, furnitureDisplayHeight, furnitureRotationDegrees, furnitureWallMove, getDimensionGroup, getElectricalPlanPosition, inferFurnitureKind, kitchenComponentVerticalRange, moveDimensionGuide, normalizeFurnitureImageDataUrl, normalizeFurnitureProductUrl, pointInPolygon, previewFurnitureCandidate, rectangleIntersectsPolygon, rectanglesOverlap, removeFurnitureStack, resolveFurnitureElevationPlacement, resolveFurnitureVerticalRange, rotateFurniture, rotateFurnitureStack, snapToGrid, supportSurfaceSize, translateFurnitureDescendants, updateFurniture, validatePlan, wallDisplayWidth } from "../dist/model.js";
 import { detailMarkup, gestureExceedsTapThreshold, measurementMetrics, PlanRenderer, snapMeasurementPoint, zoomTransformAround } from "../dist/renderer.js";
 import { bayWindowFootprint, cabinetDoorPanelCount, cabinetThreePlacement, clampIndoorPitch, clampWebGLPan, closetDoorPanelCount, closetThreePlacement, cycleThreeSelectionCandidate, electricalThreePlacement, featureVerticalRange, isCutawayEdge, openingPanelCount, openingVerticalRange, projectThreeDepth, projectThreePoint, roomEdgeWallHeight, roomInteriorViewpoint, splitWallFace, subdivideVerticalRange, subdivideWallRectangle, subdivideWallRectangleTiles, subdivideWallSegment, threeItemBelongsToRoom, threeItemFootprint, threeLayerEnabled, threeRelatedSelectionStyle, threeRoomBounds, threeSelectableType, threeSelectionKey, threeSelectionStyle, threeSelectionXrayStyle, threeViewportBox, threeWallBelongsToRoom, visibleBoxSideIndexes, wallFeatureThreePlacement, yawToQuarterTurn } from "../dist/three.js";
 
@@ -312,6 +312,27 @@ test("furniture prices remain optional, total only registered values and survive
   assert.throws(() => validatePlan(invalidPlan), /価格が不正/);
 });
 
+test("furniture supports multiple labeled purchase items while preserving legacy price data", () => {
+  const legacy = { id: "legacy", priceYen: 30000, productUrl: "https://example.com/legacy" };
+  assert.deepEqual(furniturePurchaseItems(legacy), [{ id: "legacy-main-item", label: "本体", priceYen: 30000, productUrl: "https://example.com/legacy" }]);
+  const bed = { id: "bed", name: "ベッド", x: 0, y: 0, widthCm: 97, depthCm: 195 };
+  const purchaseItems = [
+    { id: "frame", label: "フレーム", priceYen: 39800, productUrl: "https://example.com/frame" },
+    { id: "mattress", label: "マットレス", priceYen: 59800, productUrl: "https://example.com/mattress" },
+    { id: "sheets", label: "シーツ", priceYen: 4980 },
+  ];
+  updateFurniture(bed, { name: "ベッド", roomId: "bedroom", widthCm: 97, depthCm: 195, purchaseItems, supportId: null });
+  assert.deepEqual(bed.purchaseItems, purchaseItems);
+  assert.deepEqual(furniturePurchaseSummary(bed), { items: purchaseItems, itemCount: 3, pricedItemCount: 3, totalYen: 104580, hasRegisteredPrice: true });
+  assert.deepEqual(furniturePriceSummary([bed, { id: "missing" }]), { totalYen: 104580, registeredCount: 1, missingCount: 1 });
+  assert.equal(duplicateFurniture(bed, "bed-copy").purchaseItems.length, 3);
+  const documentData = createSamplePlan();
+  documentData.plan.furniture[0].purchaseItems = purchaseItems;
+  assert.doesNotThrow(() => validatePlan(documentData));
+  documentData.plan.furniture[0].purchaseItems[0].productUrl = "javascript:alert(1)";
+  assert.throws(() => validatePlan(documentData), /商品URLが不正/);
+});
+
 test("furniture product links accept web URLs, survive duplication and reject unsafe schemes", () => {
   assert.equal(normalizeFurnitureProductUrl(" https://example.com/item?id=1 "), "https://example.com/item?id=1");
   assert.equal(normalizeFurnitureProductUrl("javascript:alert(1)"), null);
@@ -344,7 +365,8 @@ test("furniture candidates preserve current orientation and apply price, link an
   assert.deepEqual({ x: preview.x, y: preview.y, width: preview.widthCm, depth: preview.depthCm, height: preview.heightCm }, { x: 97.5, y: 192.5, width: 75, depth: 120, height: 72 });
   assert.equal(furniture.widthCm, 70);
   applyFurnitureCandidate(furniture, candidate, "group-a");
-  assert.deepEqual({ width: furniture.widthCm, depth: furniture.depthCm, price: furniture.priceYen, url: furniture.productUrl }, { width: 75, depth: 120, price: 49800, url: "https://example.com/table-a" });
+  assert.deepEqual({ width: furniture.widthCm, depth: furniture.depthCm }, { width: 75, depth: 120 });
+  assert.deepEqual(furniture.purchaseItems, [{ id: "candidate-candidate-a", label: "ブランドA テーブルA", priceYen: 49800, productUrl: "https://example.com/table-a" }]);
   assert.deepEqual(furniture.deliveryDimensions, candidate.deliveryDimensions);
   assert.equal(furniture.imageDataUrl, candidate.imageDataUrl);
   assert.equal(furniture.appliedCandidateId, "candidate-a");
